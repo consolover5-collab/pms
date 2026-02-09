@@ -1,0 +1,39 @@
+import {
+  pgTable,
+  uuid,
+  varchar,
+  integer,
+  numeric,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
+import { properties } from "./properties";
+
+export const roomTypes = pgTable("room_types", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  propertyId: uuid("property_id")
+    .notNull()
+    .references(() => properties.id),
+  name: varchar("name", { length: 100 }).notNull(),
+  code: varchar("code", { length: 10 }).notNull(),
+  maxOccupancy: integer("max_occupancy").notNull().default(2),
+  baseRate: numeric("base_rate", { precision: 10, scale: 2 }).notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const rooms = pgTable("rooms", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  propertyId: uuid("property_id")
+    .notNull()
+    .references(() => properties.id),
+  roomTypeId: uuid("room_type_id")
+    .notNull()
+    .references(() => roomTypes.id),
+  roomNumber: varchar("room_number", { length: 10 }).notNull(),
+  floor: integer("floor").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("clean"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});

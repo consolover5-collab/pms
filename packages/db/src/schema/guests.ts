@@ -1,0 +1,21 @@
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
+
+export const guests = pgTable("guests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  email: varchar("email", { length: 255 }),
+  phone: varchar("phone", { length: 50 }),
+  documentType: varchar("document_type", { length: 50 }),
+  documentNumber: varchar("document_number", { length: 100 }),
+  nationality: varchar("nationality", { length: 100 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});

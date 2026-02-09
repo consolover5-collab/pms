@@ -1,0 +1,26 @@
+{
+  "name": "@pms/db",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx src/seed.ts",
+    "db:studio": "drizzle-kit studio",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.44",
+    "postgres": "^3.4"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31",
+    "tsx": "^4",
+    "typescript": "^5.7",
+    "@pms/shared": "workspace:*"
+  }
+}
