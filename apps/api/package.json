@@ -1,0 +1,24 @@
+{
+  "name": "@pms/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fastify": "^5",
+    "@fastify/cors": "^11",
+    "dotenv": "^16",
+    "@pms/db": "workspace:*",
+    "@pms/domain": "workspace:*",
+    "@pms/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4",
+    "typescript": "^5.7"
+  }
+}
