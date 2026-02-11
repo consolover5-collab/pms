@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "opera": {
+      "command": "uv",
+      "args": ["--directory", "/home/oci/pms/tools/mcp-server", "run", "opera-mcp"],
+      "env": {
+        "OPERA_DB_HOST": "changeme",
+        "OPERA_DB_PORT": "1521",
+        "OPERA_DB_SERVICE": "changeme",
+        "OPERA_DB_USER": "changeme",
+        "OPERA_DB_PASSWORD": "changeme"
+      }
+    }
+  }
+}
