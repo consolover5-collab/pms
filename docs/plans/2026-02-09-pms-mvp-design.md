@@ -150,7 +150,7 @@ Key principle: business logic lives in `packages/domain/` — pure functions, no
 3. Rate Management (seasons, restrictions)
 4. MCP server for Opera migration
 
-## Legacy Reference
-Opera PMS V5.6 Data Dictionary available at `~/OPERA_Data_Dictionary_v5.614.0 (2).pdf`.
-Key mapping: NAME -> Guest, RESERVATION_NAME -> Booking, ROOM -> Room, RESORT -> Property.
-Clean-room implementation — we do NOT copy table structures.
+## Design Approach
+Clean-room implementation based on hospitality industry standards (HTNG, OTA).
+We do NOT copy table structures or naming from any vendor.
+All codes, schema design, and naming conventions are our own.
