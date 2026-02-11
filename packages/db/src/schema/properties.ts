@@ -1,4 +1,12 @@
-import { pgTable, uuid, varchar, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  time,
+  integer,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const properties = pgTable("properties", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -9,6 +17,10 @@ export const properties = pgTable("properties", {
   country: varchar("country", { length: 100 }),
   timezone: varchar("timezone", { length: 50 }).notNull().default("UTC"),
   currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  checkInTime: time("check_in_time").notNull().default("14:00"),
+  checkOutTime: time("check_out_time").notNull().default("12:00"),
+  numberOfRooms: integer("number_of_rooms"),
+  numberOfFloors: integer("number_of_floors"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
