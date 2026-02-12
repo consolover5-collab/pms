@@ -157,8 +157,24 @@ async function seed() {
     })),
   );
 
+  // Guests — fictional demo data
+  const guestData = [
+    { firstName: "Анна", lastName: "Петрова", email: "anna.p@example.com", phone: "+79211234567", nationality: "RU", gender: "F", language: "ru", dateOfBirth: "1985-03-15", vipStatus: null },
+    { firstName: "Иван", lastName: "Сидоров", email: "ivan.s@example.com", phone: "+79219876543", nationality: "RU", gender: "M", language: "ru", dateOfBirth: "1978-07-22", vipStatus: 3 },
+    { firstName: "John", lastName: "Smith", email: "j.smith@example.com", phone: "+441234567890", nationality: "GB", gender: "M", language: "en", dateOfBirth: "1990-11-30", vipStatus: null },
+    { firstName: "Maria", lastName: "Garcia", email: "maria.g@example.com", phone: "+34612345678", nationality: "ES", gender: "F", language: "es", dateOfBirth: "1992-01-08", vipStatus: 2 },
+    { firstName: "Дмитрий", lastName: "Козлов", email: null, phone: "+79031112233", nationality: "RU", gender: "M", language: "ru", dateOfBirth: null, vipStatus: null },
+    { firstName: "Elena", lastName: "Mueller", email: "e.mueller@example.com", phone: "+4917612345678", nationality: "DE", gender: "F", language: "de", dateOfBirth: "1988-06-20", vipStatus: 1 },
+    { firstName: "Олег", lastName: "Новиков", email: "oleg.n@example.com", phone: "+79165554433", nationality: "RU", gender: "M", language: "ru", dateOfBirth: "1975-12-01", vipStatus: 5 },
+    { firstName: "Sophie", lastName: "Dubois", email: "sophie.d@example.com", phone: null, nationality: "FR", gender: "F", language: "fr", dateOfBirth: "1995-09-14", vipStatus: null },
+    { firstName: "Алексей", lastName: "Волков", email: "a.volkov@example.com", phone: "+79261234567", nationality: "RU", gender: "M", language: "ru", dateOfBirth: "1982-04-25", vipStatus: null },
+    { firstName: "Yuki", lastName: "Tanaka", email: "yuki.t@example.com", phone: "+81901234567", nationality: "JP", gender: "F", language: "en", dateOfBirth: "1993-08-11", vipStatus: null },
+  ];
+
+  await db.insert(guests).values(guestData);
+
   console.log(
-    `Seeded: 1 property, ${types.length} room types, ${roomData.length} rooms`,
+    `Seeded: 1 property, ${types.length} room types, ${roomData.length} rooms, ${guestData.length} guests`,
   );
   process.exit(0);
 }
