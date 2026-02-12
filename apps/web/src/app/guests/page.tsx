@@ -1,0 +1,104 @@
+import { apiFetch } from "@/lib/api";
+import { SearchForm } from "./search-form";
+
+type Guest = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  phone: string | null;
+  nationality: string | null;
+  gender: string | null;
+  vipStatus: number | null;
+};
+
+export default async function GuestsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+  const queryStr = q ? `?q=${encodeURIComponent(q)}` : "";
+  const guests = await apiFetch<Guest[]>(`/api/guests${queryStr}`);
+
+  const vipBadge = (level: number) => {
+    const colors = [
+      "",
+      "bg-yellow-100 text-yellow-800",
+      "bg-yellow-200 text-yellow-900",
+      "bg-orange-100 text-orange-800",
+      "bg-orange-200 text-orange-900",
+      "bg-red-100 text-red-800",
+    ];
+    return colors[level] || "";
+  };
+
+  return (
+    <main className="p-8">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Guests</h1>
+        <a
+          href="/guests/new"
+          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+        >
+          + New Guest
+        </a>
+      </div>
+
+      <SearchForm />
+
+      {q && (
+        <p className="text-sm text-gray-500 mb-4">
+          Results for &quot;{q}&quot;: {guests.length} found
+        </p>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="border-b text-left">
+              <th className="p-2">Name</th>
+              <th className="p-2">Email</th>
+              <th className="p-2">Phone</th>
+              <th className="p-2">Nationality</th>
+              <th className="p-2">VIP</th>
+            </tr>
+          </thead>
+          <tbody>
+            {guests.map((guest) => (
+              <tr key={guest.id} className="border-b hover:bg-gray-50">
+                <td className="p-2">
+                  <a
+                    href={`/guests/${guest.id}`}
+                    className="text-blue-600 hover:underline font-medium"
+                  >
+                    {guest.lastName}, {guest.firstName}
+                  </a>
+                </td>
+                <td className="p-2 text-gray-600">{guest.email || "\u2014"}</td>
+                <td className="p-2 text-gray-600">{guest.phone || "\u2014"}</td>
+                <td className="p-2">{guest.nationality || "\u2014"}</td>
+                <td className="p-2">
+                  {guest.vipStatus ? (
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${vipBadge(guest.vipStatus)}`}
+                    >
+                      VIP {guest.vipStatus}
+                    </span>
+                  ) : null}
+                </td>
+              </tr>
+            ))}
+            {guests.length === 0 && (
+              <tr>
+                <td colSpan={5} className="p-4 text-center text-gray-500">
+                  {q ? "No guests found" : "No guests yet"}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </main>
+  );
+}
