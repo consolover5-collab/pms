@@ -5,6 +5,7 @@ import { healthRoutes } from "./routes/health";
 import { propertiesRoutes } from "./routes/properties";
 import { roomTypesRoutes } from "./routes/room-types";
 import { roomsRoutes } from "./routes/rooms";
+import { guestsRoutes } from "./routes/guests";
 
 export async function buildApp() {
   const app = Fastify({ logger: true });
@@ -15,6 +16,7 @@ export async function buildApp() {
   await app.register(propertiesRoutes);
   await app.register(roomTypesRoutes);
   await app.register(roomsRoutes);
+  await app.register(guestsRoutes);
 
   return app;
 }

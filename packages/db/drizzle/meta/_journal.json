@@ -15,6 +15,13 @@
       "when": 1770841122822,
       "tag": "0001_public_wrecking_crew",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1770877016187,
+      "tag": "0002_curious_agent_brand",
+      "breakpoints": true
     }
   ]
 }

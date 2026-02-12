@@ -12,6 +12,12 @@ export default function Home() {
         >
           Rooms
         </a>
+        <a
+          href="/guests"
+          className="rounded-lg bg-blue-600 px-6 py-3 text-white hover:bg-blue-700"
+        >
+          Guests
+        </a>
       </div>
     </main>
   );
