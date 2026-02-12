@@ -157,18 +157,18 @@ async function seed() {
     })),
   );
 
-  // Guests — fictional demo data
+  // Guests — migrated from Opera PMS (anonymized production data)
   const guestData = [
-    { firstName: "Анна", lastName: "Петрова", email: "anna.p@example.com", phone: "+79211234567", nationality: "RU", gender: "F", language: "ru", dateOfBirth: "1985-03-15", vipStatus: null },
-    { firstName: "Иван", lastName: "Сидоров", email: "ivan.s@example.com", phone: "+79219876543", nationality: "RU", gender: "M", language: "ru", dateOfBirth: "1978-07-22", vipStatus: 3 },
-    { firstName: "John", lastName: "Smith", email: "j.smith@example.com", phone: "+441234567890", nationality: "GB", gender: "M", language: "en", dateOfBirth: "1990-11-30", vipStatus: null },
-    { firstName: "Maria", lastName: "Garcia", email: "maria.g@example.com", phone: "+34612345678", nationality: "ES", gender: "F", language: "es", dateOfBirth: "1992-01-08", vipStatus: 2 },
-    { firstName: "Дмитрий", lastName: "Козлов", email: null, phone: "+79031112233", nationality: "RU", gender: "M", language: "ru", dateOfBirth: null, vipStatus: null },
-    { firstName: "Elena", lastName: "Mueller", email: "e.mueller@example.com", phone: "+4917612345678", nationality: "DE", gender: "F", language: "de", dateOfBirth: "1988-06-20", vipStatus: 1 },
-    { firstName: "Олег", lastName: "Новиков", email: "oleg.n@example.com", phone: "+79165554433", nationality: "RU", gender: "M", language: "ru", dateOfBirth: "1975-12-01", vipStatus: 5 },
-    { firstName: "Sophie", lastName: "Dubois", email: "sophie.d@example.com", phone: null, nationality: "FR", gender: "F", language: "fr", dateOfBirth: "1995-09-14", vipStatus: null },
-    { firstName: "Алексей", lastName: "Волков", email: "a.volkov@example.com", phone: "+79261234567", nationality: "RU", gender: "M", language: "ru", dateOfBirth: "1982-04-25", vipStatus: null },
-    { firstName: "Yuki", lastName: "Tanaka", email: "yuki.t@example.com", phone: "+81901234567", nationality: "JP", gender: "F", language: "en", dateOfBirth: "1993-08-11", vipStatus: null },
+    { firstName: "FN470", lastName: "LN470", email: "qwwixhpmik@hifqxmakjr.com", phone: "+78624065146", nationality: "DE", gender: "M", language: "en", vipStatus: 1 },
+    { firstName: "FN1086", lastName: "LN1086", email: "nuvaxtqfdl@vqbgsrhhtm.com", phone: "+57231554221", nationality: "RU", gender: "F", language: "ru", vipStatus: 1 },
+    { firstName: "FN568", lastName: "LN568", email: "motbsxbaov@bkdexfspzo.com", phone: "+35491178301", nationality: "RU", gender: "F", language: "ru", vipStatus: 2 },
+    { firstName: "FN2070", lastName: "LN2070", email: "lcunsfgfey@seurjwqugg.com", phone: "+03687170473", nationality: "RU", gender: "F", language: "ru", vipStatus: 2 },
+    { firstName: "FN802", lastName: "LN802", email: "evxoafhupn@dzfsaodebr.com", phone: "+10163015218", nationality: "RU", gender: "M", language: "ru", vipStatus: 3 },
+    { firstName: "FN869", lastName: "LN869", email: "hhvmqamgzf@mmdsndbcsa.com", phone: "+38642417843", nationality: "RU", gender: "F", language: "ru", vipStatus: 3 },
+    { firstName: "FN254", lastName: "LN254", email: "ntgfaoezmn@hrtzyjshru.com", phone: "+95296882573", nationality: "RU", gender: "M", language: "ru", vipStatus: 4 },
+    { firstName: "FN1749", lastName: "LN1749", email: "slctobadiv@fufzpuoqfp.com", phone: "+53662234244", nationality: "PL", gender: "M", language: "en", vipStatus: 1 },
+    { firstName: "FN5946", lastName: "LN5946", email: "qxkmwnmaqb@sptlmcgufj.com", phone: "+81184237969", nationality: "RU", gender: "M", language: "ru", vipStatus: 5 },
+    { firstName: "FN7162", lastName: "LN7162", email: "vexfsovrpo@cbrbichbuv.com", phone: "+42678577858", nationality: "RU", gender: "M", language: "ru", vipStatus: 5 },
   ];
 
   await db.insert(guests).values(guestData);
