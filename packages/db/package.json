@@ -14,13 +14,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "dotenv": "^16.6.1",
     "drizzle-orm": "^0.44",
     "postgres": "^3.4"
   },
   "devDependencies": {
+    "@pms/shared": "workspace:*",
     "drizzle-kit": "^0.31",
     "tsx": "^4",
-    "typescript": "^5.7",
-    "@pms/shared": "workspace:*"
+    "typescript": "^5.7"
   }
 }

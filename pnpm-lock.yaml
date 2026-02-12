@@ -32,6 +32,9 @@ importers:
       dotenv:
         specifier: ^16
         version: 16.6.1
+      drizzle-orm:
+        specifier: ^0.44
+        version: 0.44.7(postgres@3.4.8)
       fastify:
         specifier: ^5
         version: 5.7.4
@@ -85,6 +88,9 @@ importers:
 
   packages/db:
     dependencies:
+      dotenv:
+        specifier: ^16.6.1
+        version: 16.6.1
       drizzle-orm:
         specifier: ^0.44
         version: 0.44.7(postgres@3.4.8)
