@@ -7,6 +7,7 @@ import {
   text,
   boolean,
   timestamp,
+  decimal,
 } from "drizzle-orm/pg-core";
 import { properties } from "./properties";
 import { rooms, roomTypes } from "./rooms";
@@ -20,6 +21,7 @@ export const ratePlans = pgTable("rate_plans", {
   code: varchar("code", { length: 20 }).notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
+  baseRate: decimal("base_rate", { precision: 10, scale: 2 }),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -37,18 +39,21 @@ export const bookings = pgTable("bookings", {
   roomTypeId: uuid("room_type_id")
     .notNull()
     .references(() => roomTypes.id),
-  ratePlanId: uuid("rate_plan_id")
-    .notNull()
-    .references(() => ratePlans.id),
+  ratePlanId: uuid("rate_plan_id").references(() => ratePlans.id),
   confirmationNumber: varchar("confirmation_number", { length: 20 })
     .notNull()
     .unique(),
-  checkIn: date("check_in").notNull(),
-  checkOut: date("check_out").notNull(),
+  checkInDate: date("check_in_date").notNull(),
+  checkOutDate: date("check_out_date").notNull(),
   status: varchar("status", { length: 20 }).notNull().default("confirmed"),
   adults: integer("adults").notNull().default(1),
   children: integer("children").notNull().default(0),
-  specialRequests: text("special_requests"),
+  rateAmount: decimal("rate_amount", { precision: 10, scale: 2 }),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
+  paymentMethod: varchar("payment_method", { length: 20 }),
+  actualCheckIn: timestamp("actual_check_in"),
+  actualCheckOut: timestamp("actual_check_out"),
+  notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

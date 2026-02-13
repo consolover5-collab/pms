@@ -10,13 +10,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "fastify": "^5",
     "@fastify/cors": "^11",
-    "dotenv": "^16",
-    "drizzle-orm": "^0.44",
     "@pms/db": "workspace:*",
     "@pms/domain": "workspace:*",
-    "@pms/shared": "workspace:*"
+    "@pms/shared": "workspace:*",
+    "dotenv": "^16",
+    "drizzle-orm": "^0.44",
+    "fastify": "^5",
+    "fastify-plugin": "^5.1.0"
   },
   "devDependencies": {
     "tsx": "^4",

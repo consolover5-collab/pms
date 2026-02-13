@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { guests } from "@pms/db";
-import { eq, or, ilike } from "drizzle-orm";
+import { eq, or, ilike, and } from "drizzle-orm";
 
 export const guestsRoutes: FastifyPluginAsync = async (app) => {
   // Search guests by name, email, or phone
@@ -59,8 +59,29 @@ export const guestsRoutes: FastifyPluginAsync = async (app) => {
       dateOfBirth?: string;
       vipStatus?: number;
       notes?: string;
+      force?: boolean;
     };
   }>("/api/guests", async (request, reply) => {
+    // Проверка дубликатов
+    const possibleDuplicates = await app.db
+      .select({ id: guests.id, firstName: guests.firstName, lastName: guests.lastName, email: guests.email })
+      .from(guests)
+      .where(
+        and(
+          ilike(guests.firstName, request.body.firstName),
+          ilike(guests.lastName, request.body.lastName),
+        )
+      )
+      .limit(3);
+
+    if (possibleDuplicates.length > 0 && !request.body.force) {
+      return reply.status(409).send({
+        error: `Найден(ы) похожий(е) профиль(и): ${possibleDuplicates.map(d => `${d.firstName} ${d.lastName} (${d.email || "без email"})`).join(", ")}. Используйте force=true для создания.`,
+        code: "POSSIBLE_DUPLICATE",
+        duplicates: possibleDuplicates,
+      });
+    }
+
     const [guest] = await app.db
       .insert(guests)
       .values(request.body)

@@ -1,4 +1,6 @@
 import { apiFetch } from "@/lib/api";
+import Link from "next/link";
+import { BackButton } from "@/components/back-button";
 
 type Guest = {
   id: string;
@@ -39,19 +41,25 @@ export default async function GuestDetailPage({
 
   return (
     <main className="p-8 max-w-2xl">
-      <a href="/guests" className="text-blue-600 hover:underline text-sm">
-        &larr; Back to guests
-      </a>
+      <BackButton fallbackHref="/guests" label="Back to guests" />
 
-      <div className="mt-4 flex items-center gap-3">
-        <h1 className="text-2xl font-bold">
-          {guest.firstName} {guest.lastName}
-        </h1>
-        {guest.vipStatus && (
-          <span className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-800">
-            VIP {guest.vipStatus}
-          </span>
-        )}
+      <div className="mt-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">
+            {guest.firstName} {guest.lastName}
+          </h1>
+          {guest.vipStatus && (
+            <span className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-800">
+              VIP {guest.vipStatus}
+            </span>
+          )}
+        </div>
+        <Link
+          href={`/guests/${guest.id}/edit`}
+          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+        >
+          Edit Guest
+        </Link>
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-4">

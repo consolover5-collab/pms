@@ -146,15 +146,22 @@ async function seed() {
   roomData.push({ roomNumber: "703", floor: 7, typeCode: "STE" });
   roomData.push({ roomNumber: "704", floor: 7, typeCode: "STE" });
 
-  await db.insert(rooms).values(
-    roomData.map((r) => ({
-      propertyId: property.id,
-      roomTypeId: typeMap[r.typeCode],
-      roomNumber: r.roomNumber,
-      floor: r.floor,
-      housekeepingStatus: "clean",
-      occupancyStatus: "vacant",
-    })),
+  const insertedRooms = await db
+    .insert(rooms)
+    .values(
+      roomData.map((r) => ({
+        propertyId: property.id,
+        roomTypeId: typeMap[r.typeCode],
+        roomNumber: r.roomNumber,
+        floor: r.floor,
+        housekeepingStatus: "clean",
+        occupancyStatus: "vacant",
+      })),
+    )
+    .returning();
+
+  const roomMap = Object.fromEntries(
+    insertedRooms.map((r) => [r.roomNumber, r.id]),
   );
 
   // Guests — migrated from Opera PMS (anonymized production data)
@@ -171,12 +178,263 @@ async function seed() {
     { firstName: "FN7162", lastName: "LN7162", email: "vexfsovrpo@cbrbichbuv.com", phone: "+42678577858", nationality: "RU", gender: "M", language: "ru", vipStatus: 5 },
   ];
 
-  await db.insert(guests).values(guestData);
+  const insertedGuests = await db.insert(guests).values(guestData).returning();
+
+  // Rate plans
+  const rateData = await db
+    .insert(ratePlans)
+    .values([
+      {
+        propertyId: property.id,
+        code: "RACK",
+        name: "Rack Rate",
+        description: "Standard published rate",
+        baseRate: "5000.00",
+        isActive: true,
+      },
+      {
+        propertyId: property.id,
+        code: "PROMO",
+        name: "Promotional Rate",
+        description: "Discounted promotional rate",
+        baseRate: "4000.00",
+        isActive: true,
+      },
+      {
+        propertyId: property.id,
+        code: "CORP",
+        name: "Corporate Rate",
+        description: "Corporate discount rate",
+        baseRate: "4500.00",
+        isActive: true,
+      },
+    ])
+    .returning();
+
+  const rateMap = Object.fromEntries(rateData.map((r) => [r.code, r.id]));
+
+  // Bookings — demo data with different statuses
+  const today = new Date();
+  const bookingData = [
+    // Checked out
+    {
+      guestIdx: 0,
+      roomNumber: "301",
+      roomType: "STD",
+      rateCode: "RACK",
+      checkIn: daysAgo(5),
+      checkOut: daysAgo(2),
+      status: "checked_out",
+      adults: 1,
+      children: 0,
+      rateAmount: "4500.00",
+      totalAmount: "13500.00",
+      paymentMethod: "card",
+      actualCheckIn: daysAgo(5, 14, 30),
+      actualCheckOut: daysAgo(2, 11, 15),
+    },
+    // Checked out
+    {
+      guestIdx: 1,
+      roomNumber: "302",
+      roomType: "SUP",
+      rateCode: "PROMO",
+      checkIn: daysAgo(7),
+      checkOut: daysAgo(4),
+      status: "checked_out",
+      adults: 2,
+      children: 0,
+      rateAmount: "4400.00",
+      totalAmount: "13200.00",
+      paymentMethod: "cash",
+      actualCheckIn: daysAgo(7, 15, 0),
+      actualCheckOut: daysAgo(4, 10, 45),
+    },
+    // Currently checked in
+    {
+      guestIdx: 2,
+      roomNumber: "401",
+      roomType: "STD",
+      rateCode: "RACK",
+      checkIn: daysAgo(1),
+      checkOut: daysFromNow(2),
+      status: "checked_in",
+      adults: 1,
+      children: 0,
+      rateAmount: "4500.00",
+      totalAmount: "13500.00",
+      paymentMethod: "card",
+      actualCheckIn: daysAgo(1, 14, 20),
+      actualCheckOut: null,
+    },
+    // Currently checked in
+    {
+      guestIdx: 3,
+      roomNumber: "601",
+      roomType: "PRM",
+      rateCode: "CORP",
+      checkIn: daysAgo(2),
+      checkOut: daysFromNow(1),
+      status: "checked_in",
+      adults: 2,
+      children: 1,
+      rateAmount: "5850.00",
+      totalAmount: "17550.00",
+      paymentMethod: "card",
+      actualCheckIn: daysAgo(2, 16, 0),
+      actualCheckOut: null,
+    },
+    // Future reservation (confirmed)
+    {
+      guestIdx: 4,
+      roomNumber: "402",
+      roomType: "SUP",
+      rateCode: "RACK",
+      checkIn: daysFromNow(3),
+      checkOut: daysFromNow(6),
+      status: "confirmed",
+      adults: 2,
+      children: 0,
+      rateAmount: "5500.00",
+      totalAmount: "16500.00",
+      paymentMethod: null,
+      actualCheckIn: null,
+      actualCheckOut: null,
+    },
+    // Future reservation (confirmed)
+    {
+      guestIdx: 5,
+      roomNumber: "701",
+      roomType: "JRS",
+      rateCode: "PROMO",
+      checkIn: daysFromNow(5),
+      checkOut: daysFromNow(8),
+      status: "confirmed",
+      adults: 2,
+      children: 2,
+      rateAmount: "6800.00",
+      totalAmount: "20400.00",
+      paymentMethod: null,
+      actualCheckIn: null,
+      actualCheckOut: null,
+    },
+    // Cancelled
+    {
+      guestIdx: 6,
+      roomNumber: null,
+      roomType: "STD",
+      rateCode: "RACK",
+      checkIn: daysAgo(3),
+      checkOut: daysAgo(1),
+      status: "cancelled",
+      adults: 1,
+      children: 0,
+      rateAmount: "4500.00",
+      totalAmount: "0.00",
+      paymentMethod: null,
+      actualCheckIn: null,
+      actualCheckOut: null,
+    },
+    // No show
+    {
+      guestIdx: 7,
+      roomNumber: null,
+      roomType: "SUP",
+      rateCode: "CORP",
+      checkIn: daysAgo(1),
+      checkOut: daysFromNow(1),
+      status: "no_show",
+      adults: 1,
+      children: 0,
+      rateAmount: "4950.00",
+      totalAmount: "4950.00",
+      paymentMethod: "card",
+      actualCheckIn: null,
+      actualCheckOut: null,
+    },
+    // Arriving today (confirmed)
+    {
+      guestIdx: 8,
+      roomNumber: "303",
+      roomType: "STD",
+      rateCode: "RACK",
+      checkIn: formatDate(today),
+      checkOut: daysFromNow(3),
+      status: "confirmed",
+      adults: 1,
+      children: 0,
+      rateAmount: "4500.00",
+      totalAmount: "13500.00",
+      paymentMethod: null,
+      actualCheckIn: null,
+      actualCheckOut: null,
+    },
+    // Departing today (checked in)
+    {
+      guestIdx: 9,
+      roomNumber: "304",
+      roomType: "SUP",
+      rateCode: "PROMO",
+      checkIn: daysAgo(2),
+      checkOut: formatDate(today),
+      status: "checked_in",
+      adults: 2,
+      children: 0,
+      rateAmount: "4000.00",
+      totalAmount: "8000.00",
+      paymentMethod: "cash",
+      actualCheckIn: daysAgo(2, 15, 30),
+      actualCheckOut: null,
+    },
+  ];
+
+  let confNum = 100001;
+  for (const b of bookingData) {
+    await db.insert(bookings).values({
+      propertyId: property.id,
+      guestId: insertedGuests[b.guestIdx].id,
+      roomId: b.roomNumber ? roomMap[b.roomNumber] : null,
+      roomTypeId: typeMap[b.roomType],
+      ratePlanId: rateMap[b.rateCode],
+      confirmationNumber: String(confNum++),
+      checkInDate: b.checkIn,
+      checkOutDate: b.checkOut,
+      status: b.status,
+      adults: b.adults,
+      children: b.children,
+      rateAmount: b.rateAmount,
+      totalAmount: b.totalAmount,
+      paymentMethod: b.paymentMethod,
+      actualCheckIn: b.actualCheckIn ? new Date(b.actualCheckIn) : null,
+      actualCheckOut: b.actualCheckOut ? new Date(b.actualCheckOut) : null,
+    });
+  }
 
   console.log(
-    `Seeded: 1 property, ${types.length} room types, ${roomData.length} rooms, ${guestData.length} guests`,
+    `Seeded: 1 property, ${types.length} room types, ${roomData.length} rooms, ${guestData.length} guests, ${rateData.length} rate plans, ${bookingData.length} bookings`,
   );
   process.exit(0);
+}
+
+// Helper functions
+function formatDate(d: Date): string {
+  return d.toISOString().split("T")[0];
+}
+
+function daysAgo(days: number, hour?: number, min?: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  if (hour !== undefined) {
+    d.setHours(hour, min || 0, 0, 0);
+    return d.toISOString();
+  }
+  return formatDate(d);
+}
+
+function daysFromNow(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return formatDate(d);
 }
 
 seed().catch((err) => {

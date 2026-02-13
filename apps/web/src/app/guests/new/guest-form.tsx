@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export function GuestForm() {
   const router = useRouter();
@@ -30,7 +29,7 @@ export function GuestForm() {
     if (vip && String(vip).trim()) body.vipStatus = Number(vip);
 
     try {
-      const res = await fetch(`${API_URL}/api/guests`, {
+      const res = await fetch(`/api/guests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

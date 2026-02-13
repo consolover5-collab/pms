@@ -6,6 +6,7 @@ import {
   numeric,
   text,
   timestamp,
+  unique,
 } from "drizzle-orm/pg-core";
 import { properties } from "./properties";
 
@@ -42,4 +43,6 @@ export const rooms = pgTable("rooms", {
     .default("vacant"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => [
+  unique("rooms_property_room_number").on(table.propertyId, table.roomNumber),
+]);

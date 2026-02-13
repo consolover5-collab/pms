@@ -18,4 +18,31 @@ export const propertiesRoutes: FastifyPluginAsync = async (app) => {
       return property;
     },
   );
+
+  // Update property
+  app.put<{
+    Params: { id: string };
+    Body: {
+      name?: string;
+      code?: string;
+      address?: string;
+      city?: string;
+      country?: string;
+      timezone?: string;
+      currency?: string;
+      checkInTime?: string;
+      checkOutTime?: string;
+      numberOfRooms?: number;
+      numberOfFloors?: number;
+    };
+  }>("/api/properties/:id", async (request, reply) => {
+    const [updated] = await app.db
+      .update(properties)
+      .set({ ...request.body, updatedAt: new Date() })
+      .where(eq(properties.id, request.params.id))
+      .returning();
+
+    if (!updated) return reply.status(404).send({ error: "Not found" });
+    return updated;
+  });
 };

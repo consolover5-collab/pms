@@ -7,9 +7,11 @@ import {
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
+import { properties } from "./properties";
 
 export const guests = pgTable("guests", {
   id: uuid("id").primaryKey().defaultRandom(),
+  propertyId: uuid("property_id").references(() => properties.id),
   firstName: varchar("first_name", { length: 100 }).notNull(),
   lastName: varchar("last_name", { length: 100 }).notNull(),
   email: varchar("email", { length: 255 }),

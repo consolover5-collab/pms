@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api";
+import Link from "next/link";
 import { SearchForm } from "./search-form";
 
 type Guest = {
@@ -37,12 +38,12 @@ export default async function GuestsPage({
     <main className="p-8">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Guests</h1>
-        <a
+        <Link
           href="/guests/new"
           className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
         >
           + New Guest
-        </a>
+        </Link>
       </div>
 
       <SearchForm />
@@ -68,12 +69,12 @@ export default async function GuestsPage({
             {guests.map((guest) => (
               <tr key={guest.id} className="border-b hover:bg-gray-50">
                 <td className="p-2">
-                  <a
+                  <Link
                     href={`/guests/${guest.id}`}
                     className="text-blue-600 hover:underline font-medium"
                   >
                     {guest.lastName}, {guest.firstName}
-                  </a>
+                  </Link>
                 </td>
                 <td className="p-2 text-gray-600">{guest.email || "\u2014"}</td>
                 <td className="p-2 text-gray-600">{guest.phone || "\u2014"}</td>
