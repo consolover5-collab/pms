@@ -9,6 +9,7 @@ import { guestsRoutes } from "./routes/guests";
 import { bookingsRoutes } from "./routes/bookings";
 import { ratePlansRoutes } from "./routes/rate-plans";
 import { nightAuditRoutes } from "./routes/night-audit";
+import { dashboardRoutes } from "./routes/dashboard";
 
 export async function buildApp() {
   const app = Fastify({ logger: true });
@@ -23,6 +24,7 @@ export async function buildApp() {
   await app.register(bookingsRoutes);
   await app.register(ratePlansRoutes);
   await app.register(nightAuditRoutes);
+  await app.register(dashboardRoutes);
 
   return app;
 }
