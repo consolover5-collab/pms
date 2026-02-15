@@ -1,6 +1,13 @@
 import { bookings, rooms, roomTypes } from "@pms/db";
 import { eq, and, ne, lt, gt, or } from "drizzle-orm";
 
+export const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isValidUuid(value: string): boolean {
+  return UUID_RE.test(value);
+}
+
 // Тип для db передаётся как any — Drizzle transaction и основной db совместимы
 export async function checkRoomConflict(
   db: any,

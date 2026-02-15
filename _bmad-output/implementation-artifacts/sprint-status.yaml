@@ -83,12 +83,12 @@ development_status:
   6-3-login-page-and-frontend-session-handling: backlog
   epic-6-retrospective: optional
 
-  # Epic 7: Financial Core [Phase 5]
-  epic-7: backlog
-  7-1-business-date-schema-seed-and-api: backlog
-  7-2-transaction-codes-schema-and-seed: backlog
-  7-3-folio-transactions-schema-and-domain-logic: backlog
-  7-4-folio-crud-api: backlog
-  7-5-night-audit-v2: backlog
-  7-6-financial-core-ui: backlog
+  # Epic 7: Financial Core [Phase 5 — COMPLETE]
+  epic-7: done
+  7-1-business-date-schema-seed-and-api: done
+  7-2-transaction-codes-schema-and-seed: done
+  7-3-folio-transactions-schema-and-domain-logic: done
+  7-4-folio-crud-api: done
+  7-5-night-audit-v2: done
+  7-6-financial-core-ui: done
   epic-7-retrospective: optional

@@ -13,6 +13,9 @@ import {
   bookings,
   ratePlans,
   guests,
+  businessDates,
+  transactionCodes,
+  folioTransactions,
 } from "./schema/index";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -24,6 +27,9 @@ async function seed() {
   console.log("Seeding database...");
 
   // Clear existing data (reverse FK order)
+  await db.delete(folioTransactions);
+  await db.delete(transactionCodes);
+  await db.delete(businessDates);
   await db.delete(bookings);
   await db.delete(ratePlans);
   await db.delete(rooms);
@@ -46,6 +52,7 @@ async function seed() {
       checkOutTime: "12:00",
       numberOfRooms: 50,
       numberOfFloors: 7,
+      taxRate: "20.00",
     })
     .returning();
 
@@ -410,8 +417,142 @@ async function seed() {
     });
   }
 
+  // Business date — today, open
+  const todayStr = formatDate(today);
+  await db.insert(businessDates).values({
+    propertyId: property.id,
+    date: todayStr,
+    status: "open",
+  });
+
+  // Transaction codes — 12 codes: adjustment codes first, then revenue/payment
+  const adjCodes = await db
+    .insert(transactionCodes)
+    .values([
+      {
+        propertyId: property.id,
+        code: "ADJ_ROOM",
+        description: "Room Charge Adjustment",
+        groupCode: "ADJUSTMENT",
+        transactionType: "charge",
+        isManualPostAllowed: true,
+        sortOrder: 1,
+      },
+      {
+        propertyId: property.id,
+        code: "ADJ_FB",
+        description: "F&B Adjustment",
+        groupCode: "ADJUSTMENT",
+        transactionType: "charge",
+        isManualPostAllowed: true,
+        sortOrder: 2,
+      },
+    ])
+    .returning();
+
+  const adjMap = Object.fromEntries(adjCodes.map((c) => [c.code, c.id]));
+
+  await db.insert(transactionCodes).values([
+    {
+      propertyId: property.id,
+      code: "ROOM",
+      description: "Room Charge",
+      groupCode: "ROOM",
+      transactionType: "charge",
+      isManualPostAllowed: false,
+      adjustmentCodeId: adjMap["ADJ_ROOM"],
+      sortOrder: 10,
+    },
+    {
+      propertyId: property.id,
+      code: "ROOM_TAX",
+      description: "Room Tax",
+      groupCode: "TAX",
+      transactionType: "charge",
+      isManualPostAllowed: false,
+      sortOrder: 11,
+    },
+    {
+      propertyId: property.id,
+      code: "EXTRA_BED",
+      description: "Extra Bed Charge",
+      groupCode: "ROOM",
+      transactionType: "charge",
+      isManualPostAllowed: true,
+      adjustmentCodeId: adjMap["ADJ_ROOM"],
+      sortOrder: 12,
+    },
+    {
+      propertyId: property.id,
+      code: "NO_SHOW",
+      description: "No-Show Charge",
+      groupCode: "ROOM",
+      transactionType: "charge",
+      isManualPostAllowed: false,
+      adjustmentCodeId: adjMap["ADJ_ROOM"],
+      sortOrder: 13,
+    },
+    {
+      propertyId: property.id,
+      code: "PAY_CASH",
+      description: "Cash Payment",
+      groupCode: "PAYMENT",
+      transactionType: "payment",
+      isManualPostAllowed: true,
+      sortOrder: 20,
+    },
+    {
+      propertyId: property.id,
+      code: "PAY_CARD",
+      description: "Credit Card Payment",
+      groupCode: "PAYMENT",
+      transactionType: "payment",
+      isManualPostAllowed: true,
+      sortOrder: 21,
+    },
+    {
+      propertyId: property.id,
+      code: "PAY_TRANSFER",
+      description: "Bank Transfer",
+      groupCode: "PAYMENT",
+      transactionType: "payment",
+      isManualPostAllowed: true,
+      sortOrder: 22,
+    },
+    {
+      propertyId: property.id,
+      code: "FB_REST",
+      description: "Restaurant Charge",
+      groupCode: "FB",
+      transactionType: "charge",
+      isManualPostAllowed: true,
+      adjustmentCodeId: adjMap["ADJ_FB"],
+      sortOrder: 30,
+    },
+    {
+      propertyId: property.id,
+      code: "FB_BAR",
+      description: "Bar Charge",
+      groupCode: "FB",
+      transactionType: "charge",
+      isManualPostAllowed: true,
+      adjustmentCodeId: adjMap["ADJ_FB"],
+      sortOrder: 31,
+    },
+    {
+      propertyId: property.id,
+      code: "MINIBAR",
+      description: "Minibar Charge",
+      groupCode: "FB",
+      transactionType: "charge",
+      isManualPostAllowed: true,
+      adjustmentCodeId: adjMap["ADJ_FB"],
+      sortOrder: 32,
+    },
+  ]);
+
   console.log(
-    `Seeded: 1 property, ${types.length} room types, ${roomData.length} rooms, ${guestData.length} guests, ${rateData.length} rate plans, ${bookingData.length} bookings`,
+    `Seeded: 1 property, ${types.length} room types, ${roomData.length} rooms, ${guestData.length} guests, ${rateData.length} rate plans, ${bookingData.length} bookings, 1 business date, 12 transaction codes`,
   );
   process.exit(0);
 }

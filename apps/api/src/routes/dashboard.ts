@@ -1,14 +1,25 @@
 import type { FastifyPluginAsync } from "fastify";
-import { bookings, guests, rooms, roomTypes } from "@pms/db";
+import { bookings, guests, rooms, roomTypes, businessDates } from "@pms/db";
 import { eq, and, count } from "drizzle-orm";
+import { isValidUuid } from "../lib/validation";
 
-// TODO: Replace with business date from business_dates table (Epic 7)
-function getToday(): string {
-  return new Date().toISOString().split("T")[0];
+async function getBusinessDate(
+  db: any,
+  propertyId: string,
+): Promise<string> {
+  const [bizDate] = await db
+    .select({ date: businessDates.date })
+    .from(businessDates)
+    .where(
+      and(
+        eq(businessDates.propertyId, propertyId),
+        eq(businessDates.status, "open"),
+      ),
+    );
+  // Fallback to system date if no business date configured
+  return bizDate?.date ?? new Date().toISOString().split("T")[0];
 }
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const dashboardRoutes: FastifyPluginAsync = async (app) => {
   // Today's arrivals: confirmed bookings with checkInDate = today
@@ -19,11 +30,11 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     if (!propertyId) {
       return reply.status(400).send({ error: "propertyId is required" });
     }
-    if (!UUID_RE.test(propertyId)) {
+    if (!isValidUuid(propertyId)) {
       return reply.status(400).send({ error: "Invalid propertyId format" });
     }
 
-    const today = getToday();
+    const today = await getBusinessDate(app.db, propertyId);
 
     const result = await app.db
       .select({
@@ -72,11 +83,11 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     if (!propertyId) {
       return reply.status(400).send({ error: "propertyId is required" });
     }
-    if (!UUID_RE.test(propertyId)) {
+    if (!isValidUuid(propertyId)) {
       return reply.status(400).send({ error: "Invalid propertyId format" });
     }
 
-    const today = getToday();
+    const today = await getBusinessDate(app.db, propertyId);
 
     const result = await app.db
       .select({
@@ -121,7 +132,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     if (!propertyId) {
       return reply.status(400).send({ error: "propertyId is required" });
     }
-    if (!UUID_RE.test(propertyId)) {
+    if (!isValidUuid(propertyId)) {
       return reply.status(400).send({ error: "Invalid propertyId format" });
     }
 
@@ -168,11 +179,11 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     if (!propertyId) {
       return reply.status(400).send({ error: "propertyId is required" });
     }
-    if (!UUID_RE.test(propertyId)) {
+    if (!isValidUuid(propertyId)) {
       return reply.status(400).send({ error: "Invalid propertyId format" });
     }
 
-    const today = getToday();
+    const today = await getBusinessDate(app.db, propertyId);
 
     // Room status counts — single pass reduce
     const allRooms = await app.db

@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import { BookingActions } from "./booking-actions";
+import { FolioSection } from "./folio-section";
 import { BackButton } from "@/components/back-button";
 
 type Booking = {
@@ -201,6 +202,9 @@ export default async function BookingDetailPage({
           <p className="text-sm bg-gray-50 p-3 rounded">{booking.notes}</p>
         </div>
       )}
+
+      {/* Folio */}
+      <FolioSection bookingId={booking.id} />
 
       <div className="mt-6 text-xs text-gray-400">
         Created: {new Date(booking.createdAt).toLocaleString()}

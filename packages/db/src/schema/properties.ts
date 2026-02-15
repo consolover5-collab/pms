@@ -5,6 +5,7 @@ import {
   text,
   time,
   integer,
+  decimal,
   timestamp,
 } from "drizzle-orm/pg-core";
 
@@ -21,6 +22,7 @@ export const properties = pgTable("properties", {
   checkOutTime: time("check_out_time").notNull().default("12:00"),
   numberOfRooms: integer("number_of_rooms"),
   numberOfFloors: integer("number_of_floors"),
+  taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).notNull().default("0"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

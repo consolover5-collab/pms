@@ -9,12 +9,13 @@ const navItems = [
   { href: "/bookings", label: "Bookings", labelRu: "Бронирования" },
   { href: "/rooms", label: "Rooms", labelRu: "Номера" },
   { href: "/guests", label: "Guests", labelRu: "Гости" },
+  { href: "/night-audit", label: "Night Audit", labelRu: "Ночной аудит" },
   { href: "/configuration", label: "Settings", labelRu: "Настройки" },
-  { href: "/help", label: "Help", labelRu: "Справка" },
 ];
 
-function formatBusinessDate(date: Date): string {
-  return date.toLocaleDateString("ru-RU", {
+function formatBusinessDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("ru-RU", {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -27,7 +28,32 @@ export function Navbar() {
   const [businessDate, setBusinessDate] = useState<string>("");
 
   useEffect(() => {
-    setBusinessDate(formatBusinessDate(new Date()));
+    async function fetchBusinessDate() {
+      try {
+        const propRes = await fetch("/api/properties");
+        if (!propRes.ok) return;
+        const properties = await propRes.json();
+        if (!properties.length) return;
+
+        const bdRes = await fetch(
+          `/api/business-date?propertyId=${properties[0].id}`,
+        );
+        if (!bdRes.ok) {
+          // Fallback to system date
+          setBusinessDate(
+            formatBusinessDate(new Date().toISOString().split("T")[0]),
+          );
+          return;
+        }
+        const bd = await bdRes.json();
+        setBusinessDate(formatBusinessDate(bd.date));
+      } catch {
+        setBusinessDate(
+          formatBusinessDate(new Date().toISOString().split("T")[0]),
+        );
+      }
+    }
+    fetchBusinessDate();
   }, []);
 
   const isActive = (href: string) => {

@@ -1,88 +1,339 @@
 import type { FastifyPluginAsync } from "fastify";
-import { bookings, rooms } from "@pms/db";
-import { eq, and, lt } from "drizzle-orm";
+import {
+  bookings,
+  rooms,
+  properties,
+  businessDates,
+  transactionCodes,
+  folioTransactions,
+} from "@pms/db";
+import { eq, and, lt, sql } from "drizzle-orm";
+import { calculateTax } from "@pms/domain";
+import { isValidUuid } from "../lib/validation";
 
 export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
-  // Пометить прошлые confirmed-брони как no_show
-  app.post<{ Body: { propertyId: string } }>(
-    "/api/night-audit/no-shows",
-    async (request) => {
-      const today = new Date().toISOString().split("T")[0];
+  // Preview — what will Night Audit do?
+  app.post<{
+    Querystring: { propertyId?: string };
+  }>("/api/night-audit/preview", async (request, reply) => {
+    const propertyId = (request.body as { propertyId?: string })?.propertyId;
+    if (!propertyId) {
+      return reply.status(400).send({ error: "propertyId is required" });
+    }
+    if (!isValidUuid(propertyId)) {
+      return reply.status(400).send({ error: "Invalid propertyId format" });
+    }
 
-      const updated = await app.db
-        .update(bookings)
-        .set({
-          status: "no_show",
-          updatedAt: new Date(),
-        })
+    // Get open business date
+    const [bizDate] = await app.db
+      .select()
+      .from(businessDates)
+      .where(
+        and(
+          eq(businessDates.propertyId, propertyId),
+          eq(businessDates.status, "open"),
+        ),
+      );
+
+    if (!bizDate) {
+      return reply.status(404).send({ error: "No open business date" });
+    }
+
+    // Due outs: checked_in with checkOut <= business date
+    const dueOuts = await app.db
+      .select({
+        id: bookings.id,
+        confirmationNumber: bookings.confirmationNumber,
+        checkOutDate: bookings.checkOutDate,
+      })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.propertyId, propertyId),
+          eq(bookings.status, "checked_in"),
+          sql`${bookings.checkOutDate} <= ${bizDate.date}`,
+        ),
+      );
+
+    // Pending no-shows: confirmed with checkIn < business date
+    const pendingNoShows = await app.db
+      .select({
+        id: bookings.id,
+        confirmationNumber: bookings.confirmationNumber,
+      })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.propertyId, propertyId),
+          eq(bookings.status, "confirmed"),
+          lt(bookings.checkInDate, bizDate.date),
+        ),
+      );
+
+    // Rooms to charge: all checked_in bookings
+    const roomsToCharge = await app.db
+      .select({
+        id: bookings.id,
+        rateAmount: bookings.rateAmount,
+      })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.propertyId, propertyId),
+          eq(bookings.status, "checked_in"),
+        ),
+      );
+
+    // Get property tax rate
+    const [property] = await app.db
+      .select({ taxRate: properties.taxRate })
+      .from(properties)
+      .where(eq(properties.id, propertyId));
+
+    const taxRate = parseFloat(property?.taxRate || "0");
+    let estimatedRevenue = 0;
+    for (const b of roomsToCharge) {
+      const rate = parseFloat(b.rateAmount || "0");
+      estimatedRevenue += rate + calculateTax(rate, taxRate);
+    }
+
+    const warnings: string[] = [];
+    if (dueOuts.length > 0) {
+      warnings.push(
+        `${dueOuts.length} due-out guest(s) still checked in`,
+      );
+    }
+
+    return {
+      businessDate: bizDate.date,
+      dueOuts: dueOuts.length,
+      pendingNoShows: pendingNoShows.length,
+      roomsToCharge: roomsToCharge.length,
+      estimatedRevenue: Math.round(estimatedRevenue * 100) / 100,
+      warnings,
+    };
+  });
+
+  // Run Night Audit — single atomic transaction
+  app.post<{
+    Body: { propertyId: string };
+  }>("/api/night-audit/run", async (request, reply) => {
+    const { propertyId } = request.body;
+    if (!propertyId) {
+      return reply.status(400).send({ error: "propertyId is required" });
+    }
+    if (!isValidUuid(propertyId)) {
+      return reply.status(400).send({ error: "Invalid propertyId format" });
+    }
+
+    // Get open business date
+    const [bizDate] = await app.db
+      .select()
+      .from(businessDates)
+      .where(
+        and(
+          eq(businessDates.propertyId, propertyId),
+          eq(businessDates.status, "open"),
+        ),
+      );
+
+    if (!bizDate) {
+      return reply.status(404).send({ error: "No open business date" });
+    }
+
+    // Get property for tax rate
+    const [property] = await app.db
+      .select({ taxRate: properties.taxRate })
+      .from(properties)
+      .where(eq(properties.id, propertyId));
+
+    const taxRate = parseFloat(property?.taxRate || "0");
+
+    // Get ROOM and ROOM_TAX transaction codes
+    const codes = await app.db
+      .select()
+      .from(transactionCodes)
+      .where(eq(transactionCodes.propertyId, propertyId));
+
+    const roomCode = codes.find((c) => c.code === "ROOM");
+    const roomTaxCode = codes.find((c) => c.code === "ROOM_TAX");
+
+    if (!roomCode) {
+      return reply
+        .status(400)
+        .send({ error: "ROOM transaction code not found. Run seed first." });
+    }
+
+    // Execute all steps in single DB transaction
+    let result;
+    try {
+      result = await app.db.transaction(async (tx) => {
+      // Step 1: Idempotency guard — check existing ROOM charges for this business date
+      const [existingCharge] = await tx
+        .select({ id: folioTransactions.id })
+        .from(folioTransactions)
         .where(
           and(
-            eq(bookings.propertyId, request.body.propertyId),
-            eq(bookings.status, "confirmed"),
-            lt(bookings.checkInDate, today)
-          )
+            eq(folioTransactions.businessDateId, bizDate.id),
+            eq(folioTransactions.transactionCodeId, roomCode.id),
+            eq(folioTransactions.isSystemGenerated, true),
+          ),
         )
-        .returning({ id: bookings.id, confirmationNumber: bookings.confirmationNumber });
+        .limit(1);
 
-      return {
-        processed: updated.length,
-        bookings: updated,
-        message: `Помечено ${updated.length} бронирований как no-show.`,
-      };
-    }
-  );
+      if (existingCharge) {
+        throw new Error("ALREADY_RUN");
+      }
 
-  // Синхронизация occupancyStatus комнат с бронированиями
-  app.post<{ Body: { propertyId: string } }>(
-    "/api/night-audit/sync-room-status",
-    async (request) => {
-      // Найти все checked_in брони с назначенной комнатой
-      const checkedInBookings = await app.db
-        .select({ roomId: bookings.roomId })
+      // Step 2: Mark no-shows
+      const noShows = await tx
+        .update(bookings)
+        .set({ status: "no_show", updatedAt: new Date() })
+        .where(
+          and(
+            eq(bookings.propertyId, propertyId),
+            eq(bookings.status, "confirmed"),
+            lt(bookings.checkInDate, bizDate.date),
+          ),
+        )
+        .returning({ id: bookings.id });
+
+      // Step 3 & 4: Post room charges + tax for each checked_in booking
+      const checkedIn = await tx
+        .select({
+          id: bookings.id,
+          rateAmount: bookings.rateAmount,
+          roomId: bookings.roomId,
+        })
         .from(bookings)
         .where(
           and(
-            eq(bookings.propertyId, request.body.propertyId),
+            eq(bookings.propertyId, propertyId),
             eq(bookings.status, "checked_in"),
-          )
+          ),
         );
 
-      const occupiedRoomIds = checkedInBookings
-        .map((b) => b.roomId)
-        .filter((id): id is string => id !== null);
+      let roomChargesPosted = 0;
+      let taxChargesPosted = 0;
+      let totalRevenue = 0;
 
-      let fixed = 0;
+      for (const booking of checkedIn) {
+        const rate = parseFloat(booking.rateAmount || "0");
 
-      // Пометить occupied комнаты с checked_in бронями
-      for (const roomId of occupiedRoomIds) {
-        const result = await app.db
-          .update(rooms)
-          .set({ occupancyStatus: "occupied", updatedAt: new Date() })
-          .where(and(eq(rooms.id, roomId), eq(rooms.occupancyStatus, "vacant")))
+        // Room charge
+        const [roomCharge] = await tx
+          .insert(folioTransactions)
+          .values({
+            propertyId,
+            bookingId: booking.id,
+            businessDateId: bizDate.id,
+            transactionCodeId: roomCode.id,
+            debit: String(rate),
+            credit: "0",
+            description: "Room Charge",
+            isSystemGenerated: true,
+            postedBy: "NIGHT_AUDIT",
+          })
           .returning();
-        fixed += result.length;
-      }
 
-      // Пометить vacant комнаты БЕЗ checked_in броней
-      const allOccupied = await app.db
-        .select({ id: rooms.id })
-        .from(rooms)
-        .where(and(
-          eq(rooms.propertyId, request.body.propertyId),
-          eq(rooms.occupancyStatus, "occupied")
-        ));
+        roomChargesPosted++;
+        totalRevenue += rate;
 
-      for (const room of allOccupied) {
-        if (!occupiedRoomIds.includes(room.id)) {
-          await app.db
-            .update(rooms)
-            .set({ occupancyStatus: "vacant", updatedAt: new Date() })
-            .where(eq(rooms.id, room.id));
-          fixed++;
+        // Tax charge (if taxRate > 0)
+        if (taxRate > 0 && roomTaxCode) {
+          const taxAmount = calculateTax(rate, taxRate);
+          await tx.insert(folioTransactions).values({
+            propertyId,
+            bookingId: booking.id,
+            businessDateId: bizDate.id,
+            transactionCodeId: roomTaxCode.id,
+            debit: String(taxAmount),
+            credit: "0",
+            description: "Room Tax",
+            isSystemGenerated: true,
+            appliedTaxRate: String(taxRate),
+            parentTransactionId: roomCharge.id,
+            postedBy: "NIGHT_AUDIT",
+          });
+
+          taxChargesPosted++;
+          totalRevenue += taxAmount;
         }
       }
 
-      return { fixed, message: `Исправлено ${fixed} комнат.` };
+      // Step 5: Update HK — all occupied rooms → dirty
+      const roomsUpdated = await tx
+        .update(rooms)
+        .set({ housekeepingStatus: "dirty", updatedAt: new Date() })
+        .where(
+          and(
+            eq(rooms.propertyId, propertyId),
+            eq(rooms.occupancyStatus, "occupied"),
+          ),
+        )
+        .returning({ id: rooms.id });
+
+      // Step 6: Sync room statuses (occupied rooms with checked_in bookings)
+      const occupiedRoomIds = checkedIn
+        .map((b) => b.roomId)
+        .filter((id): id is string => id !== null);
+
+      const allOccupied = await tx
+        .select({ id: rooms.id })
+        .from(rooms)
+        .where(
+          and(
+            eq(rooms.propertyId, propertyId),
+            eq(rooms.occupancyStatus, "occupied"),
+          ),
+        );
+
+      for (const room of allOccupied) {
+        if (!occupiedRoomIds.includes(room.id)) {
+          await tx
+            .update(rooms)
+            .set({ occupancyStatus: "vacant", updatedAt: new Date() })
+            .where(eq(rooms.id, room.id));
+        }
+      }
+
+      // Step 7: Close business date
+      await tx
+        .update(businessDates)
+        .set({ status: "closed", closedAt: new Date() })
+        .where(eq(businessDates.id, bizDate.id));
+
+      // Step 8: Open next business date
+      const nextDate = new Date(bizDate.date + "T00:00:00");
+      nextDate.setDate(nextDate.getDate() + 1);
+      const nextDateStr = nextDate.toISOString().split("T")[0];
+
+      await tx.insert(businessDates).values({
+        propertyId,
+        date: nextDateStr,
+        status: "open",
+      });
+
+      return {
+        businessDate: bizDate.date,
+        nextBusinessDate: nextDateStr,
+        noShows: noShows.length,
+        roomChargesPosted,
+        taxChargesPosted,
+        roomsUpdated: roomsUpdated.length,
+        totalRevenue: Math.round(totalRevenue * 100) / 100,
+      };
+    });
+
+    } catch (err: any) {
+      if (err.message === "ALREADY_RUN") {
+        return reply
+          .status(409)
+          .send({ error: "Night Audit already run for this business date" });
+      }
+      throw err;
     }
-  );
+
+    return result;
+  });
 };
