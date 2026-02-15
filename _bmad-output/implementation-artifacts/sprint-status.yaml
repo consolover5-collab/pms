@@ -65,9 +65,9 @@ development_status:
   epic-3-retrospective: done
 
   # Epic 4: Front Desk Dashboard [Phase 4]
-  epic-4: in-progress
+  epic-4: done
   4-1-dashboard-api: done
-  4-2-dashboard-page: backlog
+  4-2-dashboard-page: done
   epic-4-retrospective: optional
 
   # Epic 5: Tape Chart [Phase 6]

@@ -3,26 +3,49 @@ import Link from "next/link";
 
 type Property = { id: string; name: string };
 
-type Booking = {
+type DashboardBooking = {
   id: string;
   confirmationNumber: string;
-  status: string;
-  checkInDate: string;
   checkOutDate: string;
-  guest: { firstName: string; lastName: string };
-  room: { roomNumber: string } | null;
+  guest: { id: string; firstName: string; lastName: string };
+  room: { id: string | null; roomNumber: string | null };
+  roomType: { id: string; name: string; code: string };
 };
 
-type Room = {
-  id: string;
-  roomNumber: string;
-  housekeepingStatus: string;
-  occupancyStatus: string;
+type DashboardArrival = DashboardBooking & {
+  checkInDate: string;
+  status: string;
+  adults: number;
+  children: number;
 };
+
+type DashboardSummary = {
+  totalRooms: number;
+  occupiedRooms: number;
+  vacantRooms: number;
+  outOfOrderRooms: number;
+  outOfServiceRooms: number;
+  dirtyRooms: number;
+  cleanRooms: number;
+  pickupRooms: number;
+  inspectedRooms: number;
+  arrivalsCount: number;
+  departuresCount: number;
+  inHouseCount: number;
+  currentBusinessDate: string;
+};
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("ru-RU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
 
 export default async function Home() {
-  const today = new Date().toISOString().split("T")[0];
-
   // Get property (single-property MVP)
   const properties = await apiFetch<Property[]>("/api/properties");
   const property = properties[0];
@@ -31,173 +54,251 @@ export default async function Home() {
     return (
       <main className="p-8">
         <h1 className="text-2xl font-bold">No property configured</h1>
-        <p className="text-gray-600 mt-2">Run database seed to initialize the system.</p>
+        <p className="text-gray-600 mt-2">
+          Run database seed to initialize the system.
+        </p>
       </main>
     );
   }
 
-  // Fetch all data in parallel
-  const [bookings, rooms] = await Promise.all([
-    apiFetch<Booking[]>(`/api/bookings?propertyId=${property.id}`),
-    apiFetch<Room[]>(`/api/rooms?propertyId=${property.id}`),
+  const qs = `propertyId=${property.id}`;
+
+  // Fetch all dashboard data in parallel
+  const [arrivals, departures, inHouse, summary] = await Promise.all([
+    apiFetch<DashboardArrival[]>(`/api/dashboard/arrivals?${qs}`),
+    apiFetch<DashboardBooking[]>(`/api/dashboard/departures?${qs}`),
+    apiFetch<DashboardBooking[]>(`/api/dashboard/in-house?${qs}`),
+    apiFetch<DashboardSummary>(`/api/dashboard/summary?${qs}`),
   ]);
 
-  // Calculate statistics
-  const stats = {
-    totalRooms: rooms.length,
-    occupied: rooms.filter((r) => r.occupancyStatus === "occupied").length,
-    vacant: rooms.filter((r) => r.occupancyStatus === "vacant").length,
-    clean: rooms.filter((r) => r.housekeepingStatus === "clean").length,
-    dirty: rooms.filter((r) => r.housekeepingStatus === "dirty").length,
-    inspected: rooms.filter((r) => r.housekeepingStatus === "inspected").length,
-    outOfOrder: rooms.filter((r) => r.housekeepingStatus === "out_of_order" || r.housekeepingStatus === "out_of_service").length,
-  };
-
-  // Today's activity
-  const arrivalsToday = bookings.filter(
-    (b) => b.checkInDate === today && (b.status === "confirmed" || b.status === "checked_in")
-  );
-  const pendingArrivals = arrivalsToday.filter((b) => b.status === "confirmed");
-  const checkedInToday = arrivalsToday.filter((b) => b.status === "checked_in");
-
-  const departuresToday = bookings.filter(
-    (b) => b.checkOutDate === today && (b.status === "checked_in" || b.status === "checked_out")
-  );
-  const pendingDepartures = departuresToday.filter((b) => b.status === "checked_in");
-
-  const inHouse = bookings.filter((b) => b.status === "checked_in");
+  const occupancyPct =
+    summary.totalRooms > 0
+      ? Math.round((summary.occupiedRooms / summary.totalRooms) * 100)
+      : 0;
 
   return (
     <main className="p-8 max-w-6xl mx-auto">
-      <h1 className="text-3xl font-bold mb-2">PMS Dashboard</h1>
-      <p className="text-gray-600 mb-6">
-        Open Source Property Management System | {new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-      </p>
+      {/* Business Date */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold mb-1">Dashboard</h1>
+        <p className="text-lg text-gray-600">
+          {formatDate(summary.currentBusinessDate)}
+        </p>
+      </div>
 
-      {/* Quick Actions */}
-      <div className="flex gap-3 mb-8 flex-wrap">
-        <Link href="/bookings" className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-          Bookings
+      {/* Room Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-8">
+        <div className="bg-white border rounded-lg p-4 text-center">
+          <div className="text-2xl font-bold text-blue-600">
+            {summary.occupiedRooms}
+            <span className="text-gray-400 text-lg">/{summary.totalRooms}</span>
+          </div>
+          <div className="text-xs text-gray-500 uppercase mt-1">
+            Occupied ({occupancyPct}%)
+          </div>
+        </div>
+        <div className="bg-white border rounded-lg p-4 text-center">
+          <div className="text-2xl font-bold text-green-600">
+            {summary.vacantRooms}
+          </div>
+          <div className="text-xs text-gray-500 uppercase mt-1">Vacant</div>
+        </div>
+        {(summary.outOfOrderRooms > 0 || summary.outOfServiceRooms > 0) && (
+          <div className="bg-white border rounded-lg p-4 text-center">
+            <div className="text-2xl font-bold text-red-600">
+              {summary.outOfOrderRooms + summary.outOfServiceRooms}
+            </div>
+            <div className="text-xs text-gray-500 uppercase mt-1">OOO/OOS</div>
+          </div>
+        )}
+        <Link
+          href="/rooms?hk=dirty"
+          className="bg-white border rounded-lg p-4 text-center hover:bg-gray-50"
+        >
+          <div className="text-2xl font-bold text-orange-600">
+            {summary.dirtyRooms}
+          </div>
+          <div className="text-xs text-gray-500 uppercase mt-1">Dirty</div>
         </Link>
-        <Link href="/rooms" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-          Rooms
+        <Link
+          href="/rooms?hk=clean"
+          className="bg-white border rounded-lg p-4 text-center hover:bg-gray-50"
+        >
+          <div className="text-2xl font-bold text-green-600">
+            {summary.cleanRooms}
+          </div>
+          <div className="text-xs text-gray-500 uppercase mt-1">Clean</div>
         </Link>
-        <Link href="/guests" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-          Guests
-        </Link>
-        <Link href="/configuration" className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
-          Configuration
-        </Link>
-        <Link href="/help" className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">
-          Help
+        <Link
+          href="/rooms?hk=inspected"
+          className="bg-white border rounded-lg p-4 text-center hover:bg-gray-50"
+        >
+          <div className="text-2xl font-bold text-emerald-600">
+            {summary.inspectedRooms}
+          </div>
+          <div className="text-xs text-gray-500 uppercase mt-1">Inspected</div>
         </Link>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
-        {/* Room Summary */}
+      {/* Arrivals + Departures */}
+      <div className="grid md:grid-cols-2 gap-6 mb-6">
+        {/* Arrivals */}
         <div className="bg-white border rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-3">Room Summary</h2>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Total Rooms</span>
-              <span className="font-mono">{stats.totalRooms}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Occupied</span>
-              <span className="font-mono text-blue-600">{stats.occupied}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Vacant</span>
-              <span className="font-mono text-green-600">{stats.vacant}</span>
-            </div>
-            <div className="border-t pt-2 mt-2">
-              <div className="flex justify-between text-sm">
-                <span>Occupancy</span>
-                <span className="font-semibold">
-                  {stats.totalRooms > 0 ? Math.round((stats.occupied / stats.totalRooms) * 100) : 0}%
-                </span>
-              </div>
-            </div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">
+              Arrivals
+              <span className="text-gray-400 font-normal ml-2 text-sm">
+                {arrivals.length}
+              </span>
+            </h2>
+            <Link
+              href="/bookings?view=arrivals"
+              className="text-sm text-blue-600 hover:underline"
+            >
+              View all
+            </Link>
           </div>
+          {arrivals.length === 0 ? (
+            <p className="text-gray-400 text-sm">No arrivals today</p>
+          ) : (
+            <div className="divide-y">
+              {arrivals.slice(0, 8).map((b) => (
+                <Link
+                  key={b.id}
+                  href={`/bookings/${b.id}`}
+                  className="flex items-center justify-between py-2 px-1 hover:bg-gray-50 rounded"
+                >
+                  <div>
+                    <span className="font-medium">
+                      {b.guest.firstName} {b.guest.lastName}
+                    </span>
+                    <span className="text-gray-400 text-xs ml-2">
+                      #{b.confirmationNumber}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {b.roomType.code}
+                    {b.room?.roomNumber && (
+                      <span className="ml-1 text-blue-600">
+                        → {b.room.roomNumber}
+                      </span>
+                    )}
+                  </div>
+                </Link>
+              ))}
+              {arrivals.length > 8 && (
+                <Link
+                  href="/bookings?view=arrivals"
+                  className="block text-center py-2 text-blue-600 hover:underline text-sm"
+                >
+                  +{arrivals.length - 8} more
+                </Link>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Today's Activity */}
+        {/* Departures */}
         <div className="bg-white border rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-3">Today&apos;s Activity</h2>
-          <div className="space-y-2">
-            <Link href="/bookings?view=arrivals" className="flex justify-between hover:bg-gray-50 p-1 rounded">
-              <span className="text-gray-600">Arrivals</span>
-              <span className="font-mono">
-                {pendingArrivals.length} <span className="text-gray-400">/ {arrivalsToday.length}</span>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">
+              Departures
+              <span className="text-gray-400 font-normal ml-2 text-sm">
+                {departures.length}
               </span>
-            </Link>
-            <Link href="/bookings?view=departures" className="flex justify-between hover:bg-gray-50 p-1 rounded">
-              <span className="text-gray-600">Departures</span>
-              <span className="font-mono">
-                {pendingDepartures.length} <span className="text-gray-400">/ {departuresToday.length}</span>
-              </span>
-            </Link>
-            <Link href="/bookings?view=inhouse" className="flex justify-between hover:bg-gray-50 p-1 rounded">
-              <span className="text-gray-600">In-House</span>
-              <span className="font-mono">{inHouse.length}</span>
+            </h2>
+            <Link
+              href="/bookings?view=departures"
+              className="text-sm text-blue-600 hover:underline"
+            >
+              View all
             </Link>
           </div>
-        </div>
-
-        {/* Housekeeping Status */}
-        <div className="bg-white border rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-3">Housekeeping</h2>
-          <div className="space-y-2">
-            <Link href="/rooms?hk=clean" className="flex justify-between hover:bg-gray-50 p-1 rounded">
-              <span className="text-green-600">Clean</span>
-              <span className="font-mono">{stats.clean}</span>
-            </Link>
-            <Link href="/rooms?hk=dirty" className="flex justify-between hover:bg-gray-50 p-1 rounded">
-              <span className="text-red-600">Dirty</span>
-              <span className="font-mono">{stats.dirty}</span>
-            </Link>
-            <Link href="/rooms?hk=inspected" className="flex justify-between hover:bg-gray-50 p-1 rounded">
-              <span className="text-blue-600">Inspected</span>
-              <span className="font-mono">{stats.inspected}</span>
-            </Link>
-            {stats.outOfOrder > 0 && (
-              <div className="flex justify-between text-gray-500">
-                <span>Out of Order/Service</span>
-                <span className="font-mono">{stats.outOfOrder}</span>
-              </div>
-            )}
-          </div>
+          {departures.length === 0 ? (
+            <p className="text-gray-400 text-sm">No departures today</p>
+          ) : (
+            <div className="divide-y">
+              {departures.slice(0, 8).map((b) => (
+                <Link
+                  key={b.id}
+                  href={`/bookings/${b.id}`}
+                  className="flex items-center justify-between py-2 px-1 hover:bg-gray-50 rounded"
+                >
+                  <div>
+                    <span className="font-medium">
+                      {b.guest.firstName} {b.guest.lastName}
+                    </span>
+                    <span className="text-gray-400 text-xs ml-2">
+                      #{b.confirmationNumber}
+                    </span>
+                  </div>
+                  <span className="text-sm text-gray-500">
+                    {b.room?.roomNumber
+                      ? `Room ${b.room.roomNumber}`
+                      : b.roomType.code}
+                  </span>
+                </Link>
+              ))}
+              {departures.length > 8 && (
+                <Link
+                  href="/bookings?view=departures"
+                  className="block text-center py-2 text-blue-600 hover:underline text-sm"
+                >
+                  +{departures.length - 8} more
+                </Link>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Pending Arrivals List */}
-      {pendingArrivals.length > 0 && (
-        <div className="mt-8 bg-white border rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-3">Pending Arrivals Today</h2>
-          <div className="divide-y">
-            {pendingArrivals.slice(0, 5).map((b) => (
+      {/* In-House */}
+      <div className="bg-white border rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold">
+            In-House
+            <span className="text-gray-400 font-normal ml-2 text-sm">
+              {inHouse.length} guests
+            </span>
+          </h2>
+          <Link
+            href="/bookings?view=inhouse"
+            className="text-sm text-blue-600 hover:underline"
+          >
+            View all
+          </Link>
+        </div>
+        {inHouse.length === 0 ? (
+          <p className="text-gray-400 text-sm">No in-house guests</p>
+        ) : (
+          <div className="max-h-64 overflow-y-auto divide-y">
+            {inHouse.map((b) => (
               <Link
                 key={b.id}
                 href={`/bookings/${b.id}`}
-                className="flex justify-between py-2 hover:bg-gray-50 px-2 rounded"
+                className="flex items-center justify-between py-2 px-1 hover:bg-gray-50 rounded"
               >
-                <span>
-                  <span className="text-gray-400 font-mono text-xs mr-2">#{b.confirmationNumber}</span>
-                  {b.guest.firstName} {b.guest.lastName}
-                </span>
-                <span className="text-gray-500">
-                  {b.room ? `Room ${b.room.roomNumber}` : "No room assigned"}
-                </span>
+                <div>
+                  <span className="font-medium">
+                    {b.guest.firstName} {b.guest.lastName}
+                  </span>
+                  <span className="text-gray-400 text-xs ml-2">
+                    #{b.confirmationNumber}
+                  </span>
+                </div>
+                <div className="text-sm text-gray-500">
+                  {b.room?.roomNumber && (
+                    <span className="mr-3">Room {b.room.roomNumber}</span>
+                  )}
+                  <span>
+                    CO {new Date(b.checkOutDate + "T00:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
+                  </span>
+                </div>
               </Link>
             ))}
-            {pendingArrivals.length > 5 && (
-              <Link href="/bookings?view=arrivals" className="block text-center py-2 text-blue-600 hover:underline">
-                View all {pendingArrivals.length} arrivals
-              </Link>
-            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </main>
   );
 }
