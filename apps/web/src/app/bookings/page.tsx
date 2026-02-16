@@ -77,7 +77,7 @@ export default async function BookingsPage({
   const queryParams = new URLSearchParams({ propertyId: property.id });
   if (status) queryParams.set("status", status);
 
-  let allBookings = await apiFetch<Booking[]>(
+  const allBookings = await apiFetch<Booking[]>(
     `/api/bookings?${queryParams.toString()}`,
   );
 

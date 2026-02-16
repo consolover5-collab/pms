@@ -51,7 +51,7 @@ export default async function RoomsPage({
   if (occ) queryParams.set("occupancyStatus", occ);
   if (type) queryParams.set("roomTypeId", type);
 
-  const [rooms, roomTypes, allRooms] = await Promise.all([
+  const [rooms, , allRooms] = await Promise.all([
     apiFetch<Room[]>(`/api/rooms?${queryParams.toString()}`),
     apiFetch<RoomType[]>(`/api/room-types?propertyId=${property.id}`),
     apiFetch<Room[]>(`/api/rooms?propertyId=${property.id}`),

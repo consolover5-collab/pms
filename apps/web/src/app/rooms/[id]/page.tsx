@@ -1,5 +1,4 @@
 import { apiFetch } from "@/lib/api";
-import Link from "next/link";
 import { RoomStatusActions } from "./room-status-actions";
 import { BackButton } from "@/components/back-button";
 

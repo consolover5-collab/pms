@@ -9,3 +9,9 @@ dist/
 .venv/
 __pycache__/
 .mcp.json
+
+# AI tool configs (local per-developer)
+_bmad/
+_bmad-output/
+.claude/
+.goosehints

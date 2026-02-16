@@ -9,13 +9,11 @@ export function BookingActions({
   bookingId,
   status,
   checkInDate,
-  checkOutDate,
   hasRoom,
 }: {
   bookingId: string;
   status: string;
   checkInDate: string;
-  checkOutDate: string;
   hasRoom: boolean;
 }) {
   const router = useRouter();

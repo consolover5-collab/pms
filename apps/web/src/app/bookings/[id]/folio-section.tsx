@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 type Transaction = {
   id: string;
@@ -46,7 +46,7 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
   const [showPostForm, setShowPostForm] = useState(false);
   const [posting, setPosting] = useState(false);
 
-  async function fetchFolio() {
+  const fetchFolio = useCallback(async () => {
     try {
       const res = await fetch(`/api/bookings/${bookingId}/folio`);
       if (!res.ok) throw new Error("Failed to fetch folio");
@@ -57,7 +57,7 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [bookingId]);
 
   async function fetchCodes() {
     try {
@@ -79,7 +79,7 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
   useEffect(() => {
     fetchFolio();
     fetchCodes();
-  }, [bookingId]);
+  }, [bookingId, fetchFolio]);
 
   async function handlePost(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

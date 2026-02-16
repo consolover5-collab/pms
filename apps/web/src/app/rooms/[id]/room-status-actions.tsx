@@ -5,15 +5,6 @@ import { useState } from "react";
 import { ErrorDisplay, type ApiErrorDetail } from "@/components/error-display";
 
 
-const hkStatusLabels: Record<string, string> = {
-  clean: "Clean",
-  dirty: "Dirty",
-  pickup: "Pickup",
-  inspected: "Inspected",
-  out_of_order: "Out of Order",
-  out_of_service: "Out of Service",
-};
-
 export function RoomStatusActions({
   roomId,
   housekeepingStatus,

@@ -109,7 +109,6 @@ export default async function BookingDetailPage({
         bookingId={booking.id}
         status={booking.status}
         checkInDate={booking.checkInDate}
-        checkOutDate={booking.checkOutDate}
         hasRoom={!!booking.room}
       />
 

@@ -87,8 +87,8 @@ export default function TapeChartPage() {
           throw new Error(err.error || `API error: ${res.status}`);
         }
         setData(await res.json());
-      } catch (e: any) {
-        setError(e.message);
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Unknown error");
       } finally {
         setLoading(false);
       }
