@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 
 export function BackButton({
+  fallbackHref = "/",
   label,
 }: {
   fallbackHref?: string;
@@ -10,9 +11,17 @@ export function BackButton({
 }) {
   const router = useRouter();
 
+  const handleClick = () => {
+    if (window.history.length > 1) {
+      router.back();
+    } else {
+      router.push(fallbackHref);
+    }
+  };
+
   return (
     <button
-      onClick={() => router.back()}
+      onClick={handleClick}
       className="text-blue-600 hover:underline text-sm"
     >
       ← {label}

@@ -90,10 +90,12 @@ export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
         .from(rooms)
         .where(eq(rooms.roomTypeId, request.params.id));
 
-      if (Number(roomCount[0].count) > 0) {
+      const roomCountNum = Number(roomCount[0].count);
+      if (roomCountNum > 0) {
         return reply.status(400).send({
-          error: `Нельзя удалить: к этому типу привязано ${roomCount[0].count} номеров.`,
+          error: `Cannot delete: ${roomCountNum} rooms of this type exist`,
           code: "HAS_DEPENDENCIES",
+          count: roomCountNum,
         });
       }
 
@@ -106,10 +108,12 @@ export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
           or(eq(bookings.status, "confirmed"), eq(bookings.status, "checked_in"))
         ));
 
-      if (Number(bookingCount[0].count) > 0) {
+      const bookingCountNum = Number(bookingCount[0].count);
+      if (bookingCountNum > 0) {
         return reply.status(400).send({
-          error: `Нельзя удалить: есть ${bookingCount[0].count} активных бронирований этого типа.`,
+          error: `Cannot delete: ${bookingCountNum} active bookings reference this room type`,
           code: "HAS_ACTIVE_BOOKINGS",
+          count: bookingCountNum,
         });
       }
 

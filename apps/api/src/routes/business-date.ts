@@ -54,6 +54,26 @@ export const businessDateRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid propertyId format" });
     }
 
+    // Validate date format: YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return reply.status(400).send({
+        error: `Invalid date format: "${date}". Expected YYYY-MM-DD.`,
+        code: "INVALID_DATE_FORMAT",
+      });
+    }
+
+    // Validate it's a real date (not Feb 30, etc.)
+    const parsed = new Date(date + "T00:00:00");
+    if (
+      isNaN(parsed.getTime()) ||
+      parsed.toISOString().slice(0, 10) !== date
+    ) {
+      return reply.status(400).send({
+        error: `Invalid date: "${date}" is not a valid calendar date.`,
+        code: "INVALID_DATE",
+      });
+    }
+
     // Check if open date already exists
     const [existing] = await app.db
       .select({ id: businessDates.id })

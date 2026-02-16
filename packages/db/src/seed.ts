@@ -178,16 +178,16 @@ async function seed() {
 
   // Guests — migrated from Opera PMS (anonymized production data)
   const guestData = [
-    { firstName: "FN470", lastName: "LN470", email: "qwwixhpmik@hifqxmakjr.com", phone: "+78624065146", nationality: "DE", gender: "M", language: "en", vipStatus: 1 },
-    { firstName: "FN1086", lastName: "LN1086", email: "nuvaxtqfdl@vqbgsrhhtm.com", phone: "+57231554221", nationality: "RU", gender: "F", language: "ru", vipStatus: 1 },
-    { firstName: "FN568", lastName: "LN568", email: "motbsxbaov@bkdexfspzo.com", phone: "+35491178301", nationality: "RU", gender: "F", language: "ru", vipStatus: 2 },
-    { firstName: "FN2070", lastName: "LN2070", email: "lcunsfgfey@seurjwqugg.com", phone: "+03687170473", nationality: "RU", gender: "F", language: "ru", vipStatus: 2 },
-    { firstName: "FN802", lastName: "LN802", email: "evxoafhupn@dzfsaodebr.com", phone: "+10163015218", nationality: "RU", gender: "M", language: "ru", vipStatus: 3 },
-    { firstName: "FN869", lastName: "LN869", email: "hhvmqamgzf@mmdsndbcsa.com", phone: "+38642417843", nationality: "RU", gender: "F", language: "ru", vipStatus: 3 },
-    { firstName: "FN254", lastName: "LN254", email: "ntgfaoezmn@hrtzyjshru.com", phone: "+95296882573", nationality: "RU", gender: "M", language: "ru", vipStatus: 4 },
-    { firstName: "FN1749", lastName: "LN1749", email: "slctobadiv@fufzpuoqfp.com", phone: "+53662234244", nationality: "PL", gender: "M", language: "en", vipStatus: 1 },
-    { firstName: "FN5946", lastName: "LN5946", email: "qxkmwnmaqb@sptlmcgufj.com", phone: "+81184237969", nationality: "RU", gender: "M", language: "ru", vipStatus: 5 },
-    { firstName: "FN7162", lastName: "LN7162", email: "vexfsovrpo@cbrbichbuv.com", phone: "+42678577858", nationality: "RU", gender: "M", language: "ru", vipStatus: 5 },
+    { propertyId: property.id, firstName: "FN470", lastName: "LN470", email: "qwwixhpmik@hifqxmakjr.com", phone: "+78624065146", nationality: "DE", gender: "M", language: "en", vipStatus: 1 },
+    { propertyId: property.id, firstName: "FN1086", lastName: "LN1086", email: "nuvaxtqfdl@vqbgsrhhtm.com", phone: "+57231554221", nationality: "RU", gender: "F", language: "ru", vipStatus: 1 },
+    { propertyId: property.id, firstName: "FN568", lastName: "LN568", email: "motbsxbaov@bkdexfspzo.com", phone: "+35491178301", nationality: "RU", gender: "F", language: "ru", vipStatus: 2 },
+    { propertyId: property.id, firstName: "FN2070", lastName: "LN2070", email: "lcunsfgfey@seurjwqugg.com", phone: "+03687170473", nationality: "RU", gender: "F", language: "ru", vipStatus: 2 },
+    { propertyId: property.id, firstName: "FN802", lastName: "LN802", email: "evxoafhupn@dzfsaodebr.com", phone: "+10163015218", nationality: "RU", gender: "M", language: "ru", vipStatus: 3 },
+    { propertyId: property.id, firstName: "FN869", lastName: "LN869", email: "hhvmqamgzf@mmdsndbcsa.com", phone: "+38642417843", nationality: "RU", gender: "F", language: "ru", vipStatus: 3 },
+    { propertyId: property.id, firstName: "FN254", lastName: "LN254", email: "ntgfaoezmn@hrtzyjshru.com", phone: "+95296882573", nationality: "RU", gender: "M", language: "ru", vipStatus: 4 },
+    { propertyId: property.id, firstName: "FN1749", lastName: "LN1749", email: "slctobadiv@fufzpuoqfp.com", phone: "+53662234244", nationality: "PL", gender: "M", language: "en", vipStatus: 1 },
+    { propertyId: property.id, firstName: "FN5946", lastName: "LN5946", email: "qxkmwnmaqb@sptlmcgufj.com", phone: "+81184237969", nationality: "RU", gender: "M", language: "ru", vipStatus: 5 },
+    { propertyId: property.id, firstName: "FN7162", lastName: "LN7162", email: "vexfsovrpo@cbrbichbuv.com", phone: "+42678577858", nationality: "RU", gender: "M", language: "ru", vipStatus: 5 },
   ];
 
   const insertedGuests = await db.insert(guests).values(guestData).returning();
@@ -353,8 +353,8 @@ async function seed() {
       roomNumber: null,
       roomType: "SUP",
       rateCode: "CORP",
-      checkIn: daysAgo(1),
-      checkOut: daysFromNow(1),
+      checkIn: daysAgo(3),
+      checkOut: daysAgo(2),
       status: "no_show",
       adults: 1,
       children: 0,
@@ -400,7 +400,7 @@ async function seed() {
     },
   ];
 
-  let confNum = 100001;
+  let confSeq = 1;
   for (const b of bookingData) {
     await db.insert(bookings).values({
       propertyId: property.id,
@@ -408,7 +408,7 @@ async function seed() {
       roomId: b.roomNumber ? roomMap[b.roomNumber] : null,
       roomTypeId: typeMap[b.roomType],
       ratePlanId: rateMap[b.rateCode],
-      confirmationNumber: String(confNum++),
+      confirmationNumber: `${property.code}-${String(confSeq++).padStart(6, "0")}`,
       checkInDate: b.checkIn,
       checkOutDate: b.checkOut,
       status: b.status,

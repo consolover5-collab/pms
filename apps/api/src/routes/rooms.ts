@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from "fastify";
+import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import { rooms, roomTypes } from "@pms/db";
 import { eq, and } from "drizzle-orm";
 
@@ -11,6 +11,52 @@ const hkTransitions: Record<string, string[]> = {
   out_of_order:   ["dirty", "clean"],
   out_of_service: ["dirty", "clean"],
 };
+
+const validHkStatuses = [
+  "clean", "dirty", "pickup", "inspected", "out_of_order", "out_of_service",
+];
+const validOccStatuses = ["vacant", "occupied"];
+
+/** Shared validation for room status updates. Returns error reply or null if valid. */
+async function validateRoomStatusUpdate(
+  db: any,
+  roomId: string,
+  housekeepingStatus: string | undefined,
+  occupancyStatus: string | undefined,
+  reply: FastifyReply,
+): Promise<boolean> {
+  if (housekeepingStatus && !validHkStatuses.includes(housekeepingStatus)) {
+    reply.status(400).send({ error: "Invalid housekeeping status" });
+    return false;
+  }
+  if (occupancyStatus && !validOccStatuses.includes(occupancyStatus)) {
+    reply.status(400).send({ error: "Invalid occupancy status" });
+    return false;
+  }
+
+  // Validate HK transition
+  if (housekeepingStatus) {
+    const [currentRoom] = await db
+      .select({ housekeepingStatus: rooms.housekeepingStatus })
+      .from(rooms)
+      .where(eq(rooms.id, roomId));
+
+    if (currentRoom) {
+      const allowed = hkTransitions[currentRoom.housekeepingStatus];
+      if (allowed && !allowed.includes(housekeepingStatus)) {
+        reply.status(400).send({
+          error: `Нельзя изменить статус с "${currentRoom.housekeepingStatus}" на "${housekeepingStatus}". Допустимые переходы: ${allowed.join(", ")}.`,
+          code: "INVALID_HK_TRANSITION",
+          currentStatus: currentRoom.housekeepingStatus,
+          allowedTransitions: allowed,
+        });
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
 
 export const roomsRoutes: FastifyPluginAsync = async (app) => {
   // List rooms with optional filters
@@ -93,43 +139,8 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/rooms/:id/status", async (request, reply) => {
     const { housekeepingStatus, occupancyStatus } = request.body;
 
-    // Validate status values
-    const validHkStatuses = [
-      "clean",
-      "dirty",
-      "pickup",
-      "inspected",
-      "out_of_order",
-      "out_of_service",
-    ];
-    const validOccStatuses = ["vacant", "occupied"];
-
-    if (housekeepingStatus && !validHkStatuses.includes(housekeepingStatus)) {
-      return reply.status(400).send({ error: "Invalid housekeeping status" });
-    }
-    if (occupancyStatus && !validOccStatuses.includes(occupancyStatus)) {
-      return reply.status(400).send({ error: "Invalid occupancy status" });
-    }
-
-    // Проверка допустимого перехода HK-статуса
-    if (housekeepingStatus) {
-      const [currentRoom] = await app.db
-        .select({ housekeepingStatus: rooms.housekeepingStatus })
-        .from(rooms)
-        .where(eq(rooms.id, request.params.id));
-
-      if (currentRoom) {
-        const allowed = hkTransitions[currentRoom.housekeepingStatus];
-        if (allowed && !allowed.includes(housekeepingStatus)) {
-          return reply.status(400).send({
-            error: `Нельзя изменить статус с "${currentRoom.housekeepingStatus}" на "${housekeepingStatus}". Допустимые переходы: ${allowed.join(", ")}.`,
-            code: "INVALID_HK_TRANSITION",
-            currentStatus: currentRoom.housekeepingStatus,
-            allowedTransitions: allowed,
-          });
-        }
-      }
-    }
+    const valid = await validateRoomStatusUpdate(app.db, request.params.id, housekeepingStatus, occupancyStatus, reply);
+    if (!valid) return;
 
     const updates: Record<string, unknown> = {
       updatedAt: new Date(),
@@ -147,12 +158,15 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
     return updated;
   });
 
-  // PATCH version (keeping for compatibility)
+  // PATCH version (keeping for compatibility, same validation as POST)
   app.patch<{
     Params: { id: string };
     Body: { housekeepingStatus?: string; occupancyStatus?: string };
   }>("/api/rooms/:id/status", async (request, reply) => {
     const { housekeepingStatus, occupancyStatus } = request.body;
+
+    const valid = await validateRoomStatusUpdate(app.db, request.params.id, housekeepingStatus, occupancyStatus, reply);
+    if (!valid) return;
 
     const updates: Record<string, unknown> = {
       updatedAt: new Date(),

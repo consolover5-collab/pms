@@ -92,10 +92,12 @@ export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
           or(eq(bookings.status, "confirmed"), eq(bookings.status, "checked_in"))
         ));
 
-      if (Number(bookingCount[0].count) > 0) {
+      const bookingCountNum = Number(bookingCount[0].count);
+      if (bookingCountNum > 0) {
         return reply.status(400).send({
-          error: `Нельзя удалить: есть ${bookingCount[0].count} активных бронирований с этим тарифом.`,
+          error: `Cannot delete: ${bookingCountNum} active bookings reference this rate plan`,
           code: "HAS_ACTIVE_BOOKINGS",
+          count: bookingCountNum,
         });
       }
 

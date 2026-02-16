@@ -155,7 +155,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
         credit: isPayment ? String(amount) : "0",
         description: description || code.description,
         isSystemGenerated: false,
-        postedBy: "user:front_desk",
+        postedBy: (request as any).user?.id || "system",
       })
       .returning();
 
@@ -227,7 +227,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
         credit: String(amount),
         description: code.description,
         isSystemGenerated: false,
-        postedBy: "user:front_desk",
+        postedBy: (request as any).user?.id || "system",
       })
       .returning();
 
@@ -322,7 +322,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
         description: reason,
         isSystemGenerated: false,
         parentTransactionId: original.id,
-        postedBy: "user:front_desk",
+        postedBy: (request as any).user?.id || "system",
       })
       .returning();
 

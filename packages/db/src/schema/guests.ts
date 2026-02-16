@@ -6,12 +6,15 @@ import {
   integer,
   text,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 import { properties } from "./properties";
 
 export const guests = pgTable("guests", {
   id: uuid("id").primaryKey().defaultRandom(),
-  propertyId: uuid("property_id").references(() => properties.id),
+  propertyId: uuid("property_id")
+    .notNull()
+    .references(() => properties.id, { onDelete: "restrict" }),
   firstName: varchar("first_name", { length: 100 }).notNull(),
   lastName: varchar("last_name", { length: 100 }).notNull(),
   email: varchar("email", { length: 255 }),
@@ -26,4 +29,6 @@ export const guests = pgTable("guests", {
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("guests_property_id_idx").on(table.propertyId),
+]);

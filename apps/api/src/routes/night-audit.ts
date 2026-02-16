@@ -215,9 +215,30 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
 
       let roomChargesPosted = 0;
       let taxChargesPosted = 0;
+      let skippedDuplicates = 0;
       let totalRevenue = 0;
 
+      const postedBy = (request as any).user?.id || "system:night_audit";
+
       for (const booking of checkedIn) {
+        // A2: Per-booking idempotency — skip if charge already exists for this booking + business date + ROOM code
+        const [existingBookingCharge] = await tx
+          .select({ id: folioTransactions.id })
+          .from(folioTransactions)
+          .where(
+            and(
+              eq(folioTransactions.bookingId, booking.id),
+              eq(folioTransactions.businessDateId, bizDate.id),
+              eq(folioTransactions.transactionCodeId, roomCode.id),
+            ),
+          )
+          .limit(1);
+
+        if (existingBookingCharge) {
+          skippedDuplicates++;
+          continue;
+        }
+
         const rate = parseFloat(booking.rateAmount || "0");
 
         // Room charge
@@ -232,7 +253,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
             credit: "0",
             description: "Room Charge",
             isSystemGenerated: true,
-            postedBy: "NIGHT_AUDIT",
+            postedBy,
           })
           .returning();
 
@@ -253,7 +274,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
             isSystemGenerated: true,
             appliedTaxRate: String(taxRate),
             parentTransactionId: roomCharge.id,
-            postedBy: "NIGHT_AUDIT",
+            postedBy,
           });
 
           taxChargesPosted++;
@@ -273,10 +294,23 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
         )
         .returning({ id: rooms.id });
 
-      // Step 6: Sync room statuses (occupied rooms with checked_in bookings)
-      const occupiedRoomIds = checkedIn
-        .map((b) => b.roomId)
-        .filter((id): id is string => id !== null);
+      // Step 6: A3 — Sync room statuses: find orphaned occupied rooms
+      // Query ALL checked_in bookings (not just from this run) to find rooms that should be occupied
+      const allCheckedInBookings = await tx
+        .select({ roomId: bookings.roomId })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.propertyId, propertyId),
+            eq(bookings.status, "checked_in"),
+          ),
+        );
+
+      const activeRoomIds = new Set(
+        allCheckedInBookings
+          .map((b) => b.roomId)
+          .filter((id): id is string => id !== null)
+      );
 
       const allOccupied = await tx
         .select({ id: rooms.id })
@@ -288,12 +322,14 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
           ),
         );
 
+      let orphanedRoomsFixed = 0;
       for (const room of allOccupied) {
-        if (!occupiedRoomIds.includes(room.id)) {
+        if (!activeRoomIds.has(room.id)) {
           await tx
             .update(rooms)
             .set({ occupancyStatus: "vacant", updatedAt: new Date() })
             .where(eq(rooms.id, room.id));
+          orphanedRoomsFixed++;
         }
       }
 
@@ -320,7 +356,9 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
         noShows: noShows.length,
         roomChargesPosted,
         taxChargesPosted,
+        skippedDuplicates,
         roomsUpdated: roomsUpdated.length,
+        orphanedRoomsFixed,
         totalRevenue: Math.round(totalRevenue * 100) / 100,
       };
     });

@@ -47,6 +47,7 @@ export const guestsRoutes: FastifyPluginAsync = async (app) => {
   // Create guest
   app.post<{
     Body: {
+      propertyId: string;
       firstName: string;
       lastName: string;
       email?: string;
@@ -82,9 +83,10 @@ export const guestsRoutes: FastifyPluginAsync = async (app) => {
       });
     }
 
+    const { force: _force, ...guestData } = request.body;
     const [guest] = await app.db
       .insert(guests)
-      .values(request.body)
+      .values(guestData)
       .returning();
     return reply.status(201).send(guest);
   });

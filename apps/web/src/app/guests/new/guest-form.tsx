@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 
-export function GuestForm() {
+export function GuestForm({ propertyId }: { propertyId: string }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -16,6 +16,7 @@ export function GuestForm() {
 
     const form = new FormData(e.currentTarget);
     const body: Record<string, unknown> = {
+      propertyId,
       firstName: form.get("firstName"),
       lastName: form.get("lastName"),
     };

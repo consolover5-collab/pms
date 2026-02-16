@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { bookings, guests, rooms, roomTypes, ratePlans } from "@pms/db";
+import { bookings, guests, rooms, roomTypes, ratePlans, properties } from "@pms/db";
 import { eq, and, or, ne, lte, gte, lt, gt, sql } from "drizzle-orm";
 import { validateBookingDates, validateOccupancy, checkRoomConflict } from "../lib/validation";
 
@@ -170,16 +170,35 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       }
     }
 
-    // Последовательная нумерация confirmation number
+    // Sequential confirmation number: PROPERTY_CODE-NNNNNN
+    const [property] = await app.db
+      .select({ code: properties.code })
+      .from(properties)
+      .where(eq(properties.id, request.body.propertyId));
+
+    const propertyCode = property?.code || "PMS";
+
+    const prefix = propertyCode + "-";
     const [lastBooking] = await app.db
       .select({ confirmationNumber: bookings.confirmationNumber })
       .from(bookings)
-      .where(eq(bookings.propertyId, request.body.propertyId))
-      .orderBy(sql`CAST(confirmation_number AS BIGINT) DESC`)
+      .where(
+        and(
+          eq(bookings.propertyId, request.body.propertyId),
+          sql`confirmation_number LIKE ${prefix + "%"}`,
+        ),
+      )
+      .orderBy(sql`confirmation_number DESC`)
       .limit(1);
 
-    const lastNum = lastBooking ? parseInt(lastBooking.confirmationNumber, 10) : 100000;
-    const confNum = String(isNaN(lastNum) ? Date.now() : lastNum + 1);
+    let nextSeq = 1;
+    if (lastBooking) {
+      const lastSeqStr = lastBooking.confirmationNumber.replace(prefix, "");
+      const lastSeq = parseInt(lastSeqStr, 10);
+      if (!isNaN(lastSeq)) nextSeq = lastSeq + 1;
+    }
+
+    const confNum = prefix + String(nextSeq).padStart(6, "0");
 
     // Авторасчёт totalAmount если не указан
     let calcTotalAmount = request.body.totalAmount;
@@ -303,72 +322,68 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         });
       }
 
-      // Validate room
-      const [room] = await app.db
-        .select()
-        .from(rooms)
-        .where(eq(rooms.id, roomId));
-
-      if (!room) {
-        return reply.status(400).send({
-          error: "Selected room not found in the system",
-          code: "ROOM_NOT_FOUND"
-        });
-      }
-
-      // Check room type matches
-      if (room.roomTypeId !== booking.roomTypeId) {
-        return reply.status(400).send({
-          error: `Room type mismatch: the selected room is a different type than what was booked. Please select a room of the correct type.`,
-          code: "ROOM_TYPE_MISMATCH"
-        });
-      }
-
-      // Check room is vacant
-      if (room.occupancyStatus !== "vacant") {
-        return reply.status(400).send({
-          error: `Room ${room.roomNumber} is currently occupied. Please select a vacant room.`,
-          code: "ROOM_OCCUPIED",
-          roomNumber: room.roomNumber
-        });
-      }
-
-      // Check room is clean or inspected (not dirty, out of order, etc.)
-      if (
-        room.housekeepingStatus !== "clean" &&
-        room.housekeepingStatus !== "inspected"
-      ) {
-        return reply.status(400).send({
-          error: `Room ${room.roomNumber} is not ready for check-in (status: ${room.housekeepingStatus}). Please wait for housekeeping or select another room.`,
-          code: "ROOM_NOT_READY",
-          roomNumber: room.roomNumber,
-          housekeepingStatus: room.housekeepingStatus
-        });
-      }
-
-      // Check for conflicting bookings on this room
-      const conflictingBookings = await app.db
-        .select({ id: bookings.id })
-        .from(bookings)
-        .where(
-          and(
-            eq(bookings.roomId, roomId),
-            eq(bookings.status, "checked_in"),
-            ne(bookings.id, booking.id)
-          )
-        )
-        .limit(1);
-
-      if (conflictingBookings.length > 0) {
-        return reply.status(400).send({
-          error: `Room ${room.roomNumber} already has a checked-in guest. The previous guest must check out first.`,
-          code: "ROOM_HAS_GUEST",
-          roomNumber: room.roomNumber
-        });
-      }
-
-      // All validations passed - perform check-in
+      // Wrap entire check-in in a transaction with SELECT ... FOR UPDATE to prevent race conditions
       const result = await app.db.transaction(async (tx) => {
+        // Lock the room row to prevent concurrent check-ins
+        await tx.execute(sql`SELECT id FROM rooms WHERE id = ${roomId} FOR UPDATE`);
+
+        // Validate room inside the transaction (after locking)
+        const [room] = await tx
+          .select()
+          .from(rooms)
+          .where(eq(rooms.id, roomId));
+
+        if (!room) {
+          throw Object.assign(new Error("Selected room not found in the system"), {
+            statusCode: 400, code: "ROOM_NOT_FOUND"
+          });
+        }
+
+        // Check room type matches
+        if (room.roomTypeId !== booking.roomTypeId) {
+          throw Object.assign(new Error("Room type mismatch: the selected room is a different type than what was booked. Please select a room of the correct type."), {
+            statusCode: 400, code: "ROOM_TYPE_MISMATCH"
+          });
+        }
+
+        // Check room is vacant
+        if (room.occupancyStatus !== "vacant") {
+          throw Object.assign(new Error(`Room ${room.roomNumber} is currently occupied. Please select a vacant room.`), {
+            statusCode: 400, code: "ROOM_OCCUPIED", roomNumber: room.roomNumber
+          });
+        }
+
+        // Check room is clean or inspected (not dirty, out of order, etc.)
+        if (
+          room.housekeepingStatus !== "clean" &&
+          room.housekeepingStatus !== "inspected"
+        ) {
+          throw Object.assign(new Error(`Room ${room.roomNumber} is not ready for check-in (status: ${room.housekeepingStatus}). Please wait for housekeeping or select another room.`), {
+            statusCode: 400, code: "ROOM_NOT_READY", roomNumber: room.roomNumber,
+            housekeepingStatus: room.housekeepingStatus
+          });
+        }
+
+        // Check for conflicting bookings on this room
+        const conflictingBookings = await tx
+          .select({ id: bookings.id })
+          .from(bookings)
+          .where(
+            and(
+              eq(bookings.roomId, roomId),
+              eq(bookings.status, "checked_in"),
+              ne(bookings.id, booking.id)
+            )
+          )
+          .limit(1);
+
+        if (conflictingBookings.length > 0) {
+          throw Object.assign(new Error(`Room ${room.roomNumber} already has a checked-in guest. The previous guest must check out first.`), {
+            statusCode: 400, code: "ROOM_HAS_GUEST", roomNumber: room.roomNumber
+          });
+        }
+
+        // All validations passed - perform check-in
         const [updated] = await tx
           .update(bookings)
           .set({
@@ -386,8 +401,20 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           .where(eq(rooms.id, roomId));
 
         return updated;
+      }).catch((err: any) => {
+        if (err.statusCode) {
+          reply.status(err.statusCode).send({
+            error: err.message,
+            code: err.code,
+            ...(err.roomNumber ? { roomNumber: err.roomNumber } : {}),
+            ...(err.housekeepingStatus ? { housekeepingStatus: err.housekeepingStatus } : {}),
+          });
+          return null;
+        }
+        throw err;
       });
 
+      if (result === null) return; // already sent error reply
       return result;
     }
   );
