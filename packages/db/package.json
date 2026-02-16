@@ -14,12 +14,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "dotenv": "^16.6.1",
     "drizzle-orm": "^0.44",
     "postgres": "^3.4"
   },
   "devDependencies": {
     "@pms/shared": "workspace:*",
+    "@types/bcrypt": "^6.0.0",
     "drizzle-kit": "^0.31",
     "tsx": "^4",
     "typescript": "^5.7"

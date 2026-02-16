@@ -16,7 +16,10 @@ import {
   businessDates,
   transactionCodes,
   folioTransactions,
+  users,
+  sessions,
 } from "./schema/index";
+import bcrypt from "bcrypt";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) throw new Error("DATABASE_URL required");
@@ -27,6 +30,8 @@ async function seed() {
   console.log("Seeding database...");
 
   // Clear existing data (reverse FK order)
+  await db.delete(sessions);
+  await db.delete(users);
   await db.delete(folioTransactions);
   await db.delete(transactionCodes);
   await db.delete(businessDates);
@@ -551,8 +556,31 @@ async function seed() {
     },
   ]);
 
+  // Users — default admin
+  const adminHash = await bcrypt.hash("admin123", 10);
+  await db.insert(users).values([
+    {
+      username: "admin",
+      passwordHash: adminHash,
+      role: "admin",
+      propertyId: property.id,
+    },
+    {
+      username: "front",
+      passwordHash: await bcrypt.hash("front123", 10),
+      role: "front_desk",
+      propertyId: property.id,
+    },
+    {
+      username: "hk",
+      passwordHash: await bcrypt.hash("hk123", 10),
+      role: "housekeeping",
+      propertyId: property.id,
+    },
+  ]);
+
   console.log(
-    `Seeded: 1 property, ${types.length} room types, ${roomData.length} rooms, ${guestData.length} guests, ${rateData.length} rate plans, ${bookingData.length} bookings, 1 business date, 12 transaction codes`,
+    `Seeded: 1 property, ${types.length} room types, ${roomData.length} rooms, ${guestData.length} guests, ${rateData.length} rate plans, ${bookingData.length} bookings, 1 business date, 12 transaction codes, 3 users`,
   );
   process.exit(0);
 }

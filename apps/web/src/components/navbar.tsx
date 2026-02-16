@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useAuth } from "./auth-provider";
 
 const navItems = [
   { href: "/", label: "Dashboard", labelRu: "Дашборд" },
   { href: "/bookings", label: "Bookings", labelRu: "Бронирования" },
   { href: "/rooms", label: "Rooms", labelRu: "Номера" },
+  { href: "/tape-chart", label: "Tape Chart", labelRu: "Шахматка" },
   { href: "/guests", label: "Guests", labelRu: "Гости" },
   { href: "/night-audit", label: "Night Audit", labelRu: "Ночной аудит" },
   { href: "/configuration", label: "Settings", labelRu: "Настройки" },
@@ -23,8 +25,15 @@ function formatBusinessDate(dateStr: string): string {
   });
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  admin: "Админ",
+  front_desk: "Ресепшен",
+  housekeeping: "Горничная",
+};
+
 export function Navbar() {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
   const [businessDate, setBusinessDate] = useState<string>("");
 
   useEffect(() => {
@@ -88,6 +97,22 @@ export function Navbar() {
           <div className="flex items-center gap-2 bg-gray-800 px-3 py-1 rounded">
             <span className="text-gray-400 text-xs uppercase">Бизнес-дата</span>
             <span className="text-white font-medium">{businessDate}</span>
+          </div>
+        )}
+        {user && (
+          <div className="flex items-center gap-3">
+            <span className="text-gray-300">
+              {user.username}{" "}
+              <span className="text-gray-500 text-xs">
+                ({ROLE_LABELS[user.role] || user.role})
+              </span>
+            </span>
+            <button
+              onClick={logout}
+              className="text-gray-400 hover:text-white text-xs px-2 py-1 rounded hover:bg-gray-800 transition-colors"
+            >
+              Выход
+            </button>
           </div>
         )}
       </div>
