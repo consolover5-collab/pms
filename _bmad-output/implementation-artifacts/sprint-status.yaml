@@ -71,16 +71,16 @@ development_status:
   epic-4-retrospective: optional
 
   # Epic 5: Tape Chart [Phase 6]
-  epic-5: backlog
-  5-1-tape-chart-api: backlog
-  5-2-tape-chart-page: backlog
+  epic-5: done
+  5-1-tape-chart-api: done
+  5-2-tape-chart-page: done
   epic-5-retrospective: optional
 
   # Epic 6: Authentication & Authorization [Phase 7]
-  epic-6: backlog
-  6-1-auth-backend-users-login-sessions: backlog
-  6-2-rbac-middleware-and-route-protection: backlog
-  6-3-login-page-and-frontend-session-handling: backlog
+  epic-6: done
+  6-1-auth-backend-users-login-sessions: done
+  6-2-rbac-middleware-and-route-protection: done
+  6-3-login-page-and-frontend-session-handling: done
   epic-6-retrospective: optional
 
   # Epic 7: Financial Core [Phase 5 — COMPLETE]

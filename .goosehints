@@ -1,0 +1,107 @@
+# PMS - Property Management System (Opera PMS Alternative)
+
+## Project Overview
+
+Open-source Property Management System built as a modern Opera PMS alternative.
+Stack: Fastify 5 + Next.js 15 + PostgreSQL + Drizzle ORM
+MVP: Single hotel — Reservations, Front Desk, Housekeeping, Financial Core, Auth
+
+## Communication
+
+Always communicate in Russian. Technical terms stay in English.
+User name: Oci
+
+## Core Philosophy
+
+**"Opera Logic, Modern Implementation"**
+1. Study Opera DB for data relationships
+2. Study Opera Help for business rules
+3. Implement clean, modern code
+4. Skip legacy complexity
+
+## Project Structure
+
+```
+apps/api/src/routes/    — API endpoints (Fastify)
+apps/web/src/app/       — Frontend pages (Next.js App Router)
+packages/db/src/schema/ — Database schema (Drizzle ORM)
+docs/                   — Project documentation
+_bmad/                  — BMAD method agents and workflows
+_bmad-output/           — Planning and implementation artifacts
+```
+
+## Development Commands
+
+```bash
+pnpm install
+pnpm --filter @pms/api dev    # API on :3001
+pnpm --filter @pms/web dev    # Web on :3000
+pnpm --filter @pms/db db:push # Apply schema
+pnpm --filter @pms/db db:seed # Seed data
+```
+
+## Key Reference Documents
+
+@_bmad-output/planning-artifacts/architecture.md
+@_bmad-output/planning-artifacts/prd.md
+@_bmad-output/planning-artifacts/epics.md
+@_bmad-output/implementation-artifacts/sprint-status.yaml
+
+## Development Workflow (BMAD-adapted)
+
+### For New Features / Stories:
+1. Check sprint-status.yaml for current status
+2. Read the relevant story file from _bmad-output/implementation-artifacts/
+3. Follow task/subtask sequence from the story file exactly
+4. Write tests for each task before marking it complete
+5. Run full test suite — never proceed with failing tests
+6. Update story file with implementation notes
+
+### For Quick Fixes / Bugs:
+1. Understand the bug — read relevant source files
+2. Check existing tests for the affected area
+3. Write a failing test that reproduces the bug
+4. Fix the code
+5. Verify all tests pass
+
+### For Architecture / Planning:
+1. Reference the architecture doc and PRD
+2. Consider Opera PMS patterns (if applicable)
+3. Keep solutions simple and aligned with existing patterns
+4. Update docs if decisions change
+
+## API Patterns
+
+All API routes follow this pattern:
+- GET for listing/retrieval with propertyId query param
+- POST for creation
+- PUT for updates
+- POST /:id/action for state transitions (check-in, check-out, cancel)
+- Consistent error handling with Fastify error codes
+
+## Status Mappings
+
+Booking: confirmed → checked_in → checked_out (also: cancelled, no_show)
+Room HK: clean | dirty | inspected | out_of_order | out_of_service
+Room Occ: vacant | occupied
+
+## Business Rules Summary
+
+- Check-in: booking must be confirmed, room assigned + clean/inspected + vacant
+- Check-out: booking must be checked_in, room → vacant + dirty
+- Cancel: only confirmed or no_show can be cancelled
+- Cancel Check-in: only checked_in → back to confirmed
+- Reinstate: cancelled/no_show → confirmed; checked_out → checked_in (if room available)
+
+## Testing Standards
+
+- All new code must have tests
+- Use existing test patterns from the codebase
+- Run `pnpm test` to verify
+- Never mark a task complete with failing tests
+
+## Git Conventions
+
+- Conventional commits: feat:, fix:, docs:, refactor:, test:
+- Never commit to main directly
+- Clear, descriptive commit messages in English
