@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
-import { rooms, roomTypes } from "@pms/db";
-import { eq, and } from "drizzle-orm";
+import { rooms, roomTypes, bookings } from "@pms/db";
+import { eq, and, or, sql } from "drizzle-orm";
 
 // Допустимые переходы housekeeping-статусов (Opera workflow)
 const hkTransitions: Record<string, string[]> = {
@@ -184,4 +184,36 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
     if (!updated) return reply.status(404).send({ error: "Not found" });
     return updated;
   });
+
+  // Delete room
+  app.delete<{ Params: { id: string } }>(
+    "/api/rooms/:id",
+    async (request, reply) => {
+      // Check for active bookings referencing this room
+      const bookingCount = await app.db
+        .select({ count: sql<number>`count(*)` })
+        .from(bookings)
+        .where(and(
+          eq(bookings.roomId, request.params.id),
+          or(eq(bookings.status, "confirmed"), eq(bookings.status, "checked_in"))
+        ));
+
+      const bookingCountNum = Number(bookingCount[0].count);
+      if (bookingCountNum > 0) {
+        return reply.status(400).send({
+          error: `Cannot delete: ${bookingCountNum} active bookings reference this room`,
+          code: "HAS_ACTIVE_BOOKINGS",
+          count: bookingCountNum,
+        });
+      }
+
+      const [deleted] = await app.db
+        .delete(rooms)
+        .where(eq(rooms.id, request.params.id))
+        .returning();
+
+      if (!deleted) return reply.status(404).send({ error: "Not found" });
+      return { success: true };
+    }
+  );
 };

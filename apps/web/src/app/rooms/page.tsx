@@ -222,6 +222,8 @@ export default async function RoomsPage({
                           ? "bg-blue-500"
                           : "bg-green-500"
                       }`}
+                      aria-label={room.occupancyStatus === "occupied" ? "Occupied" : "Vacant"}
+                      role="img"
                     />
                     <div className="font-mono font-bold text-sm">
                       {room.roomNumber}
@@ -232,6 +234,7 @@ export default async function RoomsPage({
                     <div className="mt-1">
                       <span
                         className={`text-xs px-1 rounded ${hkStatusColors[room.housekeepingStatus]}`}
+                        aria-label={`Housekeeping: ${hkStatusLabels[room.housekeepingStatus] || "Unknown"}`}
                       >
                         {hkStatusLabels[room.housekeepingStatus]?.slice(0, 1) ||
                           "?"}

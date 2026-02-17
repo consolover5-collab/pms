@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { formatCurrency } from "@/lib/format";
 
 
 type RoomType = {
@@ -78,7 +79,7 @@ export function RoomTypesList({ roomTypes }: { roomTypes: RoomType[] }) {
               </td>
               <td className="px-4 py-3">{rt.maxOccupancy}</td>
               <td className="px-4 py-3">
-                {parseFloat(rt.baseRate).toLocaleString()}
+                {formatCurrency(rt.baseRate)}
               </td>
               <td className="px-4 py-3 text-right space-x-2">
                 <a

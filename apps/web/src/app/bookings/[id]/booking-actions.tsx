@@ -90,6 +90,7 @@ export function BookingActions({
           <button
             onClick={() => performAction("check-in")}
             disabled={loading}
+            aria-label="Check in guest"
             className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
           >
             Check In
@@ -108,6 +109,7 @@ export function BookingActions({
           <button
             onClick={() => performAction("check-out")}
             disabled={loading}
+            aria-label="Check out guest"
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
           >
             Check Out
@@ -123,6 +125,7 @@ export function BookingActions({
               }
             }}
             disabled={loading}
+            aria-label="Cancel check-in - guest will need to check in again"
             className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-50"
           >
             Cancel Check-in
@@ -137,6 +140,7 @@ export function BookingActions({
               performAction("cancel", reason ? { reason } : {});
             }}
             disabled={loading}
+            aria-label="Cancel this booking"
             className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
           >
             Cancel Booking
@@ -155,6 +159,7 @@ export function BookingActions({
               }
             }}
             disabled={loading}
+            aria-label="Reinstate this booking"
             className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
           >
             Reinstate

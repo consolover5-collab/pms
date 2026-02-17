@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState, useEffect, useMemo } from "react";
+import { formatCurrency } from "@/lib/format";
 import { ErrorDisplay, type ApiErrorDetail } from "@/components/error-display";
 
 
@@ -440,7 +441,7 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
           <option value="">— Select rate plan —</option>
           {ratePlans.map((rp) => (
             <option key={rp.id} value={rp.id}>
-              {rp.name} ({rp.code}){rp.baseRate ? ` — ${Number(rp.baseRate).toLocaleString()} ₽` : ""}
+              {rp.name} ({rp.code}){rp.baseRate ? ` — ${formatCurrency(rp.baseRate)} ₽` : ""}
             </option>
           ))}
         </select>
@@ -462,13 +463,13 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
           <label className="block text-xs text-gray-500 mb-1">Total</label>
           <input
             type="text"
-            value={totalAmount ? `${Number(totalAmount).toLocaleString()} ₽` : "—"}
+            value={totalAmount ? `${formatCurrency(totalAmount)} ₽` : "—"}
             disabled
             className="w-full px-3 py-2 border rounded bg-gray-50 text-gray-700"
           />
           {nights > 0 && rateAmount && (
             <p className="text-xs text-gray-500 mt-1">
-              {Number(rateAmount).toLocaleString()} ₽ × {nights} nights
+              {formatCurrency(rateAmount)} ₽ × {nights} nights
             </p>
           )}
         </div>

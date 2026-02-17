@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { bookings, guests, rooms, roomTypes, ratePlans, properties } from "@pms/db";
-import { eq, and, or, ne, lte, gte, lt, gt, sql, ilike } from "drizzle-orm";
+import { eq, and, or, ne, lte, gte, lt, gt, sql, ilike, count } from "drizzle-orm";
 import { validateBookingDates, validateOccupancy, checkRoomConflict } from "../lib/validation";
 
 export const bookingsRoutes: FastifyPluginAsync = async (app) => {
@@ -11,9 +11,13 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       status?: string;
       roomId?: string;
       search?: string;
+      limit?: string;
+      offset?: string;
     };
   }>("/api/bookings", async (request) => {
-    const { propertyId, status, roomId, search } = request.query;
+    const { propertyId, status, roomId, search, limit, offset } = request.query;
+    const maxResults = Math.min(Number(limit) || 50, 100);
+    const skip = Math.max(Number(offset) || 0, 0);
 
     const conditions = [eq(bookings.propertyId, propertyId)];
     if (status) {
@@ -33,7 +37,15 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       );
     }
 
-    const result = await app.db
+    const whereCondition = and(...conditions);
+
+    const [totalResult] = await app.db
+      .select({ count: count() })
+      .from(bookings)
+      .innerJoin(guests, eq(bookings.guestId, guests.id))
+      .where(whereCondition);
+
+    const data = await app.db
       .select({
         id: bookings.id,
         confirmationNumber: bookings.confirmationNumber,
@@ -62,10 +74,12 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       .innerJoin(guests, eq(bookings.guestId, guests.id))
       .innerJoin(roomTypes, eq(bookings.roomTypeId, roomTypes.id))
       .leftJoin(rooms, eq(bookings.roomId, rooms.id))
-      .where(and(...conditions))
-      .orderBy(bookings.checkInDate);
+      .where(whereCondition)
+      .orderBy(bookings.checkInDate)
+      .limit(maxResults)
+      .offset(skip);
 
-    return result;
+    return { data, total: totalResult.count };
   });
 
   // Get single booking with full details

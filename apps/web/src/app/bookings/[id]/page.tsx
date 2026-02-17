@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api";
+import { formatCurrency } from "@/lib/format";
 import Link from "next/link";
 import { BookingActions } from "./booking-actions";
 import { FolioSection } from "./folio-section";
@@ -157,7 +158,7 @@ export default async function BookingDetailPage({
           label="Rate/Night"
           value={
             booking.rateAmount
-              ? `${Number(booking.rateAmount).toLocaleString()} ₽`
+              ? `${formatCurrency(booking.rateAmount)} ₽`
               : null
           }
         />
@@ -165,7 +166,7 @@ export default async function BookingDetailPage({
           label="Total"
           value={
             booking.totalAmount
-              ? `${Number(booking.totalAmount).toLocaleString()} ₽`
+              ? `${formatCurrency(booking.totalAmount)} ₽`
               : null
           }
         />

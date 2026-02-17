@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { formatCurrency } from "@/lib/format";
 
 type Transaction = {
   id: string;
@@ -32,13 +33,6 @@ type TransactionCode = {
 };
 
 type PostFormMode = null | "charge" | "payment";
-
-function formatCurrency(amount: number): string {
-  return amount.toLocaleString("ru-RU", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
 
 export function FolioSection({ bookingId }: { bookingId: string }) {
   const [folio, setFolio] = useState<FolioData | null>(null);
@@ -89,6 +83,7 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
   async function handlePost(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setPosting(true);
+    setError(null);
     const form = new FormData(e.currentTarget);
     const codeId = form.get("codeId") as string;
     const amount = parseFloat(form.get("amount") as string);
@@ -98,6 +93,52 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
     const url = isPayment
       ? `/api/bookings/${bookingId}/folio/payment`
       : `/api/bookings/${bookingId}/folio/post`;
+
+    // Find the selected transaction code for optimistic display
+    const selectedCode = codes.find((c) => c.id === codeId);
+    const optimisticId = `optimistic-${Date.now()}`;
+    const now = new Date().toISOString();
+    const today = now.slice(0, 10);
+
+    // Build optimistic transaction
+    const optimisticTxn: Transaction = {
+      id: optimisticId,
+      date: today,
+      transactionCode: {
+        code: selectedCode?.code || "...",
+        description: selectedCode?.description || "",
+      },
+      debit: isPayment ? "0" : amount.toFixed(2),
+      credit: isPayment ? amount.toFixed(2) : "0",
+      description: description || null,
+      isSystemGenerated: false,
+      postedBy: "You",
+      createdAt: now,
+    };
+
+    // Snapshot previous folio state for rollback
+    const previousFolio = folio;
+
+    // Apply optimistic update
+    if (folio) {
+      const newBalance = isPayment
+        ? folio.balance - amount
+        : folio.balance + amount;
+      const newCharges = isPayment
+        ? folio.summary.totalCharges
+        : folio.summary.totalCharges + amount;
+      const newPayments = isPayment
+        ? folio.summary.totalPayments + amount
+        : folio.summary.totalPayments;
+
+      setFolio({
+        balance: newBalance,
+        transactions: [...folio.transactions, optimisticTxn],
+        summary: { totalCharges: newCharges, totalPayments: newPayments },
+      });
+    }
+
+    setPostFormMode(null);
 
     try {
       const res = await fetch(url, {
@@ -112,13 +153,17 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
 
       if (!res.ok) {
         const data = await res.json();
+        // Rollback optimistic update
+        setFolio(previousFolio);
         setError(data.error || "Failed to post");
         return;
       }
 
-      setPostFormMode(null);
+      // Refetch to get authoritative server state
       await fetchFolio();
     } catch {
+      // Rollback optimistic update
+      setFolio(previousFolio);
       setError("Network error");
     } finally {
       setPosting(false);
@@ -307,7 +352,7 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
             </thead>
             <tbody className="divide-y">
               {folio.transactions.map((t) => (
-                <tr key={t.id} className="hover:bg-gray-50">
+                <tr key={t.id} className={`hover:bg-gray-50 ${t.id.startsWith("optimistic-") ? "opacity-60" : ""}`}>
                   <td className="px-3 py-2 text-gray-600">{t.date}</td>
                   <td className="px-3 py-2 font-mono text-xs">
                     {t.transactionCode.code}
@@ -321,10 +366,10 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
                     )}
                   </td>
                   <td className="px-3 py-2 text-right font-mono">
-                    {parseFloat(t.debit) > 0 ? formatCurrency(parseFloat(t.debit)) : ""}
+                    {parseFloat(t.debit) > 0 ? formatCurrency(t.debit) : ""}
                   </td>
                   <td className="px-3 py-2 text-right font-mono text-green-600">
-                    {parseFloat(t.credit) > 0 ? formatCurrency(parseFloat(t.credit)) : ""}
+                    {parseFloat(t.credit) > 0 ? formatCurrency(t.credit) : ""}
                   </td>
                   <td className="px-3 py-2 text-xs text-gray-400">
                     {t.postedBy}

@@ -1,34 +1,40 @@
 import type { FastifyPluginAsync } from "fastify";
-import { guests } from "@pms/db";
-import { eq, or, ilike, and } from "drizzle-orm";
+import { guests, bookings } from "@pms/db";
+import { eq, or, ilike, and, sql, count } from "drizzle-orm";
 
 export const guestsRoutes: FastifyPluginAsync = async (app) => {
   // Search guests by name, email, or phone
   app.get<{
-    Querystring: { q?: string; limit?: string };
+    Querystring: { q?: string; limit?: string; offset?: string };
   }>("/api/guests", async (request) => {
-    const { q, limit } = request.query;
+    const { q, limit, offset } = request.query;
     const maxResults = Math.min(Number(limit) || 50, 100);
+    const skip = Math.max(Number(offset) || 0, 0);
 
-    let query = app.db
+    const searchCondition =
+      q && q.trim().length > 0
+        ? or(
+            ilike(guests.firstName, `%${q.trim()}%`),
+            ilike(guests.lastName, `%${q.trim()}%`),
+            ilike(guests.email, `%${q.trim()}%`),
+            ilike(guests.phone, `%${q.trim()}%`),
+          )
+        : undefined;
+
+    const [totalResult] = await app.db
+      .select({ count: count() })
+      .from(guests)
+      .where(searchCondition);
+
+    const data = await app.db
       .select()
       .from(guests)
+      .where(searchCondition)
+      .orderBy(guests.lastName, guests.firstName)
       .limit(maxResults)
-      .orderBy(guests.lastName, guests.firstName);
+      .offset(skip);
 
-    if (q && q.trim().length > 0) {
-      const pattern = `%${q.trim()}%`;
-      query = query.where(
-        or(
-          ilike(guests.firstName, pattern),
-          ilike(guests.lastName, pattern),
-          ilike(guests.email, pattern),
-          ilike(guests.phone, pattern),
-        ),
-      ) as typeof query;
-    }
-
-    return query;
+    return { data, total: totalResult.count };
   });
 
   // Get single guest
@@ -117,4 +123,36 @@ export const guestsRoutes: FastifyPluginAsync = async (app) => {
     if (!updated) return reply.status(404).send({ error: "Not found" });
     return updated;
   });
+
+  // Delete guest
+  app.delete<{ Params: { id: string } }>(
+    "/api/guests/:id",
+    async (request, reply) => {
+      // Check for active bookings referencing this guest
+      const bookingCount = await app.db
+        .select({ count: sql<number>`count(*)` })
+        .from(bookings)
+        .where(and(
+          eq(bookings.guestId, request.params.id),
+          or(eq(bookings.status, "confirmed"), eq(bookings.status, "checked_in"))
+        ));
+
+      const bookingCountNum = Number(bookingCount[0].count);
+      if (bookingCountNum > 0) {
+        return reply.status(400).send({
+          error: `Cannot delete: ${bookingCountNum} active bookings reference this guest`,
+          code: "HAS_ACTIVE_BOOKINGS",
+          count: bookingCountNum,
+        });
+      }
+
+      const [deleted] = await app.db
+        .delete(guests)
+        .where(eq(guests.id, request.params.id))
+        .returning();
+
+      if (!deleted) return reply.status(404).send({ error: "Not found" });
+      return { success: true };
+    }
+  );
 };

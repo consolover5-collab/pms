@@ -4,15 +4,34 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "./auth-provider";
+import { useUser, type UserRole } from "@/lib/use-user";
 
-const navItems = [
+interface NavItem {
+  href: string;
+  label: string;
+  labelRu: string;
+  /** If set, only these roles can see the link */
+  visibleTo?: UserRole[];
+}
+
+const navItems: NavItem[] = [
   { href: "/", label: "Dashboard", labelRu: "Дашборд" },
   { href: "/bookings", label: "Bookings", labelRu: "Бронирования" },
   { href: "/rooms", label: "Rooms", labelRu: "Номера" },
   { href: "/tape-chart", label: "Tape Chart", labelRu: "Шахматка" },
   { href: "/guests", label: "Guests", labelRu: "Гости" },
-  { href: "/night-audit", label: "Night Audit", labelRu: "Ночной аудит" },
-  { href: "/configuration", label: "Settings", labelRu: "Настройки" },
+  {
+    href: "/night-audit",
+    label: "Night Audit",
+    labelRu: "Ночной аудит",
+    visibleTo: ["admin", "manager", "front_desk"],
+  },
+  {
+    href: "/configuration",
+    label: "Settings",
+    labelRu: "Настройки",
+    visibleTo: ["admin", "manager"],
+  },
 ];
 
 function formatBusinessDate(dateStr: string): string {
@@ -34,6 +53,7 @@ const ROLE_LABELS: Record<string, string> = {
 export function Navbar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const currentUser = useUser();
   const [businessDate, setBusinessDate] = useState<string>("");
 
   useEffect(() => {
@@ -77,7 +97,13 @@ export function Navbar() {
           PMS
         </Link>
         <div className="flex gap-1">
-          {navItems.map((item) => (
+          {navItems
+            .filter(
+              (item) =>
+                !item.visibleTo ||
+                item.visibleTo.includes(currentUser.role),
+            )
+            .map((item) => (
             <Link
               key={item.href}
               href={item.href}

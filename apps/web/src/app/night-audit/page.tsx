@@ -1,6 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { formatCurrency } from "@/lib/format";
+
+type RoomDetail = {
+  roomNumber: string;
+  guestName: string;
+  rateAmount: number;
+};
 
 type PreviewData = {
   businessDate: string;
@@ -8,6 +15,7 @@ type PreviewData = {
   pendingNoShows: number;
   roomsToCharge: number;
   estimatedRevenue: number;
+  roomDetails: RoomDetail[];
   warnings: string[];
 };
 
@@ -20,13 +28,6 @@ type RunResult = {
   roomsUpdated: number;
   totalRevenue: number;
 };
-
-function formatCurrency(amount: number): string {
-  return amount.toLocaleString("ru-RU", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
 
 export default function NightAuditPage() {
   const [propertyId, setPropertyId] = useState<string | null>(null);
@@ -167,6 +168,33 @@ export default function NightAuditPage() {
               </div>
             </div>
           </div>
+
+          {/* Per-room breakdown */}
+          {preview.roomDetails && preview.roomDetails.length > 0 && (
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <h3 className="text-sm font-semibold mb-2">Room Charges Breakdown</h3>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500 border-b">
+                    <th className="pb-1">Room</th>
+                    <th className="pb-1">Guest</th>
+                    <th className="pb-1 text-right">Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.roomDetails.map((rd, i) => (
+                    <tr key={i} className="border-b border-gray-100">
+                      <td className="py-1 font-mono">{rd.roomNumber}</td>
+                      <td className="py-1">{rd.guestName}</td>
+                      <td className="py-1 text-right font-mono">
+                        {formatCurrency(rd.rateAmount)} ₽
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Warnings */}
           {preview.warnings.length > 0 && (

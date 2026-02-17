@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api";
+import { formatCurrency } from "@/lib/format";
 import Link from "next/link";
 import { DateFilter } from "./date-filter";
 import { BookingSearchForm } from "./search-form";
@@ -55,6 +56,13 @@ const viewLabels: Record<string, string> = {
   inhouse: "In-House Guests",
 };
 
+type BookingsResponse = {
+  data: Booking[];
+  total: number;
+};
+
+const PAGE_SIZE = 50;
+
 export default async function BookingsPage({
   searchParams,
 }: {
@@ -64,9 +72,12 @@ export default async function BookingsPage({
     dateFrom?: string;
     dateTo?: string;
     q?: string;
+    page?: string;
   }>;
 }) {
-  const { status, view, dateFrom, dateTo, q } = await searchParams;
+  const { status, view, dateFrom, dateTo, q, page } = await searchParams;
+  const currentPage = Math.max(Number(page) || 1, 1);
+  const offset = (currentPage - 1) * PAGE_SIZE;
   const today = new Date().toISOString().split("T")[0];
 
   // Get property (single-property MVP)
@@ -107,10 +118,12 @@ export default async function BookingsPage({
   const queryParams = new URLSearchParams({ propertyId: property.id });
   if (status) queryParams.set("status", status);
   if (q) queryParams.set("search", q);
+  queryParams.set("limit", String(PAGE_SIZE));
+  queryParams.set("offset", String(offset));
 
-  let allBookings: Booking[];
+  let result: BookingsResponse;
   try {
-    allBookings = await apiFetch<Booking[]>(
+    result = await apiFetch<BookingsResponse>(
       `/api/bookings?${queryParams.toString()}`,
     );
   } catch (err) {
@@ -133,6 +146,8 @@ export default async function BookingsPage({
       </main>
     );
   }
+
+  const { data: allBookings, total } = result;
 
   // Apply view filters
   let bookings = allBookings;
@@ -179,6 +194,20 @@ export default async function BookingsPage({
     bookings = bookings.filter((b) => b.checkInDate <= effectiveTo);
   }
 
+  const totalPages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
+
+  function pageUrl(p: number) {
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (view) params.set("view", view);
+    if (dateFrom) params.set("dateFrom", dateFrom);
+    if (dateTo) params.set("dateTo", dateTo);
+    if (q) params.set("q", q);
+    if (p > 1) params.set("page", String(p));
+    const qs = params.toString();
+    return `/bookings${qs ? `?${qs}` : ""}`;
+  }
+
   return (
     <main className="p-8">
       <div className="flex justify-between items-center mb-4">
@@ -200,7 +229,7 @@ export default async function BookingsPage({
 
       {q && (
         <p className="text-sm text-gray-500 mb-4">
-          Results for &quot;{q}&quot;: {allBookings.length} found
+          Results for &quot;{q}&quot;: {total} found
         </p>
       )}
 
@@ -309,7 +338,7 @@ export default async function BookingsPage({
                 </td>
                 <td className="p-2 text-right">
                   {booking.totalAmount
-                    ? `${Number(booking.totalAmount).toLocaleString()} \u20BD`
+                    ? `${formatCurrency(booking.totalAmount)} \u20BD`
                     : "\u2014"}
                 </td>
                 {view === "arrivals" && booking.status === "confirmed" && (
@@ -352,6 +381,45 @@ export default async function BookingsPage({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-sm text-gray-500">
+            Showing {offset + 1}&ndash;{Math.min(offset + PAGE_SIZE, total)} of{" "}
+            {total}
+          </p>
+          <div className="flex gap-2">
+            {currentPage > 1 ? (
+              <Link
+                href={pageUrl(currentPage - 1)}
+                className="px-3 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200"
+              >
+                Previous
+              </Link>
+            ) : (
+              <span className="px-3 py-1 text-sm bg-gray-50 text-gray-400 rounded">
+                Previous
+              </span>
+            )}
+            <span className="px-3 py-1 text-sm">
+              Page {currentPage} of {totalPages}
+            </span>
+            {currentPage < totalPages ? (
+              <Link
+                href={pageUrl(currentPage + 1)}
+                className="px-3 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200"
+              >
+                Next
+              </Link>
+            ) : (
+              <span className="px-3 py-1 text-sm bg-gray-50 text-gray-400 rounded">
+                Next
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }

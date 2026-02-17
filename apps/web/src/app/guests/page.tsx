@@ -13,17 +13,30 @@ type Guest = {
   vipStatus: number | null;
 };
 
+type GuestsResponse = {
+  data: Guest[];
+  total: number;
+};
+
+const PAGE_SIZE = 50;
+
 export default async function GuestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }) {
-  const { q } = await searchParams;
-  const queryStr = q ? `?q=${encodeURIComponent(q)}` : "";
+  const { q, page } = await searchParams;
+  const currentPage = Math.max(Number(page) || 1, 1);
+  const offset = (currentPage - 1) * PAGE_SIZE;
 
-  let guests: Guest[];
+  const params = new URLSearchParams();
+  if (q) params.set("q", encodeURIComponent(q));
+  params.set("limit", String(PAGE_SIZE));
+  params.set("offset", String(offset));
+
+  let result: GuestsResponse;
   try {
-    guests = await apiFetch<Guest[]>(`/api/guests${queryStr}`);
+    result = await apiFetch<GuestsResponse>(`/api/guests?${params.toString()}`);
   } catch (err) {
     return (
       <main className="p-8">
@@ -45,6 +58,9 @@ export default async function GuestsPage({
     );
   }
 
+  const { data: guests, total } = result;
+  const totalPages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
+
   const vipBadge = (level: number) => {
     const colors = [
       "",
@@ -56,6 +72,14 @@ export default async function GuestsPage({
     ];
     return colors[level] || "";
   };
+
+  function pageUrl(p: number) {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (p > 1) params.set("page", String(p));
+    const qs = params.toString();
+    return `/guests${qs ? `?${qs}` : ""}`;
+  }
 
   return (
     <main className="p-8">
@@ -73,7 +97,7 @@ export default async function GuestsPage({
 
       {q && (
         <p className="text-sm text-gray-500 mb-4">
-          Results for &quot;{q}&quot;: {guests.length} found
+          Results for &quot;{q}&quot;: {total} found
         </p>
       )}
 
@@ -123,6 +147,45 @@ export default async function GuestsPage({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-sm text-gray-500">
+            Showing {offset + 1}&ndash;{Math.min(offset + PAGE_SIZE, total)} of{" "}
+            {total}
+          </p>
+          <div className="flex gap-2">
+            {currentPage > 1 ? (
+              <Link
+                href={pageUrl(currentPage - 1)}
+                className="px-3 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200"
+              >
+                Previous
+              </Link>
+            ) : (
+              <span className="px-3 py-1 text-sm bg-gray-50 text-gray-400 rounded">
+                Previous
+              </span>
+            )}
+            <span className="px-3 py-1 text-sm">
+              Page {currentPage} of {totalPages}
+            </span>
+            {currentPage < totalPages ? (
+              <Link
+                href={pageUrl(currentPage + 1)}
+                className="px-3 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200"
+              >
+                Next
+              </Link>
+            ) : (
+              <span className="px-3 py-1 text-sm bg-gray-50 text-gray-400 rounded">
+                Next
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }

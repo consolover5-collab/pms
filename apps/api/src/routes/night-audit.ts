@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import {
   bookings,
   rooms,
+  guests,
   properties,
   businessDates,
   transactionCodes,
@@ -70,13 +71,18 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
         ),
       );
 
-    // Rooms to charge: all checked_in bookings
+    // Rooms to charge: all checked_in bookings with room + guest details
     const roomsToCharge = await app.db
       .select({
         id: bookings.id,
         rateAmount: bookings.rateAmount,
+        roomNumber: rooms.roomNumber,
+        guestFirstName: guests.firstName,
+        guestLastName: guests.lastName,
       })
       .from(bookings)
+      .leftJoin(rooms, eq(bookings.roomId, rooms.id))
+      .innerJoin(guests, eq(bookings.guestId, guests.id))
       .where(
         and(
           eq(bookings.propertyId, propertyId),
@@ -92,10 +98,16 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
 
     const taxRate = parseFloat(property?.taxRate || "0");
     let estimatedRevenue = 0;
-    for (const b of roomsToCharge) {
+    const roomDetails = roomsToCharge.map((b) => {
       const rate = parseFloat(b.rateAmount || "0");
-      estimatedRevenue += rate + calculateTax(rate, taxRate);
-    }
+      const tax = calculateTax(rate, taxRate);
+      estimatedRevenue += rate + tax;
+      return {
+        roomNumber: b.roomNumber || "—",
+        guestName: `${b.guestFirstName} ${b.guestLastName}`,
+        rateAmount: rate,
+      };
+    });
 
     const warnings: string[] = [];
     if (dueOuts.length > 0) {
@@ -110,6 +122,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
       pendingNoShows: pendingNoShows.length,
       roomsToCharge: roomsToCharge.length,
       estimatedRevenue: Math.round(estimatedRevenue * 100) / 100,
+      roomDetails,
       warnings,
     };
   });

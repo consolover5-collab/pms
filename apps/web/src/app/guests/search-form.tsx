@@ -1,18 +1,41 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 export function SearchForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") || "");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const navigate = useCallback(
+    (value: string) => {
+      const params = new URLSearchParams();
+      if (value.trim()) params.set("q", value.trim());
+      router.push(`/guests?${params.toString()}`);
+    },
+    [router],
+  );
+
+  useEffect(() => {
+    // Skip debounce on initial render
+    if (query === (searchParams.get("q") || "")) return;
+
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      navigate(query);
+    }, 300);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [query, navigate, searchParams]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const params = new URLSearchParams();
-    if (query.trim()) params.set("q", query.trim());
-    router.push(`/guests?${params.toString()}`);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    navigate(query);
   }
 
   return (

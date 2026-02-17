@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { formatCurrency } from "@/lib/format";
 
 
 type RatePlan = {
@@ -76,7 +77,7 @@ export function RatePlansList({ ratePlans }: { ratePlans: RatePlan[] }) {
                 )}
               </td>
               <td className="px-4 py-3">
-                {rp.baseRate ? parseFloat(rp.baseRate).toLocaleString() : "—"}
+                {rp.baseRate ? formatCurrency(rp.baseRate) : "—"}
               </td>
               <td className="px-4 py-3">
                 <span
