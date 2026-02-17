@@ -1,7 +1,5 @@
 "use client";
 
-import { useAuth } from "@/components/auth-provider";
-
 export type UserRole = "admin" | "front_desk" | "housekeeping" | "manager";
 
 export interface AppUser {
@@ -17,13 +15,12 @@ const DEFAULT_USER: AppUser = {
 };
 
 /**
- * Returns the current user. When auth is disabled (user is null),
- * returns a default admin user so all UI is visible.
+ * Returns the current user. Auth is currently disabled —
+ * returns default admin user so all UI is visible.
+ * When auth is re-enabled, restore useAuth() integration.
  */
 export function useUser(): AppUser {
-  const { user } = useAuth();
-  if (!user) return DEFAULT_USER;
-  return user as AppUser;
+  return DEFAULT_USER;
 }
 
 /** Check if role can see admin/manager-only items */

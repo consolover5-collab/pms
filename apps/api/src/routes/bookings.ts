@@ -215,6 +215,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
     }
 
     // Sequential confirmation number: PROPERTY_CODE-NNNNNN
+    // Wrapped in transaction to prevent duplicate confirmation numbers
     const [property] = await app.db
       .select({ code: properties.code })
       .from(properties)
@@ -222,57 +223,64 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
 
     const propertyCode = property?.code || "PMS";
 
-    const prefix = propertyCode + "-";
-    const [lastBooking] = await app.db
-      .select({ confirmationNumber: bookings.confirmationNumber })
-      .from(bookings)
-      .where(
-        and(
-          eq(bookings.propertyId, request.body.propertyId),
-          sql`confirmation_number LIKE ${prefix + "%"}`,
-        ),
-      )
-      .orderBy(sql`confirmation_number DESC`)
-      .limit(1);
-
-    let nextSeq = 1;
-    if (lastBooking) {
-      const lastSeqStr = lastBooking.confirmationNumber.replace(prefix, "");
-      const lastSeq = parseInt(lastSeqStr, 10);
-      if (!isNaN(lastSeq)) nextSeq = lastSeq + 1;
-    }
-
-    const confNum = prefix + String(nextSeq).padStart(6, "0");
-
     // Авторасчёт totalAmount если не указан
     let calcTotalAmount = request.body.totalAmount;
     if (!calcTotalAmount && request.body.rateAmount) {
       const checkIn = new Date(request.body.checkInDate);
       const checkOut = new Date(request.body.checkOutDate);
       const nights = Math.max(1, Math.round((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)));
-      calcTotalAmount = String(Number(request.body.rateAmount) * nights);
+      calcTotalAmount = String(Math.round(Number(request.body.rateAmount) * nights * 100) / 100);
     }
 
-    const [booking] = await app.db
-      .insert(bookings)
-      .values({
-        propertyId: request.body.propertyId,
-        guestId: request.body.guestId,
-        roomId: request.body.roomId || null,
-        roomTypeId: request.body.roomTypeId,
-        ratePlanId: request.body.ratePlanId || null,
-        checkInDate: request.body.checkInDate,
-        checkOutDate: request.body.checkOutDate,
-        adults: request.body.adults || 1,
-        children: request.body.children || 0,
-        rateAmount: request.body.rateAmount || null,
-        totalAmount: calcTotalAmount || null,
-        paymentMethod: request.body.paymentMethod || null,
-        notes: request.body.notes || null,
-        confirmationNumber: confNum,
-        status: "confirmed",
-      })
-      .returning();
+    const booking = await app.db.transaction(async (tx) => {
+      const prefix = propertyCode + "-";
+      // Lock bookings table for this property to prevent concurrent inserts
+      await tx.execute(sql`SELECT 1 FROM bookings WHERE property_id = ${request.body.propertyId} ORDER BY confirmation_number DESC LIMIT 1 FOR UPDATE`);
+
+      const [lastBooking] = await tx
+        .select({ confirmationNumber: bookings.confirmationNumber })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.propertyId, request.body.propertyId),
+            sql`confirmation_number LIKE ${prefix + "%"}`,
+          ),
+        )
+        .orderBy(sql`confirmation_number DESC`)
+        .limit(1);
+
+      let nextSeq = 1;
+      if (lastBooking) {
+        const lastSeqStr = lastBooking.confirmationNumber.replace(prefix, "");
+        const lastSeq = parseInt(lastSeqStr, 10);
+        if (!isNaN(lastSeq)) nextSeq = lastSeq + 1;
+      }
+
+      const confNum = prefix + String(nextSeq).padStart(6, "0");
+
+      const [created] = await tx
+        .insert(bookings)
+        .values({
+          propertyId: request.body.propertyId,
+          guestId: request.body.guestId,
+          roomId: request.body.roomId || null,
+          roomTypeId: request.body.roomTypeId,
+          ratePlanId: request.body.ratePlanId || null,
+          checkInDate: request.body.checkInDate,
+          checkOutDate: request.body.checkOutDate,
+          adults: request.body.adults || 1,
+          children: request.body.children || 0,
+          rateAmount: request.body.rateAmount || null,
+          totalAmount: calcTotalAmount || null,
+          paymentMethod: request.body.paymentMethod || null,
+          notes: request.body.notes || null,
+          confirmationNumber: confNum,
+          status: "confirmed",
+        })
+        .returning();
+
+      return created;
+    });
 
     return reply.status(201).send(booking);
   });
@@ -295,17 +303,25 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       notes?: string;
     };
   }>("/api/bookings/:id", async (request, reply) => {
+    // Загрузить текущее бронирование для merge с обновляемыми полями
+    const [existing] = await app.db.select().from(bookings).where(eq(bookings.id, request.params.id));
+    if (!existing) return reply.status(404).send({ error: "Not found" });
+
+    const effectiveCheckIn = request.body.checkInDate || existing.checkInDate;
+    const effectiveCheckOut = request.body.checkOutDate || existing.checkOutDate;
+    const effectiveRoomId = request.body.roomId !== undefined ? request.body.roomId : existing.roomId;
+
     // Валидация дат при обновлении
-    if (request.body.checkInDate && request.body.checkOutDate) {
-      const dateError = validateBookingDates(request.body.checkInDate, request.body.checkOutDate);
+    if (request.body.checkInDate || request.body.checkOutDate) {
+      const dateError = validateBookingDates(effectiveCheckIn, effectiveCheckOut);
       if (dateError) {
         return reply.status(400).send({ error: dateError, code: "INVALID_DATES" });
       }
     }
 
-    // Проверка конфликта комнаты при обновлении
-    if (request.body.roomId && request.body.checkInDate && request.body.checkOutDate) {
-      const conflict = await checkRoomConflict(app.db, request.body.roomId, request.body.checkInDate, request.body.checkOutDate, request.params.id);
+    // Проверка конфликта комнаты при обновлении дат ИЛИ комнаты
+    if (effectiveRoomId && (request.body.roomId || request.body.checkInDate || request.body.checkOutDate)) {
+      const conflict = await checkRoomConflict(app.db, effectiveRoomId, effectiveCheckIn, effectiveCheckOut, request.params.id);
       if (conflict) {
         return reply.status(400).send({ error: conflict, code: "ROOM_CONFLICT" });
       }
@@ -317,7 +333,6 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(bookings.id, request.params.id))
       .returning();
 
-    if (!updated) return reply.status(404).send({ error: "Not found" });
     return updated;
   });
 
@@ -528,7 +543,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
               housekeepingStatus: "dirty",
               updatedAt: new Date(),
             })
-            .where(eq(rooms.id, booking.roomId));
+            .where(and(eq(rooms.id, booking.roomId), eq(rooms.propertyId, booking.propertyId)));
         }
 
         return updated;
@@ -563,15 +578,13 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
 
       const result = await app.db.transaction(async (tx) => {
         if (booking.roomId) {
-          // Keep room clean so the same booking can re-check-in immediately.
-          // The guest hasn't actually used the room if we're undoing a check-in.
           await tx
             .update(rooms)
             .set({
               occupancyStatus: "vacant",
               updatedAt: new Date(),
             })
-            .where(eq(rooms.id, booking.roomId));
+            .where(and(eq(rooms.id, booking.roomId), eq(rooms.propertyId, booking.propertyId)));
         }
 
         const [updated] = await tx
@@ -638,13 +651,12 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       }
 
       // Determine target status
-      let targetStatus = "confirmed";
+      let targetStatus: string = "confirmed";
       let updates: Record<string, unknown> = {
         status: targetStatus,
         updatedAt: new Date(),
       };
 
-      // If reinstating from checked_out, reopen the stay
       if (booking.status === "checked_out") {
         targetStatus = "checked_in";
         updates = {
@@ -652,22 +664,6 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           actualCheckOut: null,
           updatedAt: new Date(),
         };
-
-        // Re-occupy the room if still assigned
-        if (booking.roomId) {
-          // Check if room is still available
-          const [room] = await app.db
-            .select()
-            .from(rooms)
-            .where(eq(rooms.id, booking.roomId));
-
-          if (!room || room.occupancyStatus !== "vacant") {
-            return reply.status(400).send({
-              error: "Cannot reinstate: the room is no longer available. Please assign a new room.",
-              code: "ROOM_NOT_AVAILABLE"
-            });
-          }
-        }
       }
 
       // Clear cancellation-related fields when reinstating from cancelled
@@ -677,7 +673,22 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       }
 
       const result = await app.db.transaction(async (tx) => {
+        // Re-occupy the room if reinstating from checked_out — atomically
         if (booking.status === "checked_out" && booking.roomId) {
+          // Lock and check room availability inside transaction
+          await tx.execute(sql`SELECT id FROM rooms WHERE id = ${booking.roomId} FOR UPDATE`);
+
+          const [room] = await tx
+            .select()
+            .from(rooms)
+            .where(and(eq(rooms.id, booking.roomId), eq(rooms.propertyId, booking.propertyId)));
+
+          if (!room || room.occupancyStatus !== "vacant") {
+            throw Object.assign(new Error("Нельзя восстановить: комната больше недоступна. Назначьте другую комнату."), {
+              statusCode: 400, code: "ROOM_NOT_AVAILABLE"
+            });
+          }
+
           await tx
             .update(rooms)
             .set({
@@ -694,8 +705,15 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           .returning();
 
         return updated;
+      }).catch((err: any) => {
+        if (err.statusCode) {
+          reply.status(err.statusCode).send({ error: err.message, code: err.code });
+          return null;
+        }
+        throw err;
       });
 
+      if (result === null) return;
       return result;
     },
   );

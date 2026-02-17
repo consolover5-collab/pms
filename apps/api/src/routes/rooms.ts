@@ -1,16 +1,10 @@
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import { rooms, roomTypes, bookings } from "@pms/db";
 import { eq, and, sql } from "drizzle-orm";
+import { VALID_HK_TRANSITIONS } from "@pms/domain";
 
-// Допустимые переходы housekeeping-статусов (Opera workflow)
-const hkTransitions: Record<string, string[]> = {
-  dirty:          ["clean", "pickup", "out_of_order", "out_of_service"],
-  pickup:         ["clean", "dirty", "out_of_order", "out_of_service"],
-  clean:          ["inspected", "dirty", "out_of_order", "out_of_service"],
-  inspected:      ["dirty", "clean", "out_of_order", "out_of_service"],
-  out_of_order:   ["dirty", "clean"],
-  out_of_service: ["dirty", "clean"],
-};
+// Use domain state machine as single source of truth
+const hkTransitions: Record<string, string[]> = VALID_HK_TRANSITIONS;
 
 const validHkStatuses = [
   "clean", "dirty", "pickup", "inspected", "out_of_order", "out_of_service",

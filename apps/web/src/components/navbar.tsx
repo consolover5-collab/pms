@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useAuth } from "./auth-provider";
 import { useUser, type UserRole } from "@/lib/use-user";
 
 interface NavItem {
@@ -52,7 +51,6 @@ const ROLE_LABELS: Record<string, string> = {
 
 export function Navbar() {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
   const currentUser = useUser();
   const [businessDate, setBusinessDate] = useState<string>("");
 
@@ -125,22 +123,14 @@ export function Navbar() {
             <span className="text-white font-medium">{businessDate}</span>
           </div>
         )}
-        {user && (
-          <div className="flex items-center gap-3">
-            <span className="text-gray-300">
-              {user.username}{" "}
-              <span className="text-gray-500 text-xs">
-                ({ROLE_LABELS[user.role] || user.role})
-              </span>
+        <div className="flex items-center gap-3">
+          <span className="text-gray-300">
+            {currentUser.username}{" "}
+            <span className="text-gray-500 text-xs">
+              ({ROLE_LABELS[currentUser.role] || currentUser.role})
             </span>
-            <button
-              onClick={logout}
-              className="text-gray-400 hover:text-white text-xs px-2 py-1 rounded hover:bg-gray-800 transition-colors"
-            >
-              Выход
-            </button>
-          </div>
-        )}
+          </span>
+        </div>
       </div>
     </nav>
   );

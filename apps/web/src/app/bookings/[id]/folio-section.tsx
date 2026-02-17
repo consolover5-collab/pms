@@ -224,7 +224,8 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
           </span>
           <button
             onClick={() => toggleForm("charge")}
-            className={`px-3 py-1 text-xs rounded ${
+            disabled={posting}
+            className={`px-3 py-1 text-xs rounded disabled:opacity-50 ${
               postFormMode === "charge"
                 ? "bg-blue-100 text-blue-700 border border-blue-300"
                 : "bg-blue-600 text-white hover:bg-blue-700"
@@ -234,7 +235,8 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
           </button>
           <button
             onClick={() => toggleForm("payment")}
-            className={`px-3 py-1 text-xs rounded ${
+            disabled={posting}
+            className={`px-3 py-1 text-xs rounded disabled:opacity-50 ${
               postFormMode === "payment"
                 ? "bg-green-100 text-green-700 border border-green-300"
                 : "bg-green-600 text-white hover:bg-green-700"

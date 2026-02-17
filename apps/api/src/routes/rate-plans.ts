@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { ratePlans, bookings } from "@pms/db";
-import { eq, and, or, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
   // List rate plans for a property
@@ -83,20 +83,17 @@ export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
   app.delete<{ Params: { id: string } }>(
     "/api/rate-plans/:id",
     async (request, reply) => {
-      // Проверить наличие активных бронирований
+      // Проверить наличие ЛЮБЫХ бронирований (включая историю)
       const bookingCount = await app.db
         .select({ count: sql<number>`count(*)` })
         .from(bookings)
-        .where(and(
-          eq(bookings.ratePlanId, request.params.id),
-          or(eq(bookings.status, "confirmed"), eq(bookings.status, "checked_in"))
-        ));
+        .where(eq(bookings.ratePlanId, request.params.id));
 
       const bookingCountNum = Number(bookingCount[0].count);
       if (bookingCountNum > 0) {
         return reply.status(400).send({
-          error: `Cannot delete: ${bookingCountNum} active bookings reference this rate plan`,
-          code: "HAS_ACTIVE_BOOKINGS",
+          error: `Нельзя удалить: ${bookingCountNum} бронирований ссылаются на этот тарифный план (Бронирования, Фолио)`,
+          code: "HAS_BOOKINGS",
           count: bookingCountNum,
         });
       }

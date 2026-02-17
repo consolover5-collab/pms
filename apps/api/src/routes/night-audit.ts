@@ -177,6 +177,12 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
         .send({ error: "ROOM transaction code not found. Run seed first." });
     }
 
+    if (taxRate > 0 && !roomTaxCode) {
+      return reply
+        .status(400)
+        .send({ error: "ROOM_TAX transaction code not found but tax rate is set. Add ROOM_TAX code or set tax rate to 0." });
+    }
+
     // Execute all steps in single DB transaction
     let result;
     try {

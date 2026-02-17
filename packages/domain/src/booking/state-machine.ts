@@ -1,13 +1,14 @@
 import type { BookingStatus, HousekeepingStatus } from "@pms/shared";
 
 // --- Booking status transitions ---
+// Includes standard transitions + operational actions (reinstate, cancel-check-in)
 
 const VALID_BOOKING_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   confirmed: ["checked_in", "cancelled", "no_show"],
-  checked_in: ["checked_out"],
-  checked_out: [],
-  cancelled: [],
-  no_show: [],
+  checked_in: ["checked_out", "confirmed"],    // confirmed via cancel-check-in
+  checked_out: ["checked_in"],                  // via reinstate
+  cancelled: ["confirmed"],                     // via reinstate
+  no_show: ["confirmed"],                       // via reinstate
 };
 
 export function canTransitionBooking(
@@ -32,11 +33,11 @@ export function assertBookingTransition(
 
 const VALID_HK_TRANSITIONS: Record<HousekeepingStatus, HousekeepingStatus[]> = {
   dirty: ["pickup", "clean", "out_of_order", "out_of_service"],
-  pickup: ["clean", "dirty"],
+  pickup: ["clean", "dirty", "out_of_order", "out_of_service"],
   clean: ["inspected", "dirty", "out_of_order", "out_of_service"],
-  inspected: ["dirty", "out_of_order", "out_of_service"],
-  out_of_order: ["dirty"],
-  out_of_service: ["dirty"],
+  inspected: ["dirty", "clean", "out_of_order", "out_of_service"],
+  out_of_order: ["dirty", "clean"],
+  out_of_service: ["dirty", "clean"],
 };
 
 export function canTransitionHousekeeping(
@@ -56,3 +57,5 @@ export function assertHousekeepingTransition(
     );
   }
 }
+
+export { VALID_HK_TRANSITIONS };

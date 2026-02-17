@@ -76,11 +76,11 @@ export default async function BookingDetailPage({
   const { id } = await params;
   const booking = await apiFetch<Booking>(`/api/bookings/${id}`);
 
-  const nights = Math.ceil(
+  const nights = Math.max(1, Math.round(
     (new Date(booking.checkOutDate).getTime() -
       new Date(booking.checkInDate).getTime()) /
       (1000 * 60 * 60 * 24),
-  );
+  ));
 
   return (
     <main className="p-8 max-w-3xl">
