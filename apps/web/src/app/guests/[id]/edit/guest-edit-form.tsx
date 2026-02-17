@@ -85,7 +85,7 @@ export function GuestEditForm({ guest }: { guest: Guest }) {
         throw new Error(data.error || `Error: ${res.status}`);
       }
 
-      router.push(`/guests/${guest.id}`);
+      router.replace(`/guests/${guest.id}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");

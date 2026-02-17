@@ -47,7 +47,30 @@ function formatDate(dateStr: string): string {
 
 export default async function Home() {
   // Get property (single-property MVP)
-  const properties = await apiFetch<Property[]>("/api/properties");
+  let properties: Property[];
+  try {
+    properties = await apiFetch<Property[]>("/api/properties");
+  } catch (err) {
+    return (
+      <main className="p-8">
+        <div className="border-2 border-red-300 bg-red-50 rounded-lg p-4">
+          <h2 className="text-lg font-bold text-red-800">
+            Failed to load dashboard
+          </h2>
+          <p className="text-red-700 text-sm mt-1">
+            {err instanceof Error ? err.message : "Could not connect to API"}
+          </p>
+          <Link
+            href="/"
+            className="inline-block mt-3 text-sm text-blue-600 hover:underline"
+          >
+            Retry
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   const property = properties[0];
 
   if (!property) {
@@ -64,12 +87,37 @@ export default async function Home() {
   const qs = `propertyId=${property.id}`;
 
   // Fetch all dashboard data in parallel
-  const [arrivals, departures, inHouse, summary] = await Promise.all([
-    apiFetch<DashboardArrival[]>(`/api/dashboard/arrivals?${qs}`),
-    apiFetch<DashboardBooking[]>(`/api/dashboard/departures?${qs}`),
-    apiFetch<DashboardBooking[]>(`/api/dashboard/in-house?${qs}`),
-    apiFetch<DashboardSummary>(`/api/dashboard/summary?${qs}`),
-  ]);
+  let arrivals: DashboardArrival[];
+  let departures: DashboardBooking[];
+  let inHouse: DashboardBooking[];
+  let summary: DashboardSummary;
+  try {
+    [arrivals, departures, inHouse, summary] = await Promise.all([
+      apiFetch<DashboardArrival[]>(`/api/dashboard/arrivals?${qs}`),
+      apiFetch<DashboardBooking[]>(`/api/dashboard/departures?${qs}`),
+      apiFetch<DashboardBooking[]>(`/api/dashboard/in-house?${qs}`),
+      apiFetch<DashboardSummary>(`/api/dashboard/summary?${qs}`),
+    ]);
+  } catch (err) {
+    return (
+      <main className="p-8">
+        <div className="border-2 border-red-300 bg-red-50 rounded-lg p-4">
+          <h2 className="text-lg font-bold text-red-800">
+            Failed to load dashboard data
+          </h2>
+          <p className="text-red-700 text-sm mt-1">
+            {err instanceof Error ? err.message : "Could not connect to API"}
+          </p>
+          <Link
+            href="/"
+            className="inline-block mt-3 text-sm text-blue-600 hover:underline"
+          >
+            Retry
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   const occupancyPct =
     summary.totalRooms > 0
@@ -91,7 +139,9 @@ export default async function Home() {
         <div className="bg-white border rounded-lg p-4 text-center">
           <div className="text-2xl font-bold text-blue-600">
             {summary.occupiedRooms}
-            <span className="text-gray-400 text-lg">/{summary.totalRooms}</span>
+            <span className="text-gray-400 text-lg">
+              /{summary.totalRooms}
+            </span>
           </div>
           <div className="text-xs text-gray-500 uppercase mt-1">
             Occupied ({occupancyPct}%)
@@ -180,7 +230,7 @@ export default async function Home() {
                     {b.roomType.code}
                     {b.room?.roomNumber && (
                       <span className="ml-1 text-blue-600">
-                        → {b.room.roomNumber}
+                        &rarr; {b.room.roomNumber}
                       </span>
                     )}
                   </div>
@@ -291,7 +341,13 @@ export default async function Home() {
                     <span className="mr-3">Room {b.room.roomNumber}</span>
                   )}
                   <span>
-                    CO {new Date(b.checkOutDate + "T00:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
+                    CO{" "}
+                    {new Date(
+                      b.checkOutDate + "T00:00:00",
+                    ).toLocaleDateString("ru-RU", {
+                      day: "numeric",
+                      month: "short",
+                    })}
                   </span>
                 </div>
               </Link>

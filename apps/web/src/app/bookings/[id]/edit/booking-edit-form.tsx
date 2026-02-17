@@ -249,7 +249,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
         return;
       }
 
-      router.push(`/bookings/${booking.id}`);
+      router.replace(`/bookings/${booking.id}`);
       router.refresh();
     } catch (err) {
       if (err instanceof TypeError && err.message === "Failed to fetch") {

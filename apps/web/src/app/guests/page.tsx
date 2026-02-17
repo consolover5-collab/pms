@@ -20,7 +20,30 @@ export default async function GuestsPage({
 }) {
   const { q } = await searchParams;
   const queryStr = q ? `?q=${encodeURIComponent(q)}` : "";
-  const guests = await apiFetch<Guest[]>(`/api/guests${queryStr}`);
+
+  let guests: Guest[];
+  try {
+    guests = await apiFetch<Guest[]>(`/api/guests${queryStr}`);
+  } catch (err) {
+    return (
+      <main className="p-8">
+        <div className="border-2 border-red-300 bg-red-50 rounded-lg p-4">
+          <h2 className="text-lg font-bold text-red-800">
+            Failed to load guests
+          </h2>
+          <p className="text-red-700 text-sm mt-1">
+            {err instanceof Error ? err.message : "Could not connect to API"}
+          </p>
+          <Link
+            href="/guests"
+            className="inline-block mt-3 text-sm text-blue-600 hover:underline"
+          >
+            Retry
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   const vipBadge = (level: number) => {
     const colors = [

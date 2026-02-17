@@ -60,7 +60,7 @@ export function RoomTypeForm({
         throw new Error(data.error || "Failed to save room type");
       }
 
-      router.push("/configuration/room-types");
+      router.replace("/configuration/room-types");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");

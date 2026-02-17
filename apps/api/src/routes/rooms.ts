@@ -115,6 +115,7 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
           floor: rooms.floor,
           housekeepingStatus: rooms.housekeepingStatus,
           occupancyStatus: rooms.occupancyStatus,
+          propertyId: rooms.propertyId,
           roomType: {
             id: roomTypes.id,
             name: roomTypes.name,

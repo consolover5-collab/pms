@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import { DateFilter } from "./date-filter";
+import { BookingSearchForm } from "./search-form";
 
 type Booking = {
   id: string;
@@ -57,13 +58,42 @@ const viewLabels: Record<string, string> = {
 export default async function BookingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; view?: string; dateFrom?: string; dateTo?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    view?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    q?: string;
+  }>;
 }) {
-  const { status, view, dateFrom, dateTo } = await searchParams;
+  const { status, view, dateFrom, dateTo, q } = await searchParams;
   const today = new Date().toISOString().split("T")[0];
 
   // Get property (single-property MVP)
-  const properties = await apiFetch<Property[]>("/api/properties");
+  let properties: Property[];
+  try {
+    properties = await apiFetch<Property[]>("/api/properties");
+  } catch (err) {
+    return (
+      <main className="p-8">
+        <div className="border-2 border-red-300 bg-red-50 rounded-lg p-4">
+          <h2 className="text-lg font-bold text-red-800">
+            Failed to load bookings
+          </h2>
+          <p className="text-red-700 text-sm mt-1">
+            {err instanceof Error ? err.message : "Could not connect to API"}
+          </p>
+          <Link
+            href="/bookings"
+            className="inline-block mt-3 text-sm text-blue-600 hover:underline"
+          >
+            Retry
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   const property = properties[0];
 
   if (!property) {
@@ -76,10 +106,33 @@ export default async function BookingsPage({
 
   const queryParams = new URLSearchParams({ propertyId: property.id });
   if (status) queryParams.set("status", status);
+  if (q) queryParams.set("search", q);
 
-  const allBookings = await apiFetch<Booking[]>(
-    `/api/bookings?${queryParams.toString()}`,
-  );
+  let allBookings: Booking[];
+  try {
+    allBookings = await apiFetch<Booking[]>(
+      `/api/bookings?${queryParams.toString()}`,
+    );
+  } catch (err) {
+    return (
+      <main className="p-8">
+        <div className="border-2 border-red-300 bg-red-50 rounded-lg p-4">
+          <h2 className="text-lg font-bold text-red-800">
+            Failed to load bookings
+          </h2>
+          <p className="text-red-700 text-sm mt-1">
+            {err instanceof Error ? err.message : "Could not connect to API"}
+          </p>
+          <Link
+            href="/bookings"
+            className="inline-block mt-3 text-sm text-blue-600 hover:underline"
+          >
+            Retry
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   // Apply view filters
   let bookings = allBookings;
@@ -87,12 +140,16 @@ export default async function BookingsPage({
 
   if (view === "arrivals") {
     bookings = allBookings.filter(
-      (b) => b.checkInDate === today && (b.status === "confirmed" || b.status === "checked_in")
+      (b) =>
+        b.checkInDate === today &&
+        (b.status === "confirmed" || b.status === "checked_in"),
     );
     pageTitle = viewLabels.arrivals;
   } else if (view === "departures") {
     bookings = allBookings.filter(
-      (b) => b.checkOutDate === today && (b.status === "checked_in" || b.status === "checked_out")
+      (b) =>
+        b.checkOutDate === today &&
+        (b.status === "checked_in" || b.status === "checked_out"),
     );
     pageTitle = viewLabels.departures;
   } else if (view === "inhouse") {
@@ -102,19 +159,23 @@ export default async function BookingsPage({
 
   // Apply date range filters (with sensible defaults when no view is active)
   const defaultFrom = (() => {
-    const d = new Date(); d.setDate(d.getDate() - 7);
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
     return d.toISOString().split("T")[0];
   })();
   const defaultTo = (() => {
-    const d = new Date(); d.setDate(d.getDate() + 30);
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
     return d.toISOString().split("T")[0];
   })();
 
-  // Only apply date filtering when not in a special view (arrivals/departures/inhouse have their own logic)
-  if (!view) {
+  // Only apply date filtering when not in a special view and not searching
+  if (!view && !q) {
     const effectiveFrom = dateFrom || defaultFrom;
     const effectiveTo = dateTo || defaultTo;
-    bookings = bookings.filter((b) => b.checkInDate >= effectiveFrom || b.checkOutDate >= effectiveFrom);
+    bookings = bookings.filter(
+      (b) => b.checkInDate >= effectiveFrom || b.checkOutDate >= effectiveFrom,
+    );
     bookings = bookings.filter((b) => b.checkInDate <= effectiveTo);
   }
 
@@ -134,6 +195,14 @@ export default async function BookingsPage({
           + New Booking
         </Link>
       </div>
+
+      <BookingSearchForm />
+
+      {q && (
+        <p className="text-sm text-gray-500 mb-4">
+          Results for &quot;{q}&quot;: {allBookings.length} found
+        </p>
+      )}
 
       {/* View tabs */}
       <div className="flex gap-2 mb-4 border-b pb-2">
@@ -219,9 +288,11 @@ export default async function BookingsPage({
                 </td>
                 <td className="p-2">
                   {booking.room ? (
-                    <span className="font-mono">{booking.room.roomNumber}</span>
+                    <span className="font-mono">
+                      {booking.room.roomNumber}
+                    </span>
                   ) : (
-                    <span className="text-gray-400">—</span>
+                    <span className="text-gray-400">&mdash;</span>
                   )}
                   <span className="text-gray-500 text-xs ml-1">
                     ({booking.roomType.code})
@@ -238,8 +309,8 @@ export default async function BookingsPage({
                 </td>
                 <td className="p-2 text-right">
                   {booking.totalAmount
-                    ? `${Number(booking.totalAmount).toLocaleString()} ₽`
-                    : "—"}
+                    ? `${Number(booking.totalAmount).toLocaleString()} \u20BD`
+                    : "\u2014"}
                 </td>
                 {view === "arrivals" && booking.status === "confirmed" && (
                   <td className="p-2">
@@ -263,12 +334,17 @@ export default async function BookingsPage({
                 )}
                 {(view === "arrivals" || view === "departures") &&
                   booking.status !== "confirmed" &&
-                  booking.status !== "checked_in" && <td className="p-2">—</td>}
+                  booking.status !== "checked_in" && (
+                    <td className="p-2">&mdash;</td>
+                  )}
               </tr>
             ))}
             {bookings.length === 0 && (
               <tr>
-                <td colSpan={view ? 8 : 7} className="p-4 text-center text-gray-500">
+                <td
+                  colSpan={view ? 8 : 7}
+                  className="p-4 text-center text-gray-500"
+                >
                   No bookings found
                 </td>
               </tr>

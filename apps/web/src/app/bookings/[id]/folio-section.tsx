@@ -31,6 +31,8 @@ type TransactionCode = {
   isManualPostAllowed: boolean;
 };
 
+type PostFormMode = null | "charge" | "payment";
+
 function formatCurrency(amount: number): string {
   return amount.toLocaleString("ru-RU", {
     minimumFractionDigits: 2,
@@ -43,7 +45,7 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
   const [codes, setCodes] = useState<TransactionCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showPostForm, setShowPostForm] = useState(false);
+  const [postFormMode, setPostFormMode] = useState<PostFormMode>(null);
   const [posting, setPosting] = useState(false);
 
   const fetchFolio = useCallback(async () => {
@@ -81,6 +83,9 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
     fetchCodes();
   }, [bookingId, fetchFolio]);
 
+  const chargeCodes = codes.filter((c) => c.transactionType === "charge");
+  const paymentCodes = codes.filter((c) => c.transactionType === "payment");
+
   async function handlePost(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setPosting(true);
@@ -89,8 +94,7 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
     const amount = parseFloat(form.get("amount") as string);
     const description = form.get("description") as string;
 
-    const code = codes.find((c) => c.id === codeId);
-    const isPayment = code?.transactionType === "payment";
+    const isPayment = postFormMode === "payment";
     const url = isPayment
       ? `/api/bookings/${bookingId}/folio/payment`
       : `/api/bookings/${bookingId}/folio/post`;
@@ -112,13 +116,17 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
         return;
       }
 
-      setShowPostForm(false);
+      setPostFormMode(null);
       await fetchFolio();
     } catch {
       setError("Network error");
     } finally {
       setPosting(false);
     }
+  }
+
+  function toggleForm(mode: "charge" | "payment") {
+    setPostFormMode(postFormMode === mode ? null : mode);
   }
 
   if (loading) {
@@ -139,6 +147,26 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
 
   if (!folio) return null;
 
+  const activeCodes =
+    postFormMode === "charge" ? chargeCodes : paymentCodes;
+
+  const formTheme =
+    postFormMode === "charge"
+      ? {
+          bg: "bg-blue-50",
+          border: "border-blue-200",
+          btn: "bg-blue-600 hover:bg-blue-700",
+          label: "Post Charge",
+          posting: "Posting charge...",
+        }
+      : {
+          bg: "bg-green-50",
+          border: "border-green-200",
+          btn: "bg-green-600 hover:bg-green-700",
+          label: "Accept Payment",
+          posting: "Processing payment...",
+        };
+
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between mb-3">
@@ -147,13 +175,27 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
           <span
             className={`text-sm font-mono font-bold ${folio.balance > 0 ? "text-red-600" : "text-green-600"}`}
           >
-            Balance: {formatCurrency(folio.balance)} ₽
+            Balance: {formatCurrency(folio.balance)} &#8381;
           </span>
           <button
-            onClick={() => setShowPostForm(!showPostForm)}
-            className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+            onClick={() => toggleForm("charge")}
+            className={`px-3 py-1 text-xs rounded ${
+              postFormMode === "charge"
+                ? "bg-blue-100 text-blue-700 border border-blue-300"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+            }`}
           >
-            {showPostForm ? "Cancel" : "Post Charge"}
+            {postFormMode === "charge" ? "Cancel" : "Post Charge"}
+          </button>
+          <button
+            onClick={() => toggleForm("payment")}
+            className={`px-3 py-1 text-xs rounded ${
+              postFormMode === "payment"
+                ? "bg-green-100 text-green-700 border border-green-300"
+                : "bg-green-600 text-white hover:bg-green-700"
+            }`}
+          >
+            {postFormMode === "payment" ? "Cancel" : "Accept Payment"}
           </button>
         </div>
       </div>
@@ -171,10 +213,10 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
       )}
 
       {/* Post form */}
-      {showPostForm && (
+      {postFormMode && (
         <form
           onSubmit={handlePost}
-          className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2"
+          className={`mb-4 p-3 ${formTheme.bg} border ${formTheme.border} rounded-lg space-y-2`}
         >
           <div className="grid grid-cols-3 gap-2">
             <select
@@ -182,11 +224,14 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
               required
               className="text-sm border rounded px-2 py-1.5"
             >
-              <option value="">Transaction code...</option>
-              {codes.map((c) => (
+              <option value="">
+                {postFormMode === "charge"
+                  ? "Charge code..."
+                  : "Payment method..."}
+              </option>
+              {activeCodes.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.code} — {c.description}{" "}
-                  {c.transactionType === "payment" ? "(Payment)" : ""}
+                  {c.code} — {c.description}
                 </option>
               ))}
             </select>
@@ -209,9 +254,9 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
           <button
             type="submit"
             disabled={posting}
-            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            className={`px-3 py-1.5 text-sm text-white rounded ${formTheme.btn} disabled:opacity-50`}
           >
-            {posting ? "Posting..." : "Post"}
+            {posting ? formTheme.posting : formTheme.label}
           </button>
         </form>
       )}
@@ -221,13 +266,13 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
         <div>
           <span className="text-gray-500">Total Charges:</span>{" "}
           <span className="font-mono">
-            {formatCurrency(folio.summary.totalCharges)} ₽
+            {formatCurrency(folio.summary.totalCharges)} &#8381;
           </span>
         </div>
         <div>
           <span className="text-gray-500">Total Payments:</span>{" "}
           <span className="font-mono">
-            {formatCurrency(folio.summary.totalPayments)} ₽
+            {formatCurrency(folio.summary.totalPayments)} &#8381;
           </span>
         </div>
       </div>

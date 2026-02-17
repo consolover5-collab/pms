@@ -39,11 +39,33 @@ export default async function RoomsPage({
 }) {
   const { hk, occ, type } = await searchParams;
 
-  const properties = await apiFetch<Property[]>("/api/properties");
+  let properties: Property[];
+  try {
+    properties = await apiFetch<Property[]>("/api/properties");
+  } catch (err) {
+    return (
+      <main className="p-8">
+        <div className="border-2 border-red-300 bg-red-50 rounded-lg p-4">
+          <h2 className="text-lg font-bold text-red-800">Failed to load rooms</h2>
+          <p className="text-red-700 text-sm mt-1">
+            {err instanceof Error ? err.message : "Could not connect to API"}
+          </p>
+          <Link href="/rooms" className="inline-block mt-3 text-sm text-blue-600 hover:underline">
+            Retry
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   const property = properties[0];
 
   if (!property) {
-    return <main className="p-8"><h1 className="text-2xl font-bold">No property configured</h1></main>;
+    return (
+      <main className="p-8">
+        <h1 className="text-2xl font-bold">No property configured</h1>
+      </main>
+    );
   }
 
   const queryParams = new URLSearchParams({ propertyId: property.id });
@@ -51,11 +73,29 @@ export default async function RoomsPage({
   if (occ) queryParams.set("occupancyStatus", occ);
   if (type) queryParams.set("roomTypeId", type);
 
-  const [rooms, , allRooms] = await Promise.all([
-    apiFetch<Room[]>(`/api/rooms?${queryParams.toString()}`),
-    apiFetch<RoomType[]>(`/api/room-types?propertyId=${property.id}`),
-    apiFetch<Room[]>(`/api/rooms?propertyId=${property.id}`),
-  ]);
+  let rooms: Room[];
+  let allRooms: Room[];
+  try {
+    [rooms, , allRooms] = await Promise.all([
+      apiFetch<Room[]>(`/api/rooms?${queryParams.toString()}`),
+      apiFetch<RoomType[]>(`/api/room-types?propertyId=${property.id}`),
+      apiFetch<Room[]>(`/api/rooms?propertyId=${property.id}`),
+    ]);
+  } catch (err) {
+    return (
+      <main className="p-8">
+        <div className="border-2 border-red-300 bg-red-50 rounded-lg p-4">
+          <h2 className="text-lg font-bold text-red-800">Failed to load rooms</h2>
+          <p className="text-red-700 text-sm mt-1">
+            {err instanceof Error ? err.message : "Could not connect to API"}
+          </p>
+          <Link href="/rooms" className="inline-block mt-3 text-sm text-blue-600 hover:underline">
+            Retry
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   const stats = {
     total: allRooms.length,
@@ -65,12 +105,15 @@ export default async function RoomsPage({
     dirty: allRooms.filter((r) => r.housekeepingStatus === "dirty").length,
   };
 
-  const roomsByFloor = rooms.reduce((acc, room) => {
-    const floor = String(room.floor || "0");
-    if (!acc[floor]) acc[floor] = [];
-    acc[floor].push(room);
-    return acc;
-  }, {} as Record<string, Room[]>);
+  const roomsByFloor = rooms.reduce(
+    (acc, room) => {
+      const floor = String(room.floor || "0");
+      if (!acc[floor]) acc[floor] = [];
+      acc[floor].push(room);
+      return acc;
+    },
+    {} as Record<string, Room[]>,
+  );
 
   return (
     <main className="p-8">
@@ -105,10 +148,18 @@ export default async function RoomsPage({
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500">HK:</span>
           <div className="flex gap-1">
-            <Link href="/rooms" className={`px-3 py-1 rounded text-sm ${!hk ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}>All</Link>
+            <Link
+              href="/rooms"
+              className={`px-3 py-1 rounded text-sm ${!hk ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
+            >
+              All
+            </Link>
             {["clean", "dirty", "inspected", "pickup"].map((key) => (
-              <Link key={key} href={`/rooms?hk=${key}${occ ? `&occ=${occ}` : ""}`}
-                className={`px-3 py-1 rounded text-sm ${hk === key ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}>
+              <Link
+                key={key}
+                href={`/rooms?hk=${key}${occ ? `&occ=${occ}` : ""}`}
+                className={`px-3 py-1 rounded text-sm ${hk === key ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
+              >
                 {hkStatusLabels[key]}
               </Link>
             ))}
@@ -117,12 +168,24 @@ export default async function RoomsPage({
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500">Occ:</span>
           <div className="flex gap-1">
-            <Link href={`/rooms${hk ? `?hk=${hk}` : ""}`}
-              className={`px-3 py-1 rounded text-sm ${!occ ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}>All</Link>
-            <Link href={`/rooms?occ=vacant${hk ? `&hk=${hk}` : ""}`}
-              className={`px-3 py-1 rounded text-sm ${occ === "vacant" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}>Vacant</Link>
-            <Link href={`/rooms?occ=occupied${hk ? `&hk=${hk}` : ""}`}
-              className={`px-3 py-1 rounded text-sm ${occ === "occupied" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}>Occupied</Link>
+            <Link
+              href={`/rooms${hk ? `?hk=${hk}` : ""}`}
+              className={`px-3 py-1 rounded text-sm ${!occ ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
+            >
+              All
+            </Link>
+            <Link
+              href={`/rooms?occ=vacant${hk ? `&hk=${hk}` : ""}`}
+              className={`px-3 py-1 rounded text-sm ${occ === "vacant" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
+            >
+              Vacant
+            </Link>
+            <Link
+              href={`/rooms?occ=occupied${hk ? `&hk=${hk}` : ""}`}
+              className={`px-3 py-1 rounded text-sm ${occ === "occupied" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
+            >
+              Occupied
+            </Link>
           </div>
         </div>
       </div>
@@ -135,24 +198,43 @@ export default async function RoomsPage({
             <h2 className="text-lg font-semibold mb-3">Floor {floor}</h2>
             <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-2">
               {floorRooms
-                .sort((a, b) => a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true }))
+                .sort((a, b) =>
+                  a.roomNumber.localeCompare(b.roomNumber, undefined, {
+                    numeric: true,
+                  }),
+                )
                 .map((room) => (
-                  <Link key={room.id} href={`/rooms/${room.id}`}
+                  <Link
+                    key={room.id}
+                    href={`/rooms/${room.id}`}
                     className={`relative p-3 rounded-lg border-2 hover:shadow-md transition-shadow ${
                       room.occupancyStatus === "occupied"
                         ? "border-blue-300 bg-blue-50"
-                        : room.housekeepingStatus === "clean" || room.housekeepingStatus === "inspected"
+                        : room.housekeepingStatus === "clean" ||
+                            room.housekeepingStatus === "inspected"
                           ? "border-green-300 bg-green-50"
                           : "border-red-300 bg-red-50"
-                    }`}>
-                    <div className={`absolute top-1 right-1 w-2 h-2 rounded-full ${
-                      room.occupancyStatus === "occupied" ? "bg-blue-500" : "bg-green-500"
-                    }`} />
-                    <div className="font-mono font-bold text-sm">{room.roomNumber}</div>
-                    <div className="text-xs text-gray-500">{room.roomType.code}</div>
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-1 right-1 w-2 h-2 rounded-full ${
+                        room.occupancyStatus === "occupied"
+                          ? "bg-blue-500"
+                          : "bg-green-500"
+                      }`}
+                    />
+                    <div className="font-mono font-bold text-sm">
+                      {room.roomNumber}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {room.roomType.code}
+                    </div>
                     <div className="mt-1">
-                      <span className={`text-xs px-1 rounded ${hkStatusColors[room.housekeepingStatus]}`}>
-                        {hkStatusLabels[room.housekeepingStatus]?.slice(0, 1) || "?"}
+                      <span
+                        className={`text-xs px-1 rounded ${hkStatusColors[room.housekeepingStatus]}`}
+                      >
+                        {hkStatusLabels[room.housekeepingStatus]?.slice(0, 1) ||
+                          "?"}
                       </span>
                     </div>
                   </Link>
@@ -162,7 +244,9 @@ export default async function RoomsPage({
         ))}
 
       {rooms.length === 0 && (
-        <div className="text-center text-gray-500 py-8">No rooms found matching filters</div>
+        <div className="text-center text-gray-500 py-8">
+          No rooms found matching filters
+        </div>
       )}
     </main>
   );

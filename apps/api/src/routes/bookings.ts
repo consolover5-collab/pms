@@ -1,14 +1,19 @@
 import type { FastifyPluginAsync } from "fastify";
 import { bookings, guests, rooms, roomTypes, ratePlans, properties } from "@pms/db";
-import { eq, and, or, ne, lte, gte, lt, gt, sql } from "drizzle-orm";
+import { eq, and, or, ne, lte, gte, lt, gt, sql, ilike } from "drizzle-orm";
 import { validateBookingDates, validateOccupancy, checkRoomConflict } from "../lib/validation";
 
 export const bookingsRoutes: FastifyPluginAsync = async (app) => {
   // List bookings with optional filters
   app.get<{
-    Querystring: { propertyId: string; status?: string; roomId?: string };
+    Querystring: {
+      propertyId: string;
+      status?: string;
+      roomId?: string;
+      search?: string;
+    };
   }>("/api/bookings", async (request) => {
-    const { propertyId, status, roomId } = request.query;
+    const { propertyId, status, roomId, search } = request.query;
 
     const conditions = [eq(bookings.propertyId, propertyId)];
     if (status) {
@@ -16,6 +21,16 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
     }
     if (roomId) {
       conditions.push(eq(bookings.roomId, roomId));
+    }
+    if (search && search.trim().length > 0) {
+      const pattern = `%${search.trim()}%`;
+      conditions.push(
+        or(
+          ilike(guests.firstName, pattern),
+          ilike(guests.lastName, pattern),
+          ilike(bookings.confirmationNumber, pattern),
+        )!,
+      );
     }
 
     const result = await app.db

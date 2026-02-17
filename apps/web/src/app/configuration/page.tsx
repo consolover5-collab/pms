@@ -20,6 +20,12 @@ const configSections = [
     description: "Hotel details, check-in/out times, currency",
     icon: "building",
   },
+  {
+    title: "Transaction Codes",
+    href: "/configuration/transaction-codes",
+    description: "View charge and payment codes for folio postings",
+    icon: "receipt",
+  },
 ];
 
 export default function ConfigurationPage() {

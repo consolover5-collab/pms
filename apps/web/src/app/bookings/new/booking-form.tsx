@@ -212,7 +212,7 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
       }
 
       const booking = await res.json();
-      router.push(`/bookings/${booking.id}`);
+      router.replace(`/bookings/${booking.id}`);
     } catch (err) {
       if (err instanceof TypeError && err.message === "Failed to fetch") {
         setError({

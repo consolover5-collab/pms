@@ -37,7 +37,7 @@ export function GuestForm({ propertyId }: { propertyId: string }) {
       });
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const guest = await res.json();
-      router.push(`/guests/${guest.id}`);
+      router.replace(`/guests/${guest.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
       setSaving(false);

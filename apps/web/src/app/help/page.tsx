@@ -59,6 +59,22 @@ const helpTopics: HelpTopic[] = [
     icon: "👤",
   },
   {
+    id: "folio",
+    titleRu: "Фолио / Касса",
+    titleEn: "Folio / Cashiering",
+    descriptionRu: "Начисления, платежи и баланс гостя",
+    descriptionEn: "Charges, payments and guest balance",
+    icon: "💳",
+  },
+  {
+    id: "night-audit",
+    titleRu: "Ночной аудит",
+    titleEn: "Night Audit",
+    descriptionRu: "Закрытие бизнес-дня и начисление проживания",
+    descriptionEn: "End-of-day processing and room charge posting",
+    icon: "🌙",
+  },
+  {
     id: "configuration",
     titleRu: "Конфигурация",
     titleEn: "Configuration",

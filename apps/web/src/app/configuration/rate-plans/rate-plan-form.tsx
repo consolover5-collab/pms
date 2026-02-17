@@ -59,7 +59,7 @@ export function RatePlanForm({
         throw new Error(data.error || "Failed to save rate plan");
       }
 
-      router.push("/configuration/rate-plans");
+      router.replace("/configuration/rate-plans");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
