@@ -112,7 +112,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
       .from(bookings)
       .innerJoin(guests, eq(bookings.guestId, guests.id))
       .innerJoin(roomTypes, eq(bookings.roomTypeId, roomTypes.id))
-      .innerJoin(rooms, eq(bookings.roomId, rooms.id))
+      .leftJoin(rooms, eq(bookings.roomId, rooms.id))
       .where(
         and(
           eq(bookings.propertyId, propertyId),
@@ -159,7 +159,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
       .from(bookings)
       .innerJoin(guests, eq(bookings.guestId, guests.id))
       .innerJoin(roomTypes, eq(bookings.roomTypeId, roomTypes.id))
-      .innerJoin(rooms, eq(bookings.roomId, rooms.id))
+      .leftJoin(rooms, eq(bookings.roomId, rooms.id))
       .where(
         and(
           eq(bookings.propertyId, propertyId),

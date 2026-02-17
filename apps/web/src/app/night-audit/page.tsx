@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { formatCurrency } from "@/lib/format";
 
 type RoomDetail = {
@@ -79,8 +79,11 @@ export default function NightAuditPage() {
     }
   }
 
+  const auditRunningRef = useRef(false);
+
   async function runAudit() {
-    if (!propertyId) return;
+    if (!propertyId || auditRunningRef.current) return;
+    auditRunningRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -104,6 +107,7 @@ export default function NightAuditPage() {
       setError("Network error");
     } finally {
       setLoading(false);
+      auditRunningRef.current = false;
     }
   }
 

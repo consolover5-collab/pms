@@ -137,6 +137,7 @@ export function BookingActions({
           <button
             onClick={() => {
               const reason = prompt("Cancellation reason (optional):");
+              if (reason === null) return; // user clicked Cancel in prompt
               performAction("cancel", reason ? { reason } : {});
             }}
             disabled={loading}

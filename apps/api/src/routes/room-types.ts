@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { roomTypes, rooms, bookings } from "@pms/db";
-import { eq, and, or, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
   // List room types
@@ -99,20 +99,17 @@ export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
         });
       }
 
-      // Проверить наличие активных бронирований
+      // Проверить наличие ЛЮБЫХ бронирований (включая историю)
       const bookingCount = await app.db
         .select({ count: sql<number>`count(*)` })
         .from(bookings)
-        .where(and(
-          eq(bookings.roomTypeId, request.params.id),
-          or(eq(bookings.status, "confirmed"), eq(bookings.status, "checked_in"))
-        ));
+        .where(eq(bookings.roomTypeId, request.params.id));
 
       const bookingCountNum = Number(bookingCount[0].count);
       if (bookingCountNum > 0) {
         return reply.status(400).send({
-          error: `Cannot delete: ${bookingCountNum} active bookings reference this room type`,
-          code: "HAS_ACTIVE_BOOKINGS",
+          error: `Нельзя удалить: ${bookingCountNum} бронирований ссылаются на этот тип комнаты (Бронирования, Фолио)`,
+          code: "HAS_BOOKINGS",
           count: bookingCountNum,
         });
       }

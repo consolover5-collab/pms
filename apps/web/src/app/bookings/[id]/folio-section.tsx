@@ -86,8 +86,15 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
     setError(null);
     const form = new FormData(e.currentTarget);
     const codeId = form.get("codeId") as string;
-    const amount = parseFloat(form.get("amount") as string);
+    const rawAmount = form.get("amount") as string;
+    const amount = parseFloat(rawAmount);
     const description = form.get("description") as string;
+
+    if (!codeId || isNaN(amount) || amount <= 0) {
+      setError("Выберите код и укажите сумму больше 0");
+      setPosting(false);
+      return;
+    }
 
     const isPayment = postFormMode === "payment";
     const url = isPayment

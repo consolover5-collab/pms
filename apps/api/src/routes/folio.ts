@@ -61,8 +61,8 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
     let totalCharges = 0;
     let totalPayments = 0;
     for (const t of transactions) {
-      totalCharges += parseFloat(t.debit);
-      totalPayments += parseFloat(t.credit);
+      totalCharges += parseFloat(t.debit) || 0;
+      totalPayments += parseFloat(t.credit) || 0;
     }
 
     return {
@@ -101,12 +101,20 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
 
     // Verify booking
     const [booking] = await app.db
-      .select({ id: bookings.id, propertyId: bookings.propertyId })
+      .select({ id: bookings.id, propertyId: bookings.propertyId, status: bookings.status })
       .from(bookings)
       .where(eq(bookings.id, bookingId));
 
     if (!booking) {
       return reply.status(404).send({ error: "Booking not found" });
+    }
+
+    const allowedFolioStatuses = ["confirmed", "checked_in"];
+    if (!allowedFolioStatuses.includes(booking.status)) {
+      return reply.status(400).send({
+        error: `Нельзя постить на бронирование со статусом "${booking.status}". Допустимы: confirmed, checked_in.`,
+        code: "INVALID_BOOKING_STATUS",
+      });
     }
 
     // Verify transaction code
@@ -183,12 +191,20 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const [booking] = await app.db
-      .select({ id: bookings.id, propertyId: bookings.propertyId })
+      .select({ id: bookings.id, propertyId: bookings.propertyId, status: bookings.status })
       .from(bookings)
       .where(eq(bookings.id, bookingId));
 
     if (!booking) {
       return reply.status(404).send({ error: "Booking not found" });
+    }
+
+    const allowedPaymentStatuses = ["confirmed", "checked_in", "checked_out"];
+    if (!allowedPaymentStatuses.includes(booking.status)) {
+      return reply.status(400).send({
+        error: `Нельзя принять оплату для бронирования со статусом "${booking.status}".`,
+        code: "INVALID_BOOKING_STATUS",
+      });
     }
 
     const [code] = await app.db
@@ -267,6 +283,14 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
 
     if (!original) {
       return reply.status(404).send({ error: "Transaction not found" });
+    }
+
+    // Prevent adjusting an adjustment (double reversal)
+    if (original.parentTransactionId) {
+      return reply.status(400).send({
+        error: "Нельзя скорректировать корректировку. Корректируйте исходную транзакцию.",
+        code: "CANNOT_ADJUST_ADJUSTMENT",
+      });
     }
 
     // Get original transaction's code and its adjustment code

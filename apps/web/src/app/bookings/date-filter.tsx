@@ -48,10 +48,22 @@ export function DateFilter() {
     router.push(`/bookings?${params.toString()}`);
   }
 
+  function applyPreset(from: string, to: string) {
+    setDateFrom(from);
+    setDateTo(to);
+    const params = new URLSearchParams();
+    const status = searchParams.get("status");
+    const view = searchParams.get("view");
+    if (status) params.set("status", status);
+    if (view) params.set("view", view);
+    params.set("dateFrom", from);
+    params.set("dateTo", to);
+    router.push(`/bookings?${params.toString()}`);
+  }
+
   function setToday() {
     const today = new Date().toISOString().split("T")[0];
-    setDateFrom(today);
-    setDateTo(today);
+    applyPreset(today, today);
   }
 
   function setThisWeek() {
@@ -60,16 +72,14 @@ export function DateFilter() {
     monday.setDate(now.getDate() - now.getDay() + 1);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-    setDateFrom(monday.toISOString().split("T")[0]);
-    setDateTo(sunday.toISOString().split("T")[0]);
+    applyPreset(monday.toISOString().split("T")[0], sunday.toISOString().split("T")[0]);
   }
 
   function setThisMonth() {
     const now = new Date();
     const first = new Date(now.getFullYear(), now.getMonth(), 1);
     const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    setDateFrom(first.toISOString().split("T")[0]);
-    setDateTo(last.toISOString().split("T")[0]);
+    applyPreset(first.toISOString().split("T")[0], last.toISOString().split("T")[0]);
   }
 
   const hasFilter = dateFrom || dateTo;

@@ -194,7 +194,9 @@ export default async function BookingsPage({
     bookings = bookings.filter((b) => b.checkInDate <= effectiveTo);
   }
 
-  const totalPages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
+  // When view filters are applied client-side, use filtered count for pagination
+  const effectiveTotal = (view || (!view && !q)) ? bookings.length : total;
+  const totalPages = Math.max(Math.ceil(effectiveTotal / PAGE_SIZE), 1);
 
   function pageUrl(p: number) {
     const params = new URLSearchParams();
