@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import { rooms, roomTypes, bookings } from "@pms/db";
-import { eq, and, or, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 // Допустимые переходы housekeeping-статусов (Opera workflow)
 const hkTransitions: Record<string, string[]> = {
@@ -189,20 +189,17 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
   app.delete<{ Params: { id: string } }>(
     "/api/rooms/:id",
     async (request, reply) => {
-      // Check for active bookings referencing this room
+      // Check for any bookings referencing this room (RESTRICT policy)
       const bookingCount = await app.db
         .select({ count: sql<number>`count(*)` })
         .from(bookings)
-        .where(and(
-          eq(bookings.roomId, request.params.id),
-          or(eq(bookings.status, "confirmed"), eq(bookings.status, "checked_in"))
-        ));
+        .where(eq(bookings.roomId, request.params.id));
 
       const bookingCountNum = Number(bookingCount[0].count);
       if (bookingCountNum > 0) {
         return reply.status(400).send({
-          error: `Cannot delete: ${bookingCountNum} active bookings reference this room`,
-          code: "HAS_ACTIVE_BOOKINGS",
+          error: `Невозможно удалить комнату: ${bookingCountNum} бронирований связано с этой комнатой. Связанные функции: Бронирования, Фолио.`,
+          code: "HAS_BOOKINGS",
           count: bookingCountNum,
         });
       }

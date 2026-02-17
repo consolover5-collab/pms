@@ -128,20 +128,17 @@ export const guestsRoutes: FastifyPluginAsync = async (app) => {
   app.delete<{ Params: { id: string } }>(
     "/api/guests/:id",
     async (request, reply) => {
-      // Check for active bookings referencing this guest
+      // Check for any bookings referencing this guest (RESTRICT policy)
       const bookingCount = await app.db
         .select({ count: sql<number>`count(*)` })
         .from(bookings)
-        .where(and(
-          eq(bookings.guestId, request.params.id),
-          or(eq(bookings.status, "confirmed"), eq(bookings.status, "checked_in"))
-        ));
+        .where(eq(bookings.guestId, request.params.id));
 
       const bookingCountNum = Number(bookingCount[0].count);
       if (bookingCountNum > 0) {
         return reply.status(400).send({
-          error: `Cannot delete: ${bookingCountNum} active bookings reference this guest`,
-          code: "HAS_ACTIVE_BOOKINGS",
+          error: `Невозможно удалить гостя: ${bookingCountNum} бронирований связано с этим профилем. Связанные функции: Бронирования, Фолио.`,
+          code: "HAS_BOOKINGS",
           count: bookingCountNum,
         });
       }

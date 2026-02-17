@@ -155,6 +155,26 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       notes?: string;
     };
   }>("/api/bookings", async (request, reply) => {
+    // Проверка существования гостя
+    const [guest] = await app.db.select({ id: guests.id }).from(guests).where(eq(guests.id, request.body.guestId));
+    if (!guest) {
+      return reply.status(400).send({ error: "Гость не найден.", code: "GUEST_NOT_FOUND" });
+    }
+
+    // Проверка существования типа комнаты
+    const [rt] = await app.db.select().from(roomTypes).where(eq(roomTypes.id, request.body.roomTypeId));
+    if (!rt) {
+      return reply.status(400).send({ error: "Тип комнаты не найден.", code: "ROOM_TYPE_NOT_FOUND" });
+    }
+
+    // Проверка существования тарифного плана
+    if (request.body.ratePlanId) {
+      const [rp] = await app.db.select({ id: ratePlans.id }).from(ratePlans).where(eq(ratePlans.id, request.body.ratePlanId));
+      if (!rp) {
+        return reply.status(400).send({ error: "Тарифный план не найден.", code: "RATE_PLAN_NOT_FOUND" });
+      }
+    }
+
     // Валидация дат
     const dateError = validateBookingDates(request.body.checkInDate, request.body.checkOutDate);
     if (dateError) {
@@ -162,16 +182,11 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
     }
 
     // Проверка вместимости
-    if (request.body.roomTypeId) {
-      const [rt] = await app.db.select().from(roomTypes).where(eq(roomTypes.id, request.body.roomTypeId));
-      if (rt) {
-        const adults = request.body.adults || 1;
-        const children = request.body.children || 0;
-        const occError = validateOccupancy(adults, children, rt.maxOccupancy);
-        if (occError) {
-          return reply.status(400).send({ error: occError, code: "EXCEEDS_OCCUPANCY" });
-        }
-      }
+    const adults = request.body.adults || 1;
+    const children = request.body.children || 0;
+    const occError = validateOccupancy(adults, children, rt.maxOccupancy);
+    if (occError) {
+      return reply.status(400).send({ error: occError, code: "EXCEEDS_OCCUPANCY" });
     }
 
     // Проверка конфликта комнаты
