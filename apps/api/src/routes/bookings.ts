@@ -1,8 +1,18 @@
 import type { FastifyPluginAsync } from "fastify";
-import { bookings, guests, rooms, roomTypes, ratePlans, properties, folioTransactions } from "@pms/db";
+import { bookings, guests, rooms, roomTypes, ratePlans, properties, folioTransactions, businessDates } from "@pms/db";
 import { eq, and, or, ne, lte, gte, lt, gt, sql, ilike, count } from "drizzle-orm";
 import { validateBookingDates, validateOccupancy, checkRoomConflict } from "../lib/validation";
 import { calculateFolioBalance } from "@pms/domain";
+
+/** Возвращает текущую открытую бизнес-дату отеля. Фолбэк на системный день если нет открытой даты. */
+async function getBusinessDate(db: any, propertyId: string): Promise<string> {
+  const [bizDate] = await db
+    .select({ date: businessDates.date })
+    .from(businessDates)
+    .where(and(eq(businessDates.propertyId, propertyId), eq(businessDates.status, "open")))
+    .limit(1);
+  return bizDate?.date ?? new Date().toISOString().split("T")[0];
+}
 
 export const bookingsRoutes: FastifyPluginAsync = async (app) => {
   // List bookings with optional filters
@@ -26,12 +36,12 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
     const conditions = [eq(bookings.propertyId, propertyId)];
 
     if (view === "arrivals") {
-      const today = new Date().toISOString().split("T")[0];
-      conditions.push(eq(bookings.checkInDate, today));
+      const bizDate = await getBusinessDate(app.db, propertyId);
+      conditions.push(eq(bookings.checkInDate, bizDate));
       conditions.push(or(eq(bookings.status, "confirmed"), eq(bookings.status, "checked_in"))!);
     } else if (view === "departures") {
-      const today = new Date().toISOString().split("T")[0];
-      conditions.push(eq(bookings.checkOutDate, today));
+      const bizDate = await getBusinessDate(app.db, propertyId);
+      conditions.push(eq(bookings.checkOutDate, bizDate));
       conditions.push(or(eq(bookings.status, "checked_in"), eq(bookings.status, "checked_out"))!);
     } else if (view === "inhouse") {
       conditions.push(eq(bookings.status, "checked_in"));
@@ -203,6 +213,15 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
     const dateError = validateBookingDates(request.body.checkInDate, request.body.checkOutDate);
     if (dateError) {
       return reply.status(400).send({ error: dateError, code: "INVALID_DATES" });
+    }
+
+    // Дата заезда не может быть раньше текущей бизнес-даты
+    const createBizDate = await getBusinessDate(app.db, request.body.propertyId);
+    if (request.body.checkInDate < createBizDate) {
+      return reply.status(400).send({
+        error: `Дата заезда (${request.body.checkInDate}) не может быть раньше текущей бизнес-даты (${createBizDate}).`,
+        code: "PAST_CHECKIN_DATE",
+      });
     }
 
     // Проверка вместимости
@@ -395,13 +414,13 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       }
 
       // Validate check-in date — cannot check in before arrival date
-      const today = new Date().toISOString().split("T")[0];
-      if (booking.checkInDate > today) {
+      const bizDate = await getBusinessDate(app.db, booking.propertyId);
+      if (booking.checkInDate > bizDate) {
         return reply.status(400).send({
-          error: `Cannot check in: arrival date is ${booking.checkInDate}, but today is ${today}. Check-in is only allowed on or after the arrival date.`,
+          error: `Нельзя заселить: дата заезда (${booking.checkInDate}) ещё не наступила. Текущая бизнес-дата: ${bizDate}.`,
           code: "EARLY_CHECKIN",
           checkInDate: booking.checkInDate,
-          today
+          businessDate: bizDate,
         });
       }
 
@@ -534,26 +553,26 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         });
       }
 
-      // Validate checkout date
-      const today = new Date().toISOString().split("T")[0];
+      // Validate checkout date against business date
+      const bizDateOut = await getBusinessDate(app.db, booking.propertyId);
       const checkOutDate = booking.checkOutDate;
 
-      if (checkOutDate > today && !request.body?.force) {
+      if (checkOutDate > bizDateOut && !request.body?.force) {
         return reply.status(400).send({
-          error: `Early checkout: departure date is ${checkOutDate}, but today is ${today}. Use force=true for early checkout.`,
+          error: `Ранний выезд: дата выезда по брони ${checkOutDate}, текущая бизнес-дата ${bizDateOut}. Используйте force=true для досрочного выезда.`,
           code: "EARLY_CHECKOUT",
           checkOutDate,
-          today
+          businessDate: bizDateOut,
         });
       }
 
-      // Проверка позднего выезда
-      if (checkOutDate < today && !request.body?.force) {
+      // Поздний выезд
+      if (checkOutDate < bizDateOut && !request.body?.force) {
         return reply.status(400).send({
-          error: `Поздний выезд: дата выезда была ${checkOutDate}, сегодня ${today}. Возможно, бронь нужно продлить. Используйте force=true для подтверждения.`,
+          error: `Поздний выезд: дата выезда была ${checkOutDate}, текущая бизнес-дата ${bizDateOut}. Возможно, нужно продлить бронь. Используйте force=true для подтверждения.`,
           code: "LATE_CHECKOUT",
           checkOutDate,
-          today
+          businessDate: bizDateOut,
         });
       }
 
@@ -678,16 +697,16 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
 
       // Проверка актуальности дат для cancelled/no_show
       if (booking.status === "cancelled" || booking.status === "no_show") {
-        const today = new Date().toISOString().split("T")[0];
-        if (booking.checkOutDate <= today) {
+        const bizDateReinstate = await getBusinessDate(app.db, booking.propertyId);
+        if (booking.checkOutDate <= bizDateReinstate) {
           return reply.status(400).send({
-            error: `Нельзя восстановить: дата выезда (${booking.checkOutDate}) уже прошла.`,
+            error: `Нельзя восстановить: дата выезда (${booking.checkOutDate}) уже прошла (бизнес-дата: ${bizDateReinstate}).`,
             code: "DATES_EXPIRED",
           });
         }
-        if (booking.checkInDate < today) {
+        if (booking.checkInDate < bizDateReinstate) {
           return reply.status(400).send({
-            error: `Нельзя восстановить: дата заезда (${booking.checkInDate}) уже прошла. Создайте новое бронирование с актуальными датами.`,
+            error: `Нельзя восстановить: дата заезда (${booking.checkInDate}) уже прошла (бизнес-дата: ${bizDateReinstate}). Создайте новое бронирование с актуальными датами.`,
             code: "DATES_EXPIRED",
           });
         }
