@@ -9,10 +9,19 @@ type RoomDetail = {
   rateAmount: number;
 };
 
+type NoShowBooking = {
+  id: string;
+  confirmationNumber: string;
+  guestName: string;
+  checkInDate: string;
+  checkOutDate: string;
+};
+
 type PreviewData = {
   businessDate: string;
   dueOuts: number;
   pendingNoShows: number;
+  pendingNoShowDetails: NoShowBooking[];
   roomsToCharge: number;
   estimatedRevenue: number;
   roomDetails: RoomDetail[];
@@ -23,6 +32,7 @@ type RunResult = {
   businessDate: string;
   nextBusinessDate: string;
   noShows: number;
+  cancelled: number;
   roomChargesPosted: number;
   taxChargesPosted: number;
   roomsUpdated: number;
@@ -35,9 +45,10 @@ export default function NightAuditPage() {
   const [result, setResult] = useState<RunResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [step, setStep] = useState<"idle" | "preview" | "running" | "done">(
-    "idle",
-  );
+  const [step, setStep] = useState<"idle" | "preview" | "running" | "done">("idle");
+
+  // Решения по no-show броням: bookingId → "no_show" | "cancel"
+  const [noShowDecisions, setNoShowDecisions] = useState<Record<string, "no_show" | "cancel">>({});
 
   useEffect(() => {
     async function fetchProperty() {
@@ -55,6 +66,7 @@ export default function NightAuditPage() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setNoShowDecisions({});
 
     try {
       const res = await fetch("/api/night-audit/preview", {
@@ -71,6 +83,12 @@ export default function NightAuditPage() {
 
       const data = await res.json();
       setPreview(data);
+      // По умолчанию — all no_show
+      const defaults: Record<string, "no_show" | "cancel"> = {};
+      for (const b of data.pendingNoShowDetails ?? []) {
+        defaults[b.id] = "no_show";
+      }
+      setNoShowDecisions(defaults);
       setStep("preview");
     } catch {
       setError("Network error");
@@ -88,10 +106,15 @@ export default function NightAuditPage() {
     setError(null);
 
     try {
+      const decisions = Object.entries(noShowDecisions).map(([bookingId, action]) => ({
+        bookingId,
+        action,
+      }));
+
       const res = await fetch("/api/night-audit/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ propertyId }),
+        body: JSON.stringify({ propertyId, noShowDecisions: decisions }),
       });
 
       if (!res.ok) {
@@ -127,7 +150,7 @@ export default function NightAuditPage() {
         </div>
       )}
 
-      {/* Idle state — show preview button */}
+      {/* Idle state */}
       {step === "idle" && (
         <div className="space-y-4">
           <p className="text-gray-600 text-sm">
@@ -163,15 +186,57 @@ export default function NightAuditPage() {
                 </span>
               </div>
               <div>
-                <span className="text-gray-500">Pending no-shows:</span>{" "}
-                <span className="font-bold">{preview.pendingNoShows}</span>
-              </div>
-              <div>
                 <span className="text-gray-500">Due-outs:</span>{" "}
                 <span className="font-bold">{preview.dueOuts}</span>
               </div>
             </div>
           </div>
+
+          {/* Pending no-shows: выбор действия */}
+          {preview.pendingNoShowDetails && preview.pendingNoShowDetails.length > 0 && (
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <h3 className="text-sm font-semibold text-yellow-800 mb-2">
+                Неприбывшие гости ({preview.pendingNoShowDetails.length}) — выберите действие
+              </h3>
+              <p className="text-xs text-yellow-700 mb-3">
+                Подтверждённые брони с прошедшей датой заезда. No Show — штатный статус. Отмена — гость предупредил, не приедет.
+              </p>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-gray-500 border-b border-yellow-200">
+                    <th className="pb-1">Бронь</th>
+                    <th className="pb-1">Гость</th>
+                    <th className="pb-1">Заезд</th>
+                    <th className="pb-1">Действие</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.pendingNoShowDetails.map((b) => (
+                    <tr key={b.id} className="border-b border-yellow-100">
+                      <td className="py-1 font-mono text-xs">{b.confirmationNumber}</td>
+                      <td className="py-1">{b.guestName}</td>
+                      <td className="py-1 text-xs">{b.checkInDate}</td>
+                      <td className="py-1">
+                        <select
+                          value={noShowDecisions[b.id] ?? "no_show"}
+                          onChange={(e) =>
+                            setNoShowDecisions((prev) => ({
+                              ...prev,
+                              [b.id]: e.target.value as "no_show" | "cancel",
+                            }))
+                          }
+                          className="text-xs border rounded px-2 py-1"
+                        >
+                          <option value="no_show">No Show</option>
+                          <option value="cancel">Отмена</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Per-room breakdown */}
           {preview.roomDetails && preview.roomDetails.length > 0 && (
@@ -203,9 +268,7 @@ export default function NightAuditPage() {
           {/* Warnings */}
           {preview.warnings.length > 0 && (
             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <h3 className="text-sm font-semibold text-yellow-800 mb-1">
-                Warnings
-              </h3>
+              <h3 className="text-sm font-semibold text-yellow-800 mb-1">Warnings</h3>
               <ul className="text-sm text-yellow-700 list-disc list-inside">
                 {preview.warnings.map((w, i) => (
                   <li key={i}>{w}</li>
@@ -266,6 +329,12 @@ export default function NightAuditPage() {
                 <span className="text-gray-500">No-shows:</span>{" "}
                 <span className="font-bold">{result.noShows}</span>
               </div>
+              {result.cancelled > 0 && (
+                <div>
+                  <span className="text-gray-500">Отменено:</span>{" "}
+                  <span className="font-bold">{result.cancelled}</span>
+                </div>
+              )}
               <div>
                 <span className="text-gray-500">Total revenue:</span>{" "}
                 <span className="font-bold font-mono">

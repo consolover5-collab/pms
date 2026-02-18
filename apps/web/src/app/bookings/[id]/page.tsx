@@ -7,6 +7,7 @@ import { BackButton } from "@/components/back-button";
 
 type Booking = {
   id: string;
+  propertyId: string;
   confirmationNumber: string;
   checkInDate: string;
   checkOutDate: string;
@@ -111,6 +112,9 @@ export default async function BookingDetailPage({
         status={booking.status}
         checkInDate={booking.checkInDate}
         hasRoom={!!booking.room}
+        propertyId={booking.propertyId}
+        roomTypeId={booking.roomType.id}
+        currentRoomId={booking.room?.id ?? null}
       />
 
       {/* Guest info */}

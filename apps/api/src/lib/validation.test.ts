@@ -5,6 +5,7 @@ import {
   validateOccupancy,
   isValidUuid,
   validateReinstateCheckedOut,
+  validateRoomMove,
 } from "./validation.js";
 
 describe("isValidUuid", () => {
@@ -107,5 +108,49 @@ describe("validateReinstateCheckedOut", () => {
   it("returns error when checkOutDate is before businessDate", () => {
     const result = validateReinstateCheckedOut("2026-02-10", "2026-02-18");
     assert.ok(result !== null, "should return error when checkOut is in the past");
+  });
+});
+
+const validBooking = { status: "checked_in", roomId: "room-1", roomTypeId: "type-A" };
+const validNewRoom = { id: "room-2", roomTypeId: "type-A", occupancyStatus: "vacant", housekeepingStatus: "clean" };
+
+describe("validateRoomMove", () => {
+  it("returns null for a valid room move", () => {
+    assert.equal(validateRoomMove(validBooking, validNewRoom), null);
+  });
+
+  it("accepts inspected room as move target", () => {
+    assert.equal(validateRoomMove(validBooking, { ...validNewRoom, housekeepingStatus: "inspected" }), null);
+  });
+
+  it("returns error when booking is not checked_in", () => {
+    const result = validateRoomMove({ ...validBooking, status: "confirmed" }, validNewRoom);
+    assert.ok(result !== null);
+    assert.ok(result!.toLowerCase().includes("заселен") || result!.toLowerCase().includes("checked_in"));
+  });
+
+  it("returns error when new room is same as current room", () => {
+    const result = validateRoomMove(validBooking, { ...validNewRoom, id: "room-1" });
+    assert.ok(result !== null);
+  });
+
+  it("returns error when new room is occupied", () => {
+    const result = validateRoomMove(validBooking, { ...validNewRoom, occupancyStatus: "occupied" });
+    assert.ok(result !== null);
+  });
+
+  it("returns error when new room is dirty", () => {
+    const result = validateRoomMove(validBooking, { ...validNewRoom, housekeepingStatus: "dirty" });
+    assert.ok(result !== null);
+  });
+
+  it("returns error when new room is out_of_order", () => {
+    const result = validateRoomMove(validBooking, { ...validNewRoom, housekeepingStatus: "out_of_order" });
+    assert.ok(result !== null);
+  });
+
+  it("returns error when room type does not match booking", () => {
+    const result = validateRoomMove(validBooking, { ...validNewRoom, roomTypeId: "type-B" });
+    assert.ok(result !== null);
   });
 });

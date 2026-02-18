@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { bookings, guests, rooms, roomTypes, ratePlans, properties, folioTransactions, businessDates } from "@pms/db";
 import { eq, and, or, ne, lte, gte, lt, gt, sql, ilike, count } from "drizzle-orm";
-import { validateBookingDates, validateOccupancy, checkRoomConflict, validateReinstateCheckedOut } from "../lib/validation";
+import { validateBookingDates, validateOccupancy, checkRoomConflict, validateReinstateCheckedOut, validateRoomMove } from "../lib/validation";
 import { calculateFolioBalance } from "@pms/domain";
 
 /** Возвращает текущую открытую бизнес-дату отеля. Фолбэк на системный день если нет открытой даты. */
@@ -350,11 +350,19 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
     const [existing] = await app.db.select().from(bookings).where(eq(bookings.id, request.params.id));
     if (!existing) return reply.status(404).send({ error: "Not found" });
 
-    // Даты нельзя менять у заселённых или уже выехавших броней
-    if ((request.body.checkInDate || request.body.checkOutDate) &&
-        (existing.status === "checked_in" || existing.status === "checked_out")) {
+    // У заселённых броней можно только продлить выезд (checkOutDate), дата заезда заблокирована
+    if (existing.status === "checked_in") {
+      if (request.body.checkInDate) {
+        return reply.status(400).send({
+          error: `Нельзя изменить дату заезда: гость уже заселён. Можно только изменить дату выезда для продления проживания.`,
+          code: "DATES_LOCKED",
+        });
+      }
+    }
+    // У выехавших броней даты не меняются совсем
+    if (existing.status === "checked_out" && (request.body.checkInDate || request.body.checkOutDate)) {
       return reply.status(400).send({
-        error: `Нельзя изменить даты бронирования со статусом "${existing.status}". Даты фиксируются после заезда.`,
+        error: `Нельзя изменить даты бронирования со статусом "checked_out". Проживание завершено.`,
         code: "DATES_LOCKED",
       });
     }
@@ -801,6 +809,96 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  // Room move: переселить заселённого гостя в другую комнату
+  app.post<{ Params: { id: string }; Body: { newRoomId: string } }>(
+    "/api/bookings/:id/room-move",
+    async (request, reply) => {
+      const { newRoomId } = request.body || {};
+
+      if (!newRoomId) {
+        return reply.status(400).send({ error: "newRoomId обязателен", code: "MISSING_ROOM_ID" });
+      }
+
+      const [booking] = await app.db
+        .select()
+        .from(bookings)
+        .where(eq(bookings.id, request.params.id));
+
+      if (!booking) {
+        return reply.status(404).send({ error: "Бронирование не найдено", code: "BOOKING_NOT_FOUND" });
+      }
+
+      const [newRoom] = await app.db
+        .select()
+        .from(rooms)
+        .where(and(eq(rooms.id, newRoomId), eq(rooms.propertyId, booking.propertyId)));
+
+      if (!newRoom) {
+        return reply.status(404).send({ error: "Комната не найдена", code: "ROOM_NOT_FOUND" });
+      }
+
+      const validationError = validateRoomMove(booking, newRoom);
+      if (validationError) {
+        return reply.status(400).send({ error: validationError, code: "ROOM_MOVE_INVALID" });
+      }
+
+      // Транзакция: блокируем обе комнаты в стабильном порядке (по ID) во избежание дедлоков
+      const result = await app.db.transaction(async (tx) => {
+        const lockIds = ([booking.roomId, newRoomId].filter(Boolean) as string[]).sort();
+        for (const rid of lockIds) {
+          await tx.execute(sql`SELECT id FROM rooms WHERE id = ${rid} FOR UPDATE`);
+        }
+
+        // Повторно проверяем статус новой комнаты внутри транзакции
+        const [lockedNew] = await tx
+          .select({ occupancyStatus: rooms.occupancyStatus, housekeepingStatus: rooms.housekeepingStatus })
+          .from(rooms)
+          .where(eq(rooms.id, newRoomId));
+
+        if (!lockedNew || lockedNew.occupancyStatus !== "vacant") {
+          throw Object.assign(new Error("Комната уже занята. Выберите другую комнату."), {
+            statusCode: 409, code: "ROOM_NOT_AVAILABLE",
+          });
+        }
+        if (lockedNew.housekeepingStatus !== "clean" && lockedNew.housekeepingStatus !== "inspected") {
+          throw Object.assign(new Error(`Комната не готова к заселению (статус уборки: ${lockedNew.housekeepingStatus}).`), {
+            statusCode: 409, code: "ROOM_NOT_READY",
+          });
+        }
+
+        // Старая комната → свободна + грязная
+        if (booking.roomId) {
+          await tx.update(rooms)
+            .set({ occupancyStatus: "vacant", housekeepingStatus: "dirty", updatedAt: new Date() })
+            .where(eq(rooms.id, booking.roomId));
+        }
+
+        // Новая комната → занята
+        await tx.update(rooms)
+          .set({ occupancyStatus: "occupied", updatedAt: new Date() })
+          .where(eq(rooms.id, newRoomId));
+
+        // Обновляем бронь
+        const [updated] = await tx
+          .update(bookings)
+          .set({ roomId: newRoomId, updatedAt: new Date() })
+          .where(eq(bookings.id, request.params.id))
+          .returning();
+
+        return updated;
+      }).catch((err: any) => {
+        if (err.statusCode) {
+          reply.status(err.statusCode).send({ error: err.message, code: err.code });
+          return null;
+        }
+        throw err;
+      });
+
+      if (result === null) return;
+      return result;
+    },
+  );
+
   // Cancel booking
   app.post<{ Params: { id: string }; Body: { reason?: string } }>(
     "/api/bookings/:id/cancel",
@@ -814,6 +912,18 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         return reply.status(404).send({
           error: "Booking not found",
           code: "BOOKING_NOT_FOUND"
+        });
+      }
+
+      // Нельзя отменить бронирование с транзакциями в фолио (гость реально проживал)
+      const [txCount] = await app.db
+        .select({ n: count() })
+        .from(folioTransactions)
+        .where(eq(folioTransactions.bookingId, booking.id));
+      if (txCount.n > 0) {
+        return reply.status(400).send({
+          error: `Нельзя отменить бронирование: в фолио ${txCount.n} транзакций. Гость уже проживал или оплачивал услуги.`,
+          code: "HAS_FOLIO_TRANSACTIONS",
         });
       }
 

@@ -40,7 +40,7 @@ const paymentMethods = [
 ];
 
 const statusExplanations: Record<string, string> = {
-  checked_in: "Guest is checked in. Core booking details (dates, room type, guest) cannot be changed. You can still update the room assignment, rates, and notes.",
+  checked_in: "Гость заселён. Дата заезда, тип номера и гость заблокированы. Можно продлить дату выезда, изменить комнату, тариф и заметки.",
   checked_out: "Stay is completed. Only notes can be updated for historical records.",
   cancelled: "Booking is cancelled. Use 'Reinstate' to restore it before making changes.",
   no_show: "Marked as no-show. Use 'Reinstate' to restore it before making changes.",
@@ -107,17 +107,18 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
 
   // Field editability rules
   const canEditCoreFields = isConfirmed;
+  const canExtendStay = isCheckedIn; // checked_in: только дата выезда (продление)
   const canEditRoom = isConfirmed || isCheckedIn;
   const canEditFinancials = isConfirmed || isCheckedIn;
   const canEditNotes = true;
 
   // Date validation
   const dateError = useMemo(() => {
-    if (canEditCoreFields && checkInDate && checkOutDate && checkOutDate <= checkInDate) {
+    if ((canEditCoreFields || canExtendStay) && checkInDate && checkOutDate && checkOutDate <= checkInDate) {
       return "Check-out date must be after check-in date";
     }
     return null;
-  }, [checkInDate, checkOutDate, canEditCoreFields]);
+  }, [checkInDate, checkOutDate, canEditCoreFields, canExtendStay]);
 
   // Calculate nights and total
   const nights = useMemo(() => {
@@ -210,6 +211,11 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
       body.checkOutDate = checkOutDate;
       body.adults = adultsVal;
       body.children = childrenVal;
+    }
+
+    // checked_in: разрешено только продление (изменение даты выезда)
+    if (canExtendStay && !canEditCoreFields) {
+      body.checkOutDate = checkOutDate;
     }
 
     if (canEditRoom) {
@@ -346,20 +352,21 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
         <FormField
           label="Check-out"
           required
-          disabled={!canEditCoreFields}
-          lockedReason={!canEditCoreFields ? "Cannot change dates after check-in" : undefined}
+          disabled={!canEditCoreFields && !canExtendStay}
+          lockedReason={isTerminal ? "Cannot change dates for completed/cancelled stay" : undefined}
         >
           <input
             type="date"
             required
-            disabled={!canEditCoreFields}
+            disabled={!canEditCoreFields && !canExtendStay}
             value={checkOutDate}
-            min={canEditCoreFields && checkInDate ? (() => { const d = new Date(checkInDate); d.setDate(d.getDate() + 1); return d.toISOString().split("T")[0]; })() : undefined}
+            min={checkInDate ? (() => { const d = new Date(checkInDate); d.setDate(d.getDate() + 1); return d.toISOString().split("T")[0]; })() : undefined}
             onChange={(e) => setCheckOutDate(e.target.value)}
-            className={`w-full px-3 py-2 border rounded ${!canEditCoreFields ? "bg-gray-100 text-gray-500 cursor-not-allowed" : dateError ? "border-red-500" : ""}`}
+            className={`w-full px-3 py-2 border rounded ${(!canEditCoreFields && !canExtendStay) ? "bg-gray-100 text-gray-500 cursor-not-allowed" : dateError ? "border-red-500" : ""}`}
           />
           {dateError && <p className="text-xs text-red-500 mt-1">{dateError}</p>}
-          {nights > 0 && <p className="text-xs text-gray-500 mt-1">{nights} night{nights > 1 ? "s" : ""}</p>}
+          {nights > 0 && <p className="text-xs text-gray-500 mt-1">{nights} ноч{nights === 1 ? "ь" : nights < 5 ? "и" : "ей"}</p>}
+          {canExtendStay && !canEditCoreFields && <p className="text-xs text-blue-600 mt-1">Можно продлить проживание, изменив дату выезда</p>}
         </FormField>
       </div>
 

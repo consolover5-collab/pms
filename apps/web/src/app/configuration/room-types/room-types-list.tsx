@@ -11,6 +11,7 @@ type RoomType = {
   maxOccupancy: number;
   description: string | null;
   sortOrder: number;
+  roomCount: number;
 };
 
 export function RoomTypesList({ roomTypes, propertyId }: { roomTypes: RoomType[]; propertyId: string }) {
@@ -57,6 +58,9 @@ export function RoomTypesList({ roomTypes, propertyId }: { roomTypes: RoomType[]
             <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
               Max Occ.
             </th>
+            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
+              Rooms
+            </th>
             <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">
               Actions
             </th>
@@ -73,6 +77,7 @@ export function RoomTypesList({ roomTypes, propertyId }: { roomTypes: RoomType[]
                 )}
               </td>
               <td className="px-4 py-3">{rt.maxOccupancy}</td>
+              <td className="px-4 py-3">{rt.roomCount}</td>
               <td className="px-4 py-3 text-right space-x-2">
                 <a
                   href={`/configuration/room-types/${rt.id}/edit`}

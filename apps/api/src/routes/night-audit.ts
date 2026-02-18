@@ -8,7 +8,7 @@ import {
   transactionCodes,
   folioTransactions,
 } from "@pms/db";
-import { eq, and, lt, sql } from "drizzle-orm";
+import { eq, and, lt, sql, inArray } from "drizzle-orm";
 import { calculateTax, shouldPostRoomCharge } from "@pms/domain";
 import { isValidUuid } from "../lib/validation";
 
@@ -61,8 +61,13 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
       .select({
         id: bookings.id,
         confirmationNumber: bookings.confirmationNumber,
+        checkInDate: bookings.checkInDate,
+        checkOutDate: bookings.checkOutDate,
+        guestFirstName: guests.firstName,
+        guestLastName: guests.lastName,
       })
       .from(bookings)
+      .innerJoin(guests, eq(bookings.guestId, guests.id))
       .where(
         and(
           eq(bookings.propertyId, propertyId),
@@ -120,6 +125,13 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
       businessDate: bizDate.date,
       dueOuts: dueOuts.length,
       pendingNoShows: pendingNoShows.length,
+      pendingNoShowDetails: pendingNoShows.map((b) => ({
+        id: b.id,
+        confirmationNumber: b.confirmationNumber,
+        guestName: `${b.guestFirstName} ${b.guestLastName}`,
+        checkInDate: b.checkInDate,
+        checkOutDate: b.checkOutDate,
+      })),
       roomsToCharge: roomsToCharge.length,
       estimatedRevenue: Math.round(estimatedRevenue * 100) / 100,
       roomDetails,
@@ -129,9 +141,13 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
 
   // Run Night Audit — single atomic transaction
   app.post<{
-    Body: { propertyId: string };
+    Body: {
+      propertyId: string;
+      /** Решения по no-show броням: no_show (по умолчанию) или cancel */
+      noShowDecisions?: { bookingId: string; action: "no_show" | "cancel" }[];
+    };
   }>("/api/night-audit/run", async (request, reply) => {
-    const { propertyId } = request.body;
+    const { propertyId, noShowDecisions } = request.body;
     if (!propertyId) {
       return reply.status(400).send({ error: "propertyId is required" });
     }
@@ -204,18 +220,42 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
         throw new Error("ALREADY_RUN");
       }
 
-      // Step 2: Mark no-shows
-      const noShows = await tx
-        .update(bookings)
-        .set({ status: "no_show", updatedAt: new Date() })
+      // Step 2: Mark no-shows / cancel expired confirmed bookings
+      // Get all pending no-show IDs first
+      const pendingNS = await tx
+        .select({ id: bookings.id })
+        .from(bookings)
         .where(
           and(
             eq(bookings.propertyId, propertyId),
             eq(bookings.status, "confirmed"),
             lt(bookings.checkInDate, bizDate.date),
           ),
-        )
-        .returning({ id: bookings.id });
+        );
+
+      // Build decision map
+      const decisionMap = new Map<string, "no_show" | "cancel">();
+      for (const d of (noShowDecisions ?? [])) {
+        decisionMap.set(d.bookingId, d.action);
+      }
+
+      const toCancel = pendingNS.filter((b) => decisionMap.get(b.id) === "cancel").map((b) => b.id);
+      const toNoShow = pendingNS.filter((b) => decisionMap.get(b.id) !== "cancel").map((b) => b.id);
+
+      let cancelled = 0;
+      if (toCancel.length > 0) {
+        await tx.update(bookings)
+          .set({ status: "cancelled", updatedAt: new Date() })
+          .where(inArray(bookings.id, toCancel));
+        cancelled = toCancel.length;
+      }
+
+      const noShows = toNoShow.length > 0
+        ? await tx.update(bookings)
+            .set({ status: "no_show", updatedAt: new Date() })
+            .where(inArray(bookings.id, toNoShow))
+            .returning({ id: bookings.id })
+        : [];
 
       // Step 3 & 4: Post room charges + tax for each checked_in booking
       const checkedIn = await tx
@@ -379,6 +419,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
         businessDate: bizDate.date,
         nextBusinessDate: nextDateStr,
         noShows: noShows.length,
+        cancelled,
         roomChargesPosted,
         taxChargesPosted,
         skippedDuplicates,

@@ -52,6 +52,29 @@ export function validateBookingDates(checkInDate: string, checkOutDate: string):
   return null;
 }
 
+/** Validate all preconditions for a room move (pure, no DB). Returns error message or null. */
+export function validateRoomMove(
+  booking: { status: string; roomId: string | null; roomTypeId: string },
+  newRoom: { id: string; roomTypeId: string; occupancyStatus: string; housekeepingStatus: string },
+): string | null {
+  if (booking.status !== "checked_in") {
+    return `Смена комнаты возможна только для заселённых броней (checked_in). Текущий статус: ${booking.status}.`;
+  }
+  if (newRoom.id === booking.roomId) {
+    return `Нельзя переселить гостя в ту же комнату.`;
+  }
+  if (newRoom.roomTypeId !== booking.roomTypeId) {
+    return `Тип новой комнаты не совпадает с типом бронирования.`;
+  }
+  if (newRoom.occupancyStatus !== "vacant") {
+    return `Комната ${newRoom.id} занята (${newRoom.occupancyStatus}).`;
+  }
+  if (newRoom.housekeepingStatus !== "clean" && newRoom.housekeepingStatus !== "inspected") {
+    return `Комната не готова к заселению (статус уборки: ${newRoom.housekeepingStatus}).`;
+  }
+  return null;
+}
+
 /** Validate that a checked_out booking can be reinstated: checkOutDate must be after businessDate */
 export function validateReinstateCheckedOut(checkOutDate: string, businessDate: string): string | null {
   if (checkOutDate <= businessDate) {
