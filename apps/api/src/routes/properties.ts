@@ -34,6 +34,7 @@ export const propertiesRoutes: FastifyPluginAsync = async (app) => {
       checkOutTime?: string;
       numberOfRooms?: number;
       numberOfFloors?: number;
+      taxRate?: string;
     };
   }>("/api/properties/:id", async (request, reply) => {
     const [updated] = await app.db

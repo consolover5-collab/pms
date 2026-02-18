@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api";
 import { BackButton } from "@/components/back-button";
+import Link from "next/link";
 
 type TransactionCode = {
   id: string;
@@ -32,35 +33,42 @@ export default async function TransactionCodesPage() {
             fallbackHref="/configuration"
             label="Back to Configuration"
           />
-          <h1 className="text-2xl font-bold mt-2">Transaction Codes</h1>
+          <h1 className="text-2xl font-bold mt-2">Коды транзакций</h1>
         </div>
+        <Link
+          href="/configuration/transaction-codes/new"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
+        >
+          + Новый код
+        </Link>
       </div>
 
       {allCodes.length === 0 ? (
-        <p className="text-gray-500">No transaction codes configured.</p>
+        <p className="text-gray-500">Коды транзакций не настроены.</p>
       ) : (
         <div className="space-y-8">
           {/* Charges */}
           <section>
             <h2 className="text-lg font-semibold mb-3 text-blue-700">
-              Charges ({chargeCodes.length})
+              Начисления ({chargeCodes.length})
             </h2>
             <div className="border rounded overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-blue-50">
                   <tr>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      Code
+                      Код
                     </th>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      Name
+                      Название
                     </th>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      Group
+                      Группа
                     </th>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      Type
+                      Тип
                     </th>
+                    <th className="px-4 py-2"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -78,6 +86,14 @@ export default async function TransactionCodesPage() {
                           charge
                         </span>
                       </td>
+                      <td className="px-4 py-2 text-right">
+                        <Link
+                          href={`/configuration/transaction-codes/${c.id}/edit`}
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          Изменить
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -88,24 +104,25 @@ export default async function TransactionCodesPage() {
           {/* Payments */}
           <section>
             <h2 className="text-lg font-semibold mb-3 text-green-700">
-              Payments ({paymentCodes.length})
+              Оплаты ({paymentCodes.length})
             </h2>
             <div className="border rounded overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-green-50">
                   <tr>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      Code
+                      Код
                     </th>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      Name
+                      Название
                     </th>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      Group
+                      Группа
                     </th>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      Type
+                      Тип
                     </th>
+                    <th className="px-4 py-2"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -122,6 +139,14 @@ export default async function TransactionCodesPage() {
                         <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">
                           payment
                         </span>
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <Link
+                          href={`/configuration/transaction-codes/${c.id}/edit`}
+                          className="text-xs text-green-600 hover:underline"
+                        >
+                          Изменить
+                        </Link>
                       </td>
                     </tr>
                   ))}

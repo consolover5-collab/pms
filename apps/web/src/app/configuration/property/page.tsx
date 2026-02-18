@@ -15,6 +15,7 @@ type Property = {
   checkOutTime: string;
   numberOfRooms: number | null;
   numberOfFloors: number | null;
+  taxRate: string | null;
 };
 
 export default async function PropertySettingsPage() {

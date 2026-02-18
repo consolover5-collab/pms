@@ -18,6 +18,7 @@ type Property = {
   checkOutTime: string;
   numberOfRooms: number | null;
   numberOfFloors: number | null;
+  taxRate: string | null;
 };
 
 export function PropertyForm({ property }: { property: Property }) {
@@ -38,6 +39,7 @@ export function PropertyForm({ property }: { property: Property }) {
     checkOutTime: property.checkOutTime,
     numberOfRooms: property.numberOfRooms || 0,
     numberOfFloors: property.numberOfFloors || 0,
+    taxRate: property.taxRate || "0",
   });
 
   async function handleSubmit(e: React.FormEvent) {
@@ -215,6 +217,23 @@ export function PropertyForm({ property }: { property: Property }) {
                 <option value="EUR">EUR</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Tax Rate (%)</label>
+            <input
+              type="number"
+              value={form.taxRate}
+              onChange={(e) => setForm({ ...form, taxRate: e.target.value })}
+              min={0}
+              max={100}
+              step={0.01}
+              className="w-full border rounded px-3 py-2"
+              placeholder="20"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              НДС/VAT — ставка налога, применяемая к начислениям за проживание
+            </p>
           </div>
         </div>
       </section>

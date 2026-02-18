@@ -1,7 +1,8 @@
 import type { FastifyPluginAsync } from "fastify";
-import { bookings, guests, rooms, roomTypes, ratePlans, properties } from "@pms/db";
+import { bookings, guests, rooms, roomTypes, ratePlans, properties, folioTransactions } from "@pms/db";
 import { eq, and, or, ne, lte, gte, lt, gt, sql, ilike, count } from "drizzle-orm";
 import { validateBookingDates, validateOccupancy, checkRoomConflict } from "../lib/validation";
+import { calculateFolioBalance } from "@pms/domain";
 
 export const bookingsRoutes: FastifyPluginAsync = async (app) => {
   // List bookings with optional filters
@@ -521,6 +522,21 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           code: "LATE_CHECKOUT",
           checkOutDate,
           today
+        });
+      }
+
+      // Проверка баланса фолио: нельзя выезжать с положительным балансом
+      const folioTxs = await app.db
+        .select({ debit: folioTransactions.debit, credit: folioTransactions.credit })
+        .from(folioTransactions)
+        .where(eq(folioTransactions.bookingId, request.params.id));
+
+      const balance = calculateFolioBalance(folioTxs);
+      if (balance > 0) {
+        return reply.status(400).send({
+          error: `Нельзя выехать: у гостя открытый баланс ${balance.toFixed(2)}. Примите оплату перед выездом.`,
+          code: "UNPAID_BALANCE",
+          balance,
         });
       }
 
