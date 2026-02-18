@@ -10,7 +10,7 @@ import { ErrorDisplay, type ApiErrorDetail } from "@/components/error-display";
 type Guest = { id: string; firstName: string; lastName: string };
 type RoomType = { id: string; name: string; code: string };
 type Room = { id: string; roomNumber: string; roomTypeId: string; occupancyStatus: string; housekeepingStatus: string };
-type RatePlan = { id: string; name: string; code: string; baseRate: string | null };
+type RatePlan = { id: string; name: string; code: string; baseRate: string | null; isDefault: boolean };
 
 export function BookingForm({ propertyId }: { propertyId: string }) {
   const router = useRouter();
@@ -78,6 +78,12 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
         setRoomTypes(rt);
         setRooms(rm);
         setRatePlans(rp);
+        // Автовыбор тарифного плана по умолчанию
+        const defaultPlan = rp.find((p: RatePlan) => p.isDefault);
+        if (defaultPlan) {
+          setSelectedRatePlanId(defaultPlan.id);
+          if (defaultPlan.baseRate) setRateAmount(defaultPlan.baseRate);
+        }
       } catch {
         setError("Could not load data. Check that the API server is running.");
       }
@@ -441,7 +447,7 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
           <option value="">— Select rate plan —</option>
           {ratePlans.map((rp) => (
             <option key={rp.id} value={rp.id}>
-              {rp.name} ({rp.code}){rp.baseRate ? ` — ${formatCurrency(rp.baseRate)} ₽` : ""}
+              {rp.isDefault ? "★ " : ""}{rp.name} ({rp.code}){rp.baseRate ? ` — ${formatCurrency(rp.baseRate)} ₽` : ""}
             </option>
           ))}
         </select>

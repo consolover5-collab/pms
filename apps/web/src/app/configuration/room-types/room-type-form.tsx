@@ -9,7 +9,6 @@ type RoomType = {
   code: string;
   name: string;
   maxOccupancy: number;
-  baseRate: string;
   description: string;
   sortOrder: number;
 };
@@ -31,7 +30,6 @@ export function RoomTypeForm({
     code: roomType?.code || "",
     name: roomType?.name || "",
     maxOccupancy: roomType?.maxOccupancy || 2,
-    baseRate: roomType?.baseRate || "",
     description: roomType?.description || "",
     sortOrder: roomType?.sortOrder || 0,
   });
@@ -101,32 +99,17 @@ export function RoomTypeForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Max Occupancy *</label>
-          <input
-            type="number"
-            value={form.maxOccupancy}
-            onChange={(e) => setForm({ ...form, maxOccupancy: parseInt(e.target.value) || 2 })}
-            required
-            min={1}
-            max={10}
-            className="w-full border rounded px-3 py-2"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Base Rate *</label>
-          <input
-            type="number"
-            value={form.baseRate}
-            onChange={(e) => setForm({ ...form, baseRate: e.target.value })}
-            required
-            min={0}
-            step={0.01}
-            className="w-full border rounded px-3 py-2"
-            placeholder="4500.00"
-          />
-        </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Max Occupancy *</label>
+        <input
+          type="number"
+          value={form.maxOccupancy}
+          onChange={(e) => setForm({ ...form, maxOccupancy: parseInt(e.target.value) || 2 })}
+          required
+          min={1}
+          max={10}
+          className="w-full border rounded px-3 py-2"
+        />
       </div>
 
       <div>

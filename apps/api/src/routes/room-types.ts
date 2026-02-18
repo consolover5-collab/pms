@@ -37,7 +37,7 @@ export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
       code: string;
       name: string;
       maxOccupancy?: number;
-      baseRate: string;
+      baseRate?: string;
       description?: string;
       sortOrder?: number;
     };

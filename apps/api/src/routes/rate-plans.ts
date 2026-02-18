@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { ratePlans, bookings } from "@pms/db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, ne, sql } from "drizzle-orm";
 
 export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
   // List rate plans for a property
@@ -40,17 +40,29 @@ export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
       name: string;
       description?: string;
       baseRate?: string;
+      isDefault?: boolean;
       isActive?: boolean;
     };
   }>("/api/rate-plans", async (request, reply) => {
+    const { propertyId, isDefault } = request.body;
+
+    // If setting as default, unset all others for this property first
+    if (isDefault) {
+      await app.db
+        .update(ratePlans)
+        .set({ isDefault: false, updatedAt: new Date() })
+        .where(and(eq(ratePlans.propertyId, propertyId), eq(ratePlans.isDefault, true)));
+    }
+
     const [ratePlan] = await app.db
       .insert(ratePlans)
       .values({
-        propertyId: request.body.propertyId,
+        propertyId,
         code: request.body.code,
         name: request.body.name,
         description: request.body.description,
         baseRate: request.body.baseRate,
+        isDefault: isDefault ?? false,
         isActive: request.body.isActive ?? true,
       })
       .returning();
@@ -66,9 +78,31 @@ export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
       name?: string;
       description?: string;
       baseRate?: string;
+      isDefault?: boolean;
       isActive?: boolean;
     };
   }>("/api/rate-plans/:id", async (request, reply) => {
+    // If setting as default, look up propertyId and unset others
+    if (request.body.isDefault) {
+      const [existing] = await app.db
+        .select({ propertyId: ratePlans.propertyId })
+        .from(ratePlans)
+        .where(eq(ratePlans.id, request.params.id));
+
+      if (existing) {
+        await app.db
+          .update(ratePlans)
+          .set({ isDefault: false, updatedAt: new Date() })
+          .where(
+            and(
+              eq(ratePlans.propertyId, existing.propertyId),
+              eq(ratePlans.isDefault, true),
+              ne(ratePlans.id, request.params.id),
+            )
+          );
+      }
+    }
+
     const [updated] = await app.db
       .update(ratePlans)
       .set({ ...request.body, updatedAt: new Date() })

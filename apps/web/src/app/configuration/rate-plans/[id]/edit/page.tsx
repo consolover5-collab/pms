@@ -8,6 +8,7 @@ type RatePlan = {
   name: string;
   description: string | null;
   baseRate: string | null;
+  isDefault: boolean;
   isActive: boolean;
 };
 
@@ -40,6 +41,7 @@ export default async function EditRatePlanPage({
           name: ratePlan.name,
           description: ratePlan.description || "",
           baseRate: ratePlan.baseRate || "",
+          isDefault: ratePlan.isDefault,
           isActive: ratePlan.isActive,
         }}
         propertyId={propertyId}

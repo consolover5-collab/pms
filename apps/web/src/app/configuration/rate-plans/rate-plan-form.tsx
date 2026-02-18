@@ -10,6 +10,7 @@ type RatePlan = {
   name: string;
   description: string;
   baseRate: string;
+  isDefault: boolean;
   isActive: boolean;
 };
 
@@ -31,6 +32,7 @@ export function RatePlanForm({
     name: ratePlan?.name || "",
     description: ratePlan?.description || "",
     baseRate: ratePlan?.baseRate || "",
+    isDefault: ratePlan?.isDefault ?? false,
     isActive: ratePlan?.isActive ?? true,
   });
 
@@ -127,16 +129,26 @@ export function RatePlanForm({
         />
       </div>
 
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="isActive"
-          checked={form.isActive}
-          onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-          className="rounded"
-        />
-        <label htmlFor="isActive" className="text-sm">
-          Active (available for new reservations)
+      <div className="space-y-2">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={form.isDefault}
+            onChange={(e) => setForm({ ...form, isDefault: e.target.checked })}
+            className="rounded"
+          />
+          <span className="font-medium">Base Rate</span>
+          <span className="text-gray-500">(выбирается по умолчанию при создании брони)</span>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            id="isActive"
+            checked={form.isActive}
+            onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+            className="rounded"
+          />
+          <label htmlFor="isActive">Active (available for new reservations)</label>
         </label>
       </div>
 

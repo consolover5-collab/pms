@@ -9,6 +9,7 @@ type RatePlan = {
   name: string;
   description: string | null;
   baseRate: string | null;
+  isDefault: boolean;
   isActive: boolean;
 };
 

@@ -23,6 +23,7 @@ export const ratePlans = pgTable("rate_plans", {
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   baseRate: decimal("base_rate", { precision: 10, scale: 2 }),
+  isDefault: boolean("is_default").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

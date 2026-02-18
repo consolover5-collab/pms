@@ -7,7 +7,6 @@ type RoomType = {
   code: string;
   name: string;
   maxOccupancy: number;
-  baseRate: string;
   description: string | null;
   sortOrder: number;
 };
@@ -40,7 +39,6 @@ export default async function EditRoomTypePage({
           code: roomType.code,
           name: roomType.name,
           maxOccupancy: roomType.maxOccupancy,
-          baseRate: roomType.baseRate,
           description: roomType.description || "",
           sortOrder: roomType.sortOrder,
         }}

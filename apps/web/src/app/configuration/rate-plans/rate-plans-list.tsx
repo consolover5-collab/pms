@@ -11,6 +11,7 @@ type RatePlan = {
   name: string;
   description: string | null;
   baseRate: string | null;
+  isDefault: boolean;
   isActive: boolean;
 };
 
@@ -71,7 +72,14 @@ export function RatePlansList({ ratePlans, propertyId }: { ratePlans: RatePlan[]
             <tr key={rp.id} className="hover:bg-gray-50">
               <td className="px-4 py-3 font-mono text-sm">{rp.code}</td>
               <td className="px-4 py-3">
-                <div className="font-medium">{rp.name}</div>
+                <div className="font-medium flex items-center gap-2">
+                  {rp.name}
+                  {rp.isDefault && (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">
+                      ★ Base Rate
+                    </span>
+                  )}
+                </div>
                 {rp.description && (
                   <div className="text-xs text-gray-500">{rp.description}</div>
                 )}

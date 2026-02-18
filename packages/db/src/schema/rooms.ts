@@ -19,7 +19,7 @@ export const roomTypes = pgTable("room_types", {
   name: varchar("name", { length: 100 }).notNull(),
   code: varchar("code", { length: 10 }).notNull(),
   maxOccupancy: integer("max_occupancy").notNull().default(2),
-  baseRate: decimal("base_rate", { precision: 10, scale: 2 }).notNull(),
+  baseRate: decimal("base_rate", { precision: 10, scale: 2 }),
   description: text("description"),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
