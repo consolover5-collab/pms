@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Link from "next/link";
 
 
 type RoomType = {
@@ -71,13 +72,22 @@ export function RoomTypesList({ roomTypes, propertyId }: { roomTypes: RoomType[]
             <tr key={rt.id} className="hover:bg-gray-50">
               <td className="px-4 py-3 font-mono text-sm">{rt.code}</td>
               <td className="px-4 py-3">
-                <div className="font-medium">{rt.name}</div>
+                <Link href={`/configuration/room-types/${rt.id}`} className="font-medium hover:underline text-gray-900">
+                  {rt.name}
+                </Link>
                 {rt.description && (
                   <div className="text-xs text-gray-500">{rt.description}</div>
                 )}
               </td>
               <td className="px-4 py-3">{rt.maxOccupancy}</td>
-              <td className="px-4 py-3">{rt.roomCount}</td>
+              <td className="px-4 py-3">
+                <Link
+                  href={`/configuration/room-types/${rt.id}`}
+                  className="text-blue-600 hover:underline"
+                >
+                  {rt.roomCount}
+                </Link>
+              </td>
               <td className="px-4 py-3 text-right space-x-2">
                 <a
                   href={`/configuration/room-types/${rt.id}/edit`}
