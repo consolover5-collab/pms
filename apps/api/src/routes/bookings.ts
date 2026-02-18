@@ -123,6 +123,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       const [booking] = await app.db
         .select({
           id: bookings.id,
+          propertyId: bookings.propertyId,
           confirmationNumber: bookings.confirmationNumber,
           checkInDate: bookings.checkInDate,
           checkOutDate: bookings.checkOutDate,
@@ -648,6 +649,17 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         return reply.status(400).send({
           error: `Cannot cancel check-in: booking status is "${booking.status}". Only checked-in bookings can have check-in cancelled.`,
           code: "INVALID_STATUS"
+        });
+      }
+
+      // Отменить заезд можно только в дату заезда. Если гость уже ночевал — только выезд.
+      const bizDateCancel = await getBusinessDate(app.db, booking.propertyId);
+      if (booking.checkInDate !== bizDateCancel) {
+        return reply.status(400).send({
+          error: `Нельзя отменить заезд: гость уже проживает (заехал ${booking.checkInDate}, текущая бизнес-дата ${bizDateCancel}). Используйте «Check Out».`,
+          code: "CANCEL_CHECKIN_TOO_LATE",
+          checkInDate: booking.checkInDate,
+          businessDate: bizDateCancel,
         });
       }
 

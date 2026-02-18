@@ -1,18 +1,28 @@
 import type { FastifyPluginAsync } from "fastify";
 import { roomTypes, rooms, bookings } from "@pms/db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, count } from "drizzle-orm";
 
 export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
-  // List room types
+  // List room types (с количеством комнат каждого типа)
   app.get<{ Querystring: { propertyId: string } }>(
     "/api/room-types",
     async (request) => {
       const { propertyId } = request.query;
-      return app.db
+      const list = await app.db
         .select()
         .from(roomTypes)
         .where(eq(roomTypes.propertyId, propertyId))
         .orderBy(roomTypes.sortOrder);
+
+      // Подсчёт комнат одним запросом
+      const counts = await app.db
+        .select({ roomTypeId: rooms.roomTypeId, n: count() })
+        .from(rooms)
+        .where(eq(rooms.propertyId, propertyId))
+        .groupBy(rooms.roomTypeId);
+
+      const countMap = Object.fromEntries(counts.map((c) => [c.roomTypeId, c.n]));
+      return list.map((rt) => ({ ...rt, roomCount: countMap[rt.id] ?? 0 }));
     },
   );
 

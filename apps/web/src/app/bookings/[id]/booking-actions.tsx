@@ -179,7 +179,8 @@ export function BookingActions({
   const isFutureArrival = status === "confirmed" && checkInDate > today;
   const canCheckOut = status === "checked_in";
   const canCancel = status === "confirmed" || status === "no_show";
-  const canCancelCheckIn = status === "checked_in";
+  // Cancel Check-in только в дату заезда (гость ещё не ночевал)
+  const canCancelCheckIn = status === "checked_in" && checkInDate === today;
   const canReinstate = status === "cancelled" || status === "no_show" || status === "checked_out";
   const canRoomMove = status === "checked_in";
 

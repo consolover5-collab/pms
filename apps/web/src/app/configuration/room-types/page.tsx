@@ -12,28 +12,12 @@ type RoomType = {
   sortOrder: number;
 };
 
-type Room = { id: string; roomTypeId: string };
-
 export default async function RoomTypesPage() {
   const properties = await apiFetch<{ id: string }[]>("/api/properties");
   const propertyId = properties[0]?.id;
-  const [roomTypes, roomsData] = propertyId
-    ? await Promise.all([
-        apiFetch<RoomType[]>(`/api/room-types?propertyId=${propertyId}`),
-        apiFetch<Room[] | { data: Room[] }>(`/api/rooms?propertyId=${propertyId}&limit=500`),
-      ])
-    : [[], { data: [] }];
-
-  const allRooms: Room[] = Array.isArray(roomsData) ? roomsData : (roomsData as { data: Room[] }).data ?? [];
-  const roomCountByType: Record<string, number> = {};
-  for (const r of allRooms) {
-    roomCountByType[r.roomTypeId] = (roomCountByType[r.roomTypeId] ?? 0) + 1;
-  }
-
-  const roomTypesWithCount = (roomTypes as RoomType[]).map((rt) => ({
-    ...rt,
-    roomCount: roomCountByType[rt.id] ?? 0,
-  }));
+  const roomTypesWithCount = propertyId
+    ? await apiFetch<(RoomType & { roomCount: number })[]>(`/api/room-types?propertyId=${propertyId}`)
+    : [];
 
   return (
     <main className="p-8 max-w-4xl mx-auto">

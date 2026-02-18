@@ -179,6 +179,36 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
     return updated;
   });
 
+  // Edit room properties (type, number, floor)
+  app.put<{
+    Params: { id: string };
+    Body: { roomTypeId?: string; roomNumber?: string; floor?: number | null };
+  }>("/api/rooms/:id", async (request, reply) => {
+    const [room] = await app.db.select().from(rooms).where(eq(rooms.id, request.params.id));
+    if (!room) return reply.status(404).send({ error: "Not found" });
+
+    if (room.occupancyStatus === "occupied") {
+      return reply.status(400).send({
+        error: "Нельзя изменить параметры занятой комнаты. Дождитесь выезда гостя.",
+        code: "ROOM_OCCUPIED",
+      });
+    }
+
+    // Проверка нового типа комнаты
+    if (request.body.roomTypeId) {
+      const [rt] = await app.db.select({ id: roomTypes.id }).from(roomTypes).where(eq(roomTypes.id, request.body.roomTypeId));
+      if (!rt) return reply.status(400).send({ error: "Тип комнаты не найден", code: "ROOM_TYPE_NOT_FOUND" });
+    }
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (request.body.roomTypeId !== undefined) updates.roomTypeId = request.body.roomTypeId;
+    if (request.body.roomNumber !== undefined) updates.roomNumber = request.body.roomNumber;
+    if ("floor" in request.body) updates.floor = request.body.floor;
+
+    const [updated] = await app.db.update(rooms).set(updates).where(eq(rooms.id, request.params.id)).returning();
+    return updated;
+  });
+
   // Delete room
   app.delete<{ Params: { id: string } }>(
     "/api/rooms/:id",
