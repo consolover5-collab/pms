@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
-import { properties } from "@pms/db";
-import { eq } from "drizzle-orm";
+import { properties, rooms } from "@pms/db";
+import { eq, count } from "drizzle-orm";
 
 export const propertiesRoutes: FastifyPluginAsync = async (app) => {
   app.get("/api/properties", async () => {
@@ -37,6 +37,18 @@ export const propertiesRoutes: FastifyPluginAsync = async (app) => {
       taxRate?: string;
     };
   }>("/api/properties/:id", async (request, reply) => {
+    if (request.body.numberOfRooms !== undefined) {
+      const [roomCount] = await app.db
+        .select({ count: count() })
+        .from(rooms)
+        .where(eq(rooms.propertyId, request.params.id));
+      if (request.body.numberOfRooms < Number(roomCount.count)) {
+        return reply.status(400).send({
+          error: `Нельзя установить количество номеров ${request.body.numberOfRooms}: в системе уже ${roomCount.count} номеров. Удалите лишние номера или увеличьте значение.`,
+        });
+      }
+    }
+
     const [updated] = await app.db
       .update(properties)
       .set({ ...request.body, updatedAt: new Date() })

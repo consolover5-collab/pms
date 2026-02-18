@@ -31,6 +31,7 @@ const navItems: NavItem[] = [
     labelRu: "Настройки",
     visibleTo: ["admin", "manager"],
   },
+  { href: "/help", label: "Справка", labelRu: "Справка" },
 ];
 
 function formatBusinessDate(dateStr: string): string {

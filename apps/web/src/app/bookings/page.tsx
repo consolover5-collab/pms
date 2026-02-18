@@ -78,7 +78,17 @@ export default async function BookingsPage({
   const { status, view, dateFrom, dateTo, q, page } = await searchParams;
   const currentPage = Math.max(Number(page) || 1, 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
-  const today = new Date().toISOString().split("T")[0];
+
+  const defaultFrom = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().split("T")[0];
+  })();
+  const defaultTo = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().split("T")[0];
+  })();
 
   // Get property (single-property MVP)
   let properties: Property[];
@@ -116,7 +126,17 @@ export default async function BookingsPage({
   }
 
   const queryParams = new URLSearchParams({ propertyId: property.id });
-  if (status) queryParams.set("status", status);
+  if (view) {
+    queryParams.set("view", view);
+  } else {
+    if (status) queryParams.set("status", status);
+    const effectiveFrom = dateFrom || defaultFrom;
+    const effectiveTo = dateTo || defaultTo;
+    if (!q) {
+      queryParams.set("checkInDate", effectiveFrom);
+      queryParams.set("checkOutDate", effectiveTo);
+    }
+  }
   if (q) queryParams.set("search", q);
   queryParams.set("limit", String(PAGE_SIZE));
   queryParams.set("offset", String(offset));
@@ -147,56 +167,10 @@ export default async function BookingsPage({
     );
   }
 
-  const { data: allBookings, total } = result;
+  const { data: bookings, total } = result;
 
-  // Apply view filters
-  let bookings = allBookings;
-  let pageTitle = "Bookings";
-
-  if (view === "arrivals") {
-    bookings = allBookings.filter(
-      (b) =>
-        b.checkInDate === today &&
-        (b.status === "confirmed" || b.status === "checked_in"),
-    );
-    pageTitle = viewLabels.arrivals;
-  } else if (view === "departures") {
-    bookings = allBookings.filter(
-      (b) =>
-        b.checkOutDate === today &&
-        (b.status === "checked_in" || b.status === "checked_out"),
-    );
-    pageTitle = viewLabels.departures;
-  } else if (view === "inhouse") {
-    bookings = allBookings.filter((b) => b.status === "checked_in");
-    pageTitle = viewLabels.inhouse;
-  }
-
-  // Apply date range filters (with sensible defaults when no view is active)
-  const defaultFrom = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 7);
-    return d.toISOString().split("T")[0];
-  })();
-  const defaultTo = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 30);
-    return d.toISOString().split("T")[0];
-  })();
-
-  // Only apply date filtering when not in a special view and not searching
-  if (!view && !q) {
-    const effectiveFrom = dateFrom || defaultFrom;
-    const effectiveTo = dateTo || defaultTo;
-    bookings = bookings.filter(
-      (b) => b.checkInDate >= effectiveFrom || b.checkOutDate >= effectiveFrom,
-    );
-    bookings = bookings.filter((b) => b.checkInDate <= effectiveTo);
-  }
-
-  // When view filters are applied client-side, use filtered count for pagination
-  const effectiveTotal = (view || (!view && !q)) ? bookings.length : total;
-  const totalPages = Math.max(Math.ceil(effectiveTotal / PAGE_SIZE), 1);
+  const pageTitle = view ? (viewLabels[view] || "Bookings") : "Bookings";
+  const totalPages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
 
   function pageUrl(p: number) {
     const params = new URLSearchParams();

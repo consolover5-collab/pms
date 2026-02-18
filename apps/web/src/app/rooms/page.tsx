@@ -15,10 +15,10 @@ type Property = { id: string; name: string };
 type RoomType = { id: string; name: string; code: string };
 
 const hkStatusColors: Record<string, string> = {
-  clean: "bg-green-100 text-green-800",
+  clean: "bg-cyan-100 text-cyan-800",
   dirty: "bg-red-100 text-red-800",
   pickup: "bg-yellow-100 text-yellow-800",
-  inspected: "bg-blue-100 text-blue-800",
+  inspected: "bg-green-100 text-green-800",
   out_of_order: "bg-gray-600 text-white",
   out_of_service: "bg-gray-400 text-white",
 };
@@ -212,7 +212,7 @@ export default async function RoomsPage({
                         ? "border-blue-300 bg-blue-50"
                         : room.housekeepingStatus === "clean" ||
                             room.housekeepingStatus === "inspected"
-                          ? "border-green-300 bg-green-50"
+                          ? "border-emerald-300 bg-emerald-50"
                           : "border-red-300 bg-red-50"
                     }`}
                   >

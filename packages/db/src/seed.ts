@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 config({ path: resolve(__dirname, "../../../.env") });
+import { eq } from "drizzle-orm";
 import { createDb } from "./connection";
 import {
   properties,
@@ -420,6 +421,16 @@ async function seed() {
       actualCheckIn: b.actualCheckIn ? new Date(b.actualCheckIn) : null,
       actualCheckOut: b.actualCheckOut ? new Date(b.actualCheckOut) : null,
     });
+  }
+
+  // Sync room occupancy with checked_in bookings
+  for (const b of bookingData) {
+    if (b.status === "checked_in" && b.roomNumber) {
+      await db
+        .update(rooms)
+        .set({ occupancyStatus: "occupied" })
+        .where(eq(rooms.id, roomMap[b.roomNumber]));
+    }
   }
 
   // Business date — today, open

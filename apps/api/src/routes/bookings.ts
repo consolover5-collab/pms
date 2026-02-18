@@ -14,16 +14,39 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       search?: string;
       limit?: string;
       offset?: string;
+      view?: string;
+      checkInDate?: string;
+      checkOutDate?: string;
     };
   }>("/api/bookings", async (request) => {
-    const { propertyId, status, roomId, search, limit, offset } = request.query;
+    const { propertyId, status, roomId, search, limit, offset, view, checkInDate, checkOutDate } = request.query;
     const maxResults = Math.min(Number(limit) || 50, 100);
     const skip = Math.max(Number(offset) || 0, 0);
 
     const conditions = [eq(bookings.propertyId, propertyId)];
-    if (status) {
-      conditions.push(eq(bookings.status, status));
+
+    if (view === "arrivals") {
+      const today = new Date().toISOString().split("T")[0];
+      conditions.push(eq(bookings.checkInDate, today));
+      conditions.push(or(eq(bookings.status, "confirmed"), eq(bookings.status, "checked_in"))!);
+    } else if (view === "departures") {
+      const today = new Date().toISOString().split("T")[0];
+      conditions.push(eq(bookings.checkOutDate, today));
+      conditions.push(or(eq(bookings.status, "checked_in"), eq(bookings.status, "checked_out"))!);
+    } else if (view === "inhouse") {
+      conditions.push(eq(bookings.status, "checked_in"));
+    } else {
+      if (status) {
+        conditions.push(eq(bookings.status, status));
+      }
+      if (checkInDate) {
+        conditions.push(gte(bookings.checkInDate, checkInDate));
+      }
+      if (checkOutDate) {
+        conditions.push(lte(bookings.checkOutDate, checkOutDate));
+      }
     }
+
     if (roomId) {
       conditions.push(eq(bookings.roomId, roomId));
     }

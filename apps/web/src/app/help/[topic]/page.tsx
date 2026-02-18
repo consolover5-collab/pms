@@ -58,14 +58,15 @@ const helpContent: Record<string, HelpContent> = {
         <h2>Цветовая индикация</h2>
         <table>
           <thead>
-            <tr><th>Цвет</th><th>Бронирование</th><th>Номер</th></tr>
+            <tr><th>Цвет</th><th>Бронирование</th><th>Номер (HK статус)</th></tr>
           </thead>
           <tbody>
-            <tr><td>Синий</td><td>Confirmed</td><td>Occupied / Inspected</td></tr>
-            <tr><td>Зелёный</td><td>Checked In</td><td>Clean</td></tr>
-            <tr><td>Красный</td><td>Cancelled</td><td>Dirty</td></tr>
-            <tr><td>Серый</td><td>Checked Out</td><td>-</td></tr>
+            <tr><td>Синий</td><td>Confirmed</td><td>Occupied</td></tr>
+            <tr><td>Зелёный</td><td>Checked In</td><td>Inspected</td></tr>
+            <tr><td>Голубой (Cyan)</td><td>—</td><td>Clean</td></tr>
             <tr><td>Жёлтый</td><td>No Show</td><td>Pickup</td></tr>
+            <tr><td>Красный</td><td>Cancelled</td><td>Dirty</td></tr>
+            <tr><td>Серый</td><td>Checked Out</td><td>Out of Order</td></tr>
           </tbody>
         </table>
       </div>
@@ -117,14 +118,15 @@ const helpContent: Record<string, HelpContent> = {
         <h2>Color Coding</h2>
         <table>
           <thead>
-            <tr><th>Color</th><th>Booking</th><th>Room</th></tr>
+            <tr><th>Color</th><th>Booking</th><th>Room (HK status)</th></tr>
           </thead>
           <tbody>
-            <tr><td>Blue</td><td>Confirmed</td><td>Occupied / Inspected</td></tr>
-            <tr><td>Green</td><td>Checked In</td><td>Clean</td></tr>
-            <tr><td>Red</td><td>Cancelled</td><td>Dirty</td></tr>
-            <tr><td>Gray</td><td>Checked Out</td><td>-</td></tr>
+            <tr><td>Blue</td><td>Confirmed</td><td>Occupied</td></tr>
+            <tr><td>Green</td><td>Checked In</td><td>Inspected</td></tr>
+            <tr><td>Cyan</td><td>—</td><td>Clean</td></tr>
             <tr><td>Yellow</td><td>No Show</td><td>Pickup</td></tr>
+            <tr><td>Red</td><td>Cancelled</td><td>Dirty</td></tr>
+            <tr><td>Gray</td><td>Checked Out</td><td>Out of Order</td></tr>
           </tbody>
         </table>
       </div>
@@ -442,6 +444,10 @@ const helpContent: Record<string, HelpContent> = {
           </tbody>
         </table>
 
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 my-4">
+          <strong>Требование к балансу:</strong> Выезд невозможен при положительном балансе фолио. Перед нажатием Check Out убедитесь, что гость оплатил все начисления. Используйте кнопку <strong>Post Payment</strong> в секции Folio.
+        </div>
+
         <div className="bg-blue-50 border-l-4 border-blue-400 p-4 my-4">
           <strong>Важно:</strong> После выселения номер автоматически становится грязным и требует уборки.
         </div>
@@ -502,6 +508,10 @@ const helpContent: Record<string, HelpContent> = {
             <tr><td>Housekeeping status</td><td>any &rarr; dirty</td></tr>
           </tbody>
         </table>
+
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 my-4">
+          <strong>Balance requirement:</strong> Check-out is blocked if the folio has an outstanding balance. Ensure all charges are paid before clicking Check Out. Use the <strong>Post Payment</strong> button in the Folio section.
+        </div>
 
         <div className="bg-blue-50 border-l-4 border-blue-400 p-4 my-4">
           <strong>Important:</strong> After check-out, the room automatically becomes dirty and requires cleaning.
@@ -1039,100 +1049,91 @@ const helpContent: Record<string, HelpContent> = {
     titleEn: "Configuration",
     contentRu: (
       <div className="prose max-w-none">
-        <h2>Настройка системы</h2>
-        <p>
-          Раздел <strong>Configuration</strong> содержит справочники и настройки отеля.
-        </p>
+        <h2>Настройки системы</h2>
+        <p>Раздел <strong>Settings</strong> (Настройки) доступен администраторам и менеджерам.</p>
+
+        <h3>Параметры отеля (Property Settings)</h3>
+        <ul>
+          <li><strong>Название, код</strong> — название отеля и короткий код (используется в номерах подтверждения, например GBH-000001)</li>
+          <li><strong>Адрес, город, страна</strong></li>
+          <li><strong>Часовой пояс, валюта</strong></li>
+          <li><strong>Время заезда/выезда</strong> — стандартное время check-in и check-out</li>
+          <li><strong>Количество номеров/этажей</strong> — справочное значение; нельзя установить меньше реального числа номеров в системе</li>
+          <li><strong>Ставка налога (%)</strong> — процент налога, начисляемого на проживание</li>
+        </ul>
 
         <h3>Типы номеров (Room Types)</h3>
-        <p>Категории номеров отеля. Для каждого типа задаётся:</p>
         <ul>
-          <li><strong>Код</strong> &mdash; краткий код (например, STD, SUP, STE)</li>
-          <li><strong>Название</strong> &mdash; полное название типа</li>
-          <li><strong>Вместимость</strong> &mdash; максимум взрослых и детей</li>
-          <li><strong>Базовая цена</strong> &mdash; стандартная стоимость за ночь</li>
+          <li>Категории номеров (Standard, Superior, Suite и т.д.)</li>
+          <li>Для каждого типа задаётся код, название, максимальная вместимость</li>
+          <li>Нельзя удалить тип, если есть связанные номера или бронирования</li>
         </ul>
-        <p>
-          Перейдите в <strong>Configuration &rarr; Room Types</strong>.
-          Можно добавлять новые типы и редактировать существующие.
-        </p>
 
         <h3>Тарифные планы (Rate Plans)</h3>
-        <p>Тарифы определяют ценообразование:</p>
         <ul>
-          <li><strong>Код</strong> &mdash; краткий код тарифа (например, RACK, CORP)</li>
-          <li><strong>Название</strong> &mdash; описание тарифа</li>
-          <li><strong>Базовая ставка</strong> &mdash; стоимость по умолчанию</li>
+          <li>Определяют стоимость проживания</li>
+          <li>Один план можно отметить <strong>★ Base Rate</strong> — он выбирается по умолчанию при создании нового бронирования</li>
+          <li>В каждом тарифном плане задаётся цена для каждого типа номера через <strong>матрицу цен</strong> (редактируется на странице тарифа)</li>
+          <li>Цена из матрицы автоматически подставляется в форме бронирования при выборе тарифа и типа номера</li>
+          <li>Нельзя удалить тариф, если есть связанные бронирования</li>
         </ul>
-        <p>
-          Перейдите в <strong>Configuration &rarr; Rate Plans</strong>.
-          Тарифный план выбирается при создании бронирования.
-        </p>
 
-        <h3>Настройки отеля (Property Settings)</h3>
-        <p>Основные параметры отеля:</p>
+        <h3>Коды транзакций (Transaction Codes)</h3>
         <ul>
-          <li><strong>Название отеля</strong></li>
-          <li><strong>Время заезда / выезда</strong> по умолчанию</li>
-          <li><strong>Валюта</strong></li>
+          <li>Определяют типы начислений и платежей в фолио гостя</li>
+          <li>Тип <strong>Charge</strong> — начисление (дебет, увеличивает баланс)</li>
+          <li>Тип <strong>Payment</strong> — оплата (кредит, уменьшает баланс)</li>
+          <li>Флаг <strong>Manual Post Allowed</strong> — разрешено ли добавлять вручную из фолио</li>
+          <li>Нельзя удалить код, если есть связанные транзакции в фолио</li>
         </ul>
-        <p>
-          Перейдите в <strong>Configuration &rarr; Property Settings</strong>.
-        </p>
 
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 my-4">
-          <strong>Важно:</strong> Изменение типов номеров и тарифов не влияет
-          на уже созданные бронирования. Новые настройки применяются
-          только к новым бронированиям.
+          <strong>Важно:</strong> Изменение тарифных планов и типов номеров не влияет на уже созданные бронирования.
         </div>
       </div>
     ),
     contentEn: (
       <div className="prose max-w-none">
-        <h2>System Settings</h2>
-        <p>
-          The <strong>Configuration</strong> section contains reference data and hotel settings.
-        </p>
-
-        <h3>Room Types</h3>
-        <p>Hotel room categories. Each type includes:</p>
-        <ul>
-          <li><strong>Code</strong> &mdash; short code (e.g., STD, SUP, STE)</li>
-          <li><strong>Name</strong> &mdash; full type name</li>
-          <li><strong>Capacity</strong> &mdash; maximum adults and children</li>
-          <li><strong>Base rate</strong> &mdash; standard nightly rate</li>
-        </ul>
-        <p>
-          Go to <strong>Configuration &rarr; Room Types</strong>.
-          You can add new types and edit existing ones.
-        </p>
-
-        <h3>Rate Plans</h3>
-        <p>Rate plans define pricing:</p>
-        <ul>
-          <li><strong>Code</strong> &mdash; short rate code (e.g., RACK, CORP)</li>
-          <li><strong>Name</strong> &mdash; rate description</li>
-          <li><strong>Base rate</strong> &mdash; default price</li>
-        </ul>
-        <p>
-          Go to <strong>Configuration &rarr; Rate Plans</strong>.
-          A rate plan is selected when creating a booking.
-        </p>
+        <h2>System Configuration</h2>
+        <p>The <strong>Settings</strong> section is accessible to Admins and Managers.</p>
 
         <h3>Property Settings</h3>
-        <p>Core hotel parameters:</p>
         <ul>
-          <li><strong>Hotel name</strong></li>
-          <li><strong>Default check-in / check-out times</strong></li>
-          <li><strong>Currency</strong></li>
+          <li><strong>Name, code</strong> — hotel name and short code (used in confirmation numbers, e.g. GBH-000001)</li>
+          <li><strong>Address, city, country</strong></li>
+          <li><strong>Timezone, currency</strong></li>
+          <li><strong>Check-in/Check-out times</strong> — default check-in and check-out times</li>
+          <li><strong>Number of rooms/floors</strong> — reference value; cannot be set lower than actual room count in the system</li>
+          <li><strong>Tax rate (%)</strong> — tax percentage applied to room charges</li>
         </ul>
-        <p>
-          Go to <strong>Configuration &rarr; Property Settings</strong>.
-        </p>
+
+        <h3>Room Types</h3>
+        <ul>
+          <li>Room categories (Standard, Superior, Suite, etc.)</li>
+          <li>Each type has a code, name, and maximum occupancy</li>
+          <li>Cannot delete a type that has rooms or bookings</li>
+        </ul>
+
+        <h3>Rate Plans</h3>
+        <ul>
+          <li>Define room pricing</li>
+          <li>One plan can be marked <strong>★ Base Rate</strong> — it is selected by default when creating a new booking</li>
+          <li>Each rate plan has per-room-type pricing via the <strong>rate matrix</strong> (edit on the rate plan page)</li>
+          <li>The rate is auto-filled in the booking form when selecting a rate plan and room type</li>
+          <li>Cannot delete a rate plan that has bookings</li>
+        </ul>
+
+        <h3>Transaction Codes</h3>
+        <ul>
+          <li>Define charge and payment types used in guest folios</li>
+          <li>Type <strong>Charge</strong> — debit (increases balance)</li>
+          <li>Type <strong>Payment</strong> — credit (decreases balance)</li>
+          <li><strong>Manual Post Allowed</strong> — whether this code can be posted manually from a folio</li>
+          <li>Cannot delete a code that has folio transactions</li>
+        </ul>
 
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 my-4">
-          <strong>Important:</strong> Changing room types and rates does not affect
-          existing bookings. New settings only apply to new bookings.
+          <strong>Important:</strong> Changing rate plans and room types does not affect existing bookings.
         </div>
       </div>
     ),

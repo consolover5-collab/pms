@@ -31,10 +31,10 @@ type ActiveBooking = {
 };
 
 const hkStatusColors: Record<string, string> = {
-  clean: "bg-green-100 text-green-800",
+  clean: "bg-cyan-100 text-cyan-800",
   dirty: "bg-red-100 text-red-800",
   pickup: "bg-yellow-100 text-yellow-800",
-  inspected: "bg-blue-100 text-blue-800",
+  inspected: "bg-green-100 text-green-800",
   out_of_order: "bg-gray-600 text-white",
   out_of_service: "bg-gray-400 text-white",
 };
