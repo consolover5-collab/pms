@@ -7,9 +7,12 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "test": "node --import tsx/esm --test src/booking/state-machine.test.ts src/folio.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4",
     "typescript": "^5.7",
     "@pms/shared": "workspace:*"
   }

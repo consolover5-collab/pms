@@ -34,7 +34,7 @@ export default async function RatePlansPage() {
         </Link>
       </div>
 
-      <RatePlansList ratePlans={ratePlans} />
+      <RatePlansList ratePlans={ratePlans} propertyId={propertyId ?? ""} />
     </main>
   );
 }

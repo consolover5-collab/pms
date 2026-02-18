@@ -15,7 +15,7 @@ type RoomType = {
   sortOrder: number;
 };
 
-export function RoomTypesList({ roomTypes }: { roomTypes: RoomType[] }) {
+export function RoomTypesList({ roomTypes, propertyId }: { roomTypes: RoomType[]; propertyId: string }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -24,7 +24,7 @@ export function RoomTypesList({ roomTypes }: { roomTypes: RoomType[] }) {
 
     setDeleting(id);
     try {
-      const res = await fetch(`/api/room-types/${id}`, {
+      const res = await fetch(`/api/room-types/${id}?propertyId=${propertyId}`, {
         method: "DELETE",
       });
       if (res.ok) {

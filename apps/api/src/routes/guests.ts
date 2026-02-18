@@ -125,9 +125,12 @@ export const guestsRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // Delete guest
-  app.delete<{ Params: { id: string } }>(
+  app.delete<{ Params: { id: string }; Querystring: { propertyId: string } }>(
     "/api/guests/:id",
     async (request, reply) => {
+      const { propertyId } = request.query;
+      if (!propertyId) return reply.status(400).send({ error: "propertyId обязателен" });
+
       // Check for any bookings referencing this guest (RESTRICT policy)
       const bookingCount = await app.db
         .select({ count: sql<number>`count(*)` })
@@ -145,7 +148,7 @@ export const guestsRoutes: FastifyPluginAsync = async (app) => {
 
       const [deleted] = await app.db
         .delete(guests)
-        .where(eq(guests.id, request.params.id))
+        .where(and(eq(guests.id, request.params.id), eq(guests.propertyId, propertyId)))
         .returning();
 
       if (!deleted) return reply.status(404).send({ error: "Not found" });

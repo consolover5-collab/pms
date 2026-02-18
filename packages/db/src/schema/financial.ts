@@ -100,4 +100,7 @@ export const folioTransactions = pgTable("folio_transactions", {
 }, (table) => [
   index("folio_transactions_booking_id_idx").on(table.bookingId),
   index("folio_transactions_business_date_id_idx").on(table.businessDateId),
+  uniqueIndex("folio_tx_night_audit_unique")
+    .on(table.bookingId, table.businessDateId, table.transactionCodeId)
+    .where(sql`is_system_generated = true`),
 ]);

@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { roomTypes, rooms, bookings } from "@pms/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
   // List room types
@@ -81,9 +81,11 @@ export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // Delete room type
-  app.delete<{ Params: { id: string } }>(
+  app.delete<{ Params: { id: string }; Querystring: { propertyId: string } }>(
     "/api/room-types/:id",
     async (request, reply) => {
+      const { propertyId } = request.query;
+      if (!propertyId) return reply.status(400).send({ error: "propertyId обязателен" });
       // Проверить наличие комнат этого типа
       const roomCount = await app.db
         .select({ count: sql<number>`count(*)` })
@@ -116,7 +118,7 @@ export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
 
       const [deleted] = await app.db
         .delete(roomTypes)
-        .where(eq(roomTypes.id, request.params.id))
+        .where(and(eq(roomTypes.id, request.params.id), eq(roomTypes.propertyId, propertyId)))
         .returning();
 
       if (!deleted) return reply.status(404).send({ error: "Not found" });

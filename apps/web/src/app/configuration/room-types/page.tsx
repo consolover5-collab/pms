@@ -35,7 +35,7 @@ export default async function RoomTypesPage() {
         </Link>
       </div>
 
-      <RoomTypesList roomTypes={roomTypes} />
+      <RoomTypesList roomTypes={roomTypes} propertyId={propertyId ?? ""} />
     </main>
   );
 }

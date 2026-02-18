@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { ratePlans, bookings } from "@pms/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
   // List rate plans for a property
@@ -80,9 +80,12 @@ export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // Delete rate plan
-  app.delete<{ Params: { id: string } }>(
+  app.delete<{ Params: { id: string }; Querystring: { propertyId: string } }>(
     "/api/rate-plans/:id",
     async (request, reply) => {
+      const { propertyId } = request.query;
+      if (!propertyId) return reply.status(400).send({ error: "propertyId обязателен" });
+
       // Проверить наличие ЛЮБЫХ бронирований (включая историю)
       const bookingCount = await app.db
         .select({ count: sql<number>`count(*)` })
@@ -100,7 +103,7 @@ export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
 
       const [deleted] = await app.db
         .delete(ratePlans)
-        .where(eq(ratePlans.id, request.params.id))
+        .where(and(eq(ratePlans.id, request.params.id), eq(ratePlans.propertyId, propertyId)))
         .returning();
 
       if (!deleted) return reply.status(404).send({ error: "Not found" });

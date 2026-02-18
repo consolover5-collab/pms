@@ -14,7 +14,7 @@ type RatePlan = {
   isActive: boolean;
 };
 
-export function RatePlansList({ ratePlans }: { ratePlans: RatePlan[] }) {
+export function RatePlansList({ ratePlans, propertyId }: { ratePlans: RatePlan[]; propertyId: string }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -23,7 +23,7 @@ export function RatePlansList({ ratePlans }: { ratePlans: RatePlan[] }) {
 
     setDeleting(id);
     try {
-      const res = await fetch(`/api/rate-plans/${id}`, {
+      const res = await fetch(`/api/rate-plans/${id}?propertyId=${propertyId}`, {
         method: "DELETE",
       });
       if (res.ok) {
