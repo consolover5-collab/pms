@@ -33,9 +33,14 @@ describe("validateBookingDates", () => {
     assert.equal(validateBookingDates("2026-03-01", "2026-03-05"), null);
   });
 
-  it("returns error when checkOut equals checkIn", () => {
+  it("returns null for 1-night stay", () => {
+    assert.equal(validateBookingDates("2026-03-01", "2026-03-02"), null);
+  });
+
+  it("returns error when checkOut equals checkIn (0 nights)", () => {
     const result = validateBookingDates("2026-03-01", "2026-03-01");
     assert.ok(result !== null, "should return error message");
+    assert.ok(result!.includes("2026-03-01"), "error should mention the date");
   });
 
   it("returns error when checkOut is before checkIn", () => {
@@ -46,6 +51,15 @@ describe("validateBookingDates", () => {
   it("returns null when either date is empty", () => {
     assert.equal(validateBookingDates("", "2026-03-05"), null);
     assert.equal(validateBookingDates("2026-03-01", ""), null);
+  });
+
+  it("accepts dates far in the future", () => {
+    assert.equal(validateBookingDates("2030-01-01", "2030-12-31"), null);
+  });
+
+  it("accepts past check-in with future check-out (pure validation, no business date)", () => {
+    // validateBookingDates is a pure date-range check — business date enforcement is in the route
+    assert.equal(validateBookingDates("2020-01-01", "2030-12-31"), null);
   });
 });
 
