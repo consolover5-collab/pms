@@ -331,6 +331,15 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
     const [existing] = await app.db.select().from(bookings).where(eq(bookings.id, request.params.id));
     if (!existing) return reply.status(404).send({ error: "Not found" });
 
+    // Даты нельзя менять у заселённых или уже выехавших броней
+    if ((request.body.checkInDate || request.body.checkOutDate) &&
+        (existing.status === "checked_in" || existing.status === "checked_out")) {
+      return reply.status(400).send({
+        error: `Нельзя изменить даты бронирования со статусом "${existing.status}". Даты фиксируются после заезда.`,
+        code: "DATES_LOCKED",
+      });
+    }
+
     const effectiveCheckIn = request.body.checkInDate || existing.checkInDate;
     const effectiveCheckOut = request.body.checkOutDate || existing.checkOutDate;
     const effectiveRoomId = request.body.roomId !== undefined ? request.body.roomId : existing.roomId;
