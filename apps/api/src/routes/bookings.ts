@@ -676,6 +676,12 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
             code: "DATES_EXPIRED",
           });
         }
+        if (booking.checkInDate < today) {
+          return reply.status(400).send({
+            error: `Нельзя восстановить: дата заезда (${booking.checkInDate}) уже прошла. Создайте новое бронирование с актуальными датами.`,
+            code: "DATES_EXPIRED",
+          });
+        }
       }
 
       // Проверка конфликта комнаты при восстановлении checked_out
