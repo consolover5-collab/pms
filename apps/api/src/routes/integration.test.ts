@@ -22,11 +22,11 @@ const PROP = "ff1d9135-dfb9-4baa-be46-0e739cd26dad"; // Grand Baltic Hotel (seed
 
 async function api<T = unknown>(
   path: string,
-  init?: RequestInit & { body?: unknown },
+  init?: Omit<RequestInit, 'body'> & { payload?: unknown },
 ): Promise<{ status: number; data: T }> {
   const options: RequestInit = { ...init };
-  if (init?.body !== undefined) {
-    options.body = JSON.stringify(init.body);
+  if (init?.payload !== undefined) {
+    options.body = JSON.stringify(init.payload);
     options.headers = { "Content-Type": "application/json", ...(init.headers ?? {}) };
   }
   const res = await fetch(`${BASE}${path}`, options);
@@ -94,13 +94,13 @@ describe("PUT /api/rooms/:id", () => {
   });
 
   after(async () => {
-    await api(`/api/rooms/${vacantRoomId}`, { method: "PUT", body: { floor: origFloor } });
+    await api(`/api/rooms/${vacantRoomId}`, { method: "PUT", payload: { floor: origFloor } });
   });
 
   test("updates floor for vacant room", async () => {
     const { status, data } = await api<any>(`/api/rooms/${vacantRoomId}`, {
       method: "PUT",
-      body: { floor: 9 },
+      payload: { floor: 9 },
     });
     assert.equal(status, 200);
     assert.equal(data.floor, 9);
@@ -112,7 +112,7 @@ describe("PUT /api/rooms/:id", () => {
     );
     const { status, data } = await api<any>(`/api/rooms/${occupied[0].id}`, {
       method: "PUT",
-      body: { floor: 5 },
+      payload: { floor: 5 },
     });
     assert.equal(status, 400);
     assert.equal(data.code, "ROOM_OCCUPIED");
@@ -121,7 +121,7 @@ describe("PUT /api/rooms/:id", () => {
   test("returns 400 ROOM_TYPE_NOT_FOUND for invalid roomTypeId", async () => {
     const { status, data } = await api<any>(`/api/rooms/${vacantRoomId}`, {
       method: "PUT",
-      body: { roomTypeId: "00000000-0000-0000-0000-000000000000" },
+      payload: { roomTypeId: "00000000-0000-0000-0000-000000000000" },
     });
     assert.equal(status, 400);
     assert.equal(data.code, "ROOM_TYPE_NOT_FOUND");
@@ -156,7 +156,7 @@ describe("PUT /api/bookings/:id — extend stay for checked_in", () => {
   after(async () => {
     await api(`/api/bookings/${bookingId}`, {
       method: "PUT",
-      body: { checkOutDate: origCheckOut },
+      payload: { checkOutDate: origCheckOut },
     });
   });
 
@@ -164,7 +164,7 @@ describe("PUT /api/bookings/:id — extend stay for checked_in", () => {
     const newDate = "2026-12-31";
     const { status, data } = await api<any>(`/api/bookings/${bookingId}`, {
       method: "PUT",
-      body: { checkOutDate: newDate },
+      payload: { checkOutDate: newDate },
     });
     assert.equal(status, 200);
     assert.equal(data.checkOutDate, newDate);
@@ -173,7 +173,7 @@ describe("PUT /api/bookings/:id — extend stay for checked_in", () => {
   test("blocks changing checkInDate for checked_in booking (DATES_LOCKED)", async () => {
     const { status, data } = await api<any>(`/api/bookings/${bookingId}`, {
       method: "PUT",
-      body: { checkInDate: "2026-12-01" },
+      payload: { checkInDate: "2026-12-01" },
     });
     assert.equal(status, 400);
     assert.equal(data.code, "DATES_LOCKED");
@@ -227,7 +227,7 @@ describe("POST /api/bookings/:id/room-move", () => {
     const target = occupied.find((r: any) => r.id !== currentRoomId) ?? occupied[0];
     const { status, data } = await api<any>(
       `/api/bookings/${bookingId}/room-move`,
-      { method: "POST", body: { newRoomId: target.id } },
+      { method: "POST", payload: { newRoomId: target.id } },
     );
     assert.equal(status, 400);
     assert.equal(data.code, "ROOM_MOVE_INVALID");
@@ -241,7 +241,7 @@ describe("POST /api/bookings/:id/room-move", () => {
     if (!wrongType) return; // skip if no different-type clean room in seed
     const { status, data } = await api<any>(
       `/api/bookings/${bookingId}/room-move`,
-      { method: "POST", body: { newRoomId: wrongType.id } },
+      { method: "POST", payload: { newRoomId: wrongType.id } },
     );
     assert.equal(status, 400);
     assert.equal(data.code, "ROOM_MOVE_INVALID");
@@ -254,7 +254,7 @@ describe("POST /api/night-audit/preview", () => {
   test("response includes roomDetails and pendingNoShowDetails arrays", async () => {
     const { status, data } = await api<any>("/api/night-audit/preview", {
       method: "POST",
-      body: { propertyId: PROP },
+      payload: { propertyId: PROP },
     });
     assert.equal(status, 200);
     assert.ok("roomDetails" in data, "missing roomDetails");

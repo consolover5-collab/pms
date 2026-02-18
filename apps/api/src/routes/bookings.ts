@@ -167,7 +167,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         .leftJoin(ratePlans, eq(bookings.ratePlanId, ratePlans.id))
         .where(eq(bookings.id, request.params.id));
 
-      if (!booking) return reply.status(404).send({ error: "Not found" });
+      if (!booking) return reply.status(404).send({ error: "Бронирование не найдено" });
       return booking;
     },
   );
@@ -349,7 +349,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/bookings/:id", async (request, reply) => {
     // Загрузить текущее бронирование для merge с обновляемыми полями
     const [existing] = await app.db.select().from(bookings).where(eq(bookings.id, request.params.id));
-    if (!existing) return reply.status(404).send({ error: "Not found" });
+    if (!existing) return reply.status(404).send({ error: "Бронирование не найдено" });
 
     // У заселённых броней можно только продлить выезд (checkOutDate), дата заезда заблокирована
     if (existing.status === "checked_in") {
@@ -409,14 +409,14 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
 
       if (!booking) {
         return reply.status(404).send({
-          error: "Booking not found",
+          error: "Бронирование не найдено",
           code: "BOOKING_NOT_FOUND"
         });
       }
 
       if (booking.status !== "confirmed") {
         return reply.status(400).send({
-          error: `Cannot check in: booking status is "${booking.status}". Only confirmed bookings can be checked in.`,
+          error: `Нельзя заселить: статус бронирования «${booking.status}». Заселить можно только подтверждённые брони.`,
           code: "INVALID_STATUS",
           currentStatus: booking.status
         });
@@ -437,7 +437,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       const roomId = request.body?.roomId || booking.roomId;
       if (!roomId) {
         return reply.status(400).send({
-          error: "Room must be assigned before check-in. Please assign a room first.",
+          error: "Комнату необходимо назначить перед заездом. Пожалуйста, назначьте комнату.",
           code: "NO_ROOM_ASSIGNED"
         });
       }
@@ -454,21 +454,21 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           .where(eq(rooms.id, roomId));
 
         if (!room) {
-          throw Object.assign(new Error("Selected room not found in the system"), {
+          throw Object.assign(new Error("Выбранная комната не найдена в системе"), {
             statusCode: 400, code: "ROOM_NOT_FOUND"
           });
         }
 
         // Check room type matches
         if (room.roomTypeId !== booking.roomTypeId) {
-          throw Object.assign(new Error("Room type mismatch: the selected room is a different type than what was booked. Please select a room of the correct type."), {
+          throw Object.assign(new Error("Несоответствие типа комнаты: выбранная комната отличается от забронированного типа. Пожалуйста, выберите комнату нужного типа."), {
             statusCode: 400, code: "ROOM_TYPE_MISMATCH"
           });
         }
 
         // Check room is vacant
         if (room.occupancyStatus !== "vacant") {
-          throw Object.assign(new Error(`Room ${room.roomNumber} is currently occupied. Please select a vacant room.`), {
+          throw Object.assign(new Error(`Комната ${room.roomNumber} занята. Пожалуйста, выберите свободную комнату.`), {
             statusCode: 400, code: "ROOM_OCCUPIED", roomNumber: room.roomNumber
           });
         }
@@ -478,7 +478,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           room.housekeepingStatus !== "clean" &&
           room.housekeepingStatus !== "inspected"
         ) {
-          throw Object.assign(new Error(`Room ${room.roomNumber} is not ready for check-in (status: ${room.housekeepingStatus}). Please wait for housekeeping or select another room.`), {
+          throw Object.assign(new Error(`Комната ${room.roomNumber} не готова к заселению (статус уборки: ${room.housekeepingStatus}). Дождитесь уборки или выберите другую комнату.`), {
             statusCode: 400, code: "ROOM_NOT_READY", roomNumber: room.roomNumber,
             housekeepingStatus: room.housekeepingStatus
           });
@@ -498,7 +498,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           .limit(1);
 
         if (conflictingBookings.length > 0) {
-          throw Object.assign(new Error(`Room ${room.roomNumber} already has a checked-in guest. The previous guest must check out first.`), {
+          throw Object.assign(new Error(`В комнате ${room.roomNumber} уже проживает гость. Предыдущий гость должен выехать.`), {
             statusCode: 400, code: "ROOM_HAS_GUEST", roomNumber: room.roomNumber
           });
         }
@@ -550,14 +550,14 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
 
       if (!booking) {
         return reply.status(404).send({
-          error: "Booking not found",
+          error: "Бронирование не найдено",
           code: "BOOKING_NOT_FOUND"
         });
       }
 
       if (booking.status !== "checked_in") {
         return reply.status(400).send({
-          error: `Cannot check out: booking status is "${booking.status}". Only checked-in bookings can be checked out.`,
+          error: `Нельзя выселить: статус бронирования «${booking.status}». Выселить можно только заселённые брони.`,
           code: "INVALID_STATUS"
         });
       }
@@ -640,14 +640,14 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
 
       if (!booking) {
         return reply.status(404).send({
-          error: "Booking not found",
+          error: "Бронирование не найдено",
           code: "BOOKING_NOT_FOUND"
         });
       }
 
       if (booking.status !== "checked_in") {
         return reply.status(400).send({
-          error: `Cannot cancel check-in: booking status is "${booking.status}". Only checked-in bookings can have check-in cancelled.`,
+          error: `Нельзя отменить заезд: статус бронирования «${booking.status}». Отменить заезд можно только для заселённых броней.`,
           code: "INVALID_STATUS"
         });
       }
@@ -703,7 +703,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
 
       if (!booking) {
         return reply.status(404).send({
-          error: "Booking not found",
+          error: "Бронирование не найдено",
           code: "BOOKING_NOT_FOUND"
         });
       }
@@ -711,7 +711,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       const allowedStatuses = ["cancelled", "no_show", "checked_out"];
       if (!allowedStatuses.includes(booking.status)) {
         return reply.status(400).send({
-          error: `Cannot reinstate: booking status is "${booking.status}". Can only reinstate cancelled, no-show, or checked-out bookings.`,
+          error: `Нельзя восстановить: статус бронирования «${booking.status}». Восстановить можно только отменённые, незаехавшие или выехавшие брони.`,
           code: "INVALID_STATUS"
         });
       }
@@ -922,7 +922,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
 
       if (!booking) {
         return reply.status(404).send({
-          error: "Booking not found",
+          error: "Бронирование не найдено",
           code: "BOOKING_NOT_FOUND"
         });
       }
@@ -943,15 +943,15 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       if (!allowedStatuses.includes(booking.status)) {
         let suggestion = "";
         if (booking.status === "checked_in") {
-          suggestion = " The guest must check out first, or use 'Cancel Check-in' to undo the check-in.";
+          suggestion = " Гость должен сначала выехать, или используйте «Отменить заезд» для отмены заселения.";
         } else if (booking.status === "checked_out") {
-          suggestion = " The stay is already completed.";
+          suggestion = " Проживание уже завершено.";
         } else if (booking.status === "cancelled") {
-          suggestion = " The booking is already cancelled.";
+          suggestion = " Бронирование уже отменено.";
         }
 
         return reply.status(400).send({
-          error: `Cannot cancel: booking status is "${booking.status}".${suggestion}`,
+          error: `Нельзя отменить: статус бронирования «${booking.status}».${suggestion}`,
           code: "INVALID_STATUS",
           currentStatus: booking.status
         });
