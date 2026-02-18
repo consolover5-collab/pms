@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { bookings, guests, rooms, roomTypes, ratePlans, properties, folioTransactions, businessDates } from "@pms/db";
 import { eq, and, or, ne, lte, gte, lt, gt, sql, ilike, count } from "drizzle-orm";
-import { validateBookingDates, validateOccupancy, checkRoomConflict } from "../lib/validation";
+import { validateBookingDates, validateOccupancy, checkRoomConflict, validateReinstateCheckedOut } from "../lib/validation";
 import { calculateFolioBalance } from "@pms/domain";
 
 /** Возвращает текущую открытую бизнес-дату отеля. Фолбэк на системный день если нет открытой даты. */
@@ -658,6 +658,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           .update(bookings)
           .set({
             status: "confirmed",
+            roomId: null,
             actualCheckIn: null,
             updatedAt: new Date(),
           })
@@ -709,6 +710,15 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
             error: `Нельзя восстановить: дата заезда (${booking.checkInDate}) уже прошла (бизнес-дата: ${bizDateReinstate}). Создайте новое бронирование с актуальными датами.`,
             code: "DATES_EXPIRED",
           });
+        }
+      }
+
+      // Проверка актуальности дат для checked_out
+      if (booking.status === "checked_out") {
+        const bizDateCheckedOut = await getBusinessDate(app.db, booking.propertyId);
+        const dateError = validateReinstateCheckedOut(booking.checkOutDate, bizDateCheckedOut);
+        if (dateError) {
+          return reply.status(400).send({ error: dateError, code: "DATES_EXPIRED" });
         }
       }
 

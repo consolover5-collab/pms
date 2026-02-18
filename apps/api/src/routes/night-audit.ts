@@ -9,7 +9,7 @@ import {
   folioTransactions,
 } from "@pms/db";
 import { eq, and, lt, sql } from "drizzle-orm";
-import { calculateTax } from "@pms/domain";
+import { calculateTax, shouldPostRoomCharge } from "@pms/domain";
 import { isValidUuid } from "../lib/validation";
 
 export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
@@ -258,7 +258,13 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
           continue;
         }
 
-        const rate = parseFloat(booking.rateAmount || "0");
+        // Пропускаем брони без ставки — нечего начислять
+        if (!shouldPostRoomCharge(booking.rateAmount)) {
+          skippedDuplicates++;
+          continue;
+        }
+
+        const rate = parseFloat(booking.rateAmount!);
 
         // Room charge
         const [roomCharge] = await tx

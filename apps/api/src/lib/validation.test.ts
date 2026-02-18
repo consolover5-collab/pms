@@ -4,6 +4,7 @@ import {
   validateBookingDates,
   validateOccupancy,
   isValidUuid,
+  validateReinstateCheckedOut,
 } from "./validation.js";
 
 describe("isValidUuid", () => {
@@ -89,5 +90,22 @@ describe("validateOccupancy", () => {
 
   it("allows children = 0", () => {
     assert.equal(validateOccupancy(1, 0, 2), null);
+  });
+});
+
+describe("validateReinstateCheckedOut", () => {
+  it("returns null when checkOutDate is after businessDate", () => {
+    assert.equal(validateReinstateCheckedOut("2026-03-01", "2026-02-18"), null);
+  });
+
+  it("returns error when checkOutDate equals businessDate", () => {
+    const result = validateReinstateCheckedOut("2026-02-18", "2026-02-18");
+    assert.ok(result !== null, "should return error when checkOut = businessDate");
+    assert.ok(result!.includes("2026-02-18"), "error should mention the date");
+  });
+
+  it("returns error when checkOutDate is before businessDate", () => {
+    const result = validateReinstateCheckedOut("2026-02-10", "2026-02-18");
+    assert.ok(result !== null, "should return error when checkOut is in the past");
   });
 });

@@ -19,6 +19,12 @@ export function canCheckOut(balance: number): boolean {
   return balance <= 0;
 }
 
+/** Returns true if rateAmount is a positive number — night audit should only post charges with a real rate */
+export function shouldPostRoomCharge(rateAmount: string | null): boolean {
+  if (rateAmount === null) return false;
+  return parseFloat(rateAmount) > 0;
+}
+
 /** Calculate tax amount: amount * (taxRatePercent / 100), rounded to 2 decimal places */
 export function calculateTax(
   amount: number,

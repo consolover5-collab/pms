@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { calculateFolioBalance, canCheckOut, calculateTax } from "./folio.js";
+import { calculateFolioBalance, canCheckOut, calculateTax, shouldPostRoomCharge } from "./folio.js";
 
 describe("calculateFolioBalance", () => {
   it("returns 0 for empty array", () => {
@@ -75,5 +75,27 @@ describe("calculateTax", () => {
   it("calculates tax on fractional amount", () => {
     // 50.50 * 10% = 5.05
     assert.equal(calculateTax(50.5, 10), 5.05);
+  });
+});
+
+describe("shouldPostRoomCharge", () => {
+  it("returns true for positive rate", () => {
+    assert.equal(shouldPostRoomCharge("150.00"), true);
+  });
+
+  it("returns true for minimal positive rate", () => {
+    assert.equal(shouldPostRoomCharge("0.01"), true);
+  });
+
+  it("returns false for null rateAmount", () => {
+    assert.equal(shouldPostRoomCharge(null), false);
+  });
+
+  it("returns false for '0'", () => {
+    assert.equal(shouldPostRoomCharge("0"), false);
+  });
+
+  it("returns false for '0.00'", () => {
+    assert.equal(shouldPostRoomCharge("0.00"), false);
   });
 });

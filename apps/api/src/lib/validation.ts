@@ -52,6 +52,14 @@ export function validateBookingDates(checkInDate: string, checkOutDate: string):
   return null;
 }
 
+/** Validate that a checked_out booking can be reinstated: checkOutDate must be after businessDate */
+export function validateReinstateCheckedOut(checkOutDate: string, businessDate: string): string | null {
+  if (checkOutDate <= businessDate) {
+    return `Нельзя восстановить: дата выезда (${checkOutDate}) уже прошла (бизнес-дата: ${businessDate}).`;
+  }
+  return null;
+}
+
 export function validateOccupancy(
   adults: number,
   children: number,
