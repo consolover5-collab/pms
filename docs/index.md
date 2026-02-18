@@ -2,6 +2,7 @@
 
 ## Core Documentation
 
+- **[project-context.md](./project-context.md)** — ⭐ **AI Agent Rules** — критические правила реализации для всех AI-агентов (читать перед любым кодингом)
 - **[INSTALLATION.md](./INSTALLATION.md)** - Setup and installation instructions (draft)
 - **[SYSTEM_PROMPT.md](./SYSTEM_PROMPT.md)** - Claude development system prompt and role
 - **[TEST_REPORT.md](./TEST_REPORT.md)** - Test scenarios and validation procedures
