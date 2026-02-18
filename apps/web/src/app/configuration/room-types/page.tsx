@@ -8,7 +8,6 @@ type RoomType = {
   code: string;
   name: string;
   maxOccupancy: number;
-  baseRate: string;
   description: string | null;
   sortOrder: number;
 };

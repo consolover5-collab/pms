@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { ratePlans, bookings } from "@pms/db";
+import { ratePlans, bookings, ratePlanRoomRates, roomTypes } from "@pms/db";
 import { eq, and, ne, sql } from "drizzle-orm";
 
 export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
@@ -112,6 +112,62 @@ export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
     if (!updated) return reply.status(404).send({ error: "Not found" });
     return updated;
   });
+
+  // Get room type rates for a rate plan (price matrix)
+  app.get<{ Params: { id: string } }>(
+    "/api/rate-plans/:id/room-rates",
+    async (request, reply) => {
+      const rates = await app.db
+        .select({
+          id: ratePlanRoomRates.id,
+          roomTypeId: ratePlanRoomRates.roomTypeId,
+          roomTypeName: roomTypes.name,
+          roomTypeCode: roomTypes.code,
+          amount: ratePlanRoomRates.amount,
+        })
+        .from(ratePlanRoomRates)
+        .innerJoin(roomTypes, eq(ratePlanRoomRates.roomTypeId, roomTypes.id))
+        .where(eq(ratePlanRoomRates.ratePlanId, request.params.id))
+        .orderBy(roomTypes.sortOrder);
+      return rates;
+    }
+  );
+
+  // Upsert room type rate (set price per room type for this rate plan)
+  app.put<{
+    Params: { id: string };
+    Body: { roomTypeId: string; amount: string };
+  }>("/api/rate-plans/:id/room-rates", async (request, reply) => {
+    const { roomTypeId, amount } = request.body;
+    if (!roomTypeId || !amount) {
+      return reply.status(400).send({ error: "roomTypeId и amount обязательны" });
+    }
+    const [rate] = await app.db
+      .insert(ratePlanRoomRates)
+      .values({ ratePlanId: request.params.id, roomTypeId, amount })
+      .onConflictDoUpdate({
+        target: [ratePlanRoomRates.ratePlanId, ratePlanRoomRates.roomTypeId],
+        set: { amount, updatedAt: new Date() },
+      })
+      .returning();
+    return rate;
+  });
+
+  // Delete a specific room type rate
+  app.delete<{ Params: { id: string; roomTypeId: string } }>(
+    "/api/rate-plans/:id/room-rates/:roomTypeId",
+    async (request, reply) => {
+      await app.db
+        .delete(ratePlanRoomRates)
+        .where(
+          and(
+            eq(ratePlanRoomRates.ratePlanId, request.params.id),
+            eq(ratePlanRoomRates.roomTypeId, request.params.roomTypeId),
+          )
+        );
+      return reply.status(204).send();
+    }
+  );
 
   // Delete rate plan
   app.delete<{ Params: { id: string }; Querystring: { propertyId: string } }>(

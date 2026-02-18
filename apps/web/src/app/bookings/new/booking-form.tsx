@@ -11,6 +11,7 @@ type Guest = { id: string; firstName: string; lastName: string };
 type RoomType = { id: string; name: string; code: string };
 type Room = { id: string; roomNumber: string; roomTypeId: string; occupancyStatus: string; housekeepingStatus: string };
 type RatePlan = { id: string; name: string; code: string; baseRate: string | null; isDefault: boolean };
+type RoomRate = { ratePlanId: string; roomTypeId: string; amount: string };
 
 export function BookingForm({ propertyId }: { propertyId: string }) {
   const router = useRouter();
@@ -21,6 +22,7 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [ratePlans, setRatePlans] = useState<RatePlan[]>([]);
+  const [roomRates, setRoomRates] = useState<RoomRate[]>([]);
 
   // Controlled form state
   const [selectedGuestId, setSelectedGuestId] = useState("");
@@ -78,6 +80,18 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
         setRoomTypes(rt);
         setRooms(rm);
         setRatePlans(rp);
+        // Загружаем матрицу цен для всех тарифных планов
+        const allRates = await Promise.all(
+          rp.map((plan: RatePlan) =>
+            fetch(`/api/rate-plans/${plan.id}/room-rates`)
+              .then((r) => r.json())
+              .then((rates: { roomTypeId: string; amount: string }[]) =>
+                rates.map((rate) => ({ ratePlanId: plan.id, ...rate }))
+              )
+              .catch(() => [] as RoomRate[])
+          )
+        );
+        setRoomRates(allRates.flat());
         // Автовыбор тарифного плана по умолчанию
         const defaultPlan = rp.find((p: RatePlan) => p.isDefault);
         if (defaultPlan) {
@@ -109,14 +123,22 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
       : room.roomNumber;
   }
 
-  // Handle rate plan selection — auto-fill rateAmount from plan baseRate
+  // Lookup rate from matrix, fall back to plan baseRate
+  function getRateForPlanAndType(ratePlanId: string, roomTypeId: string): string | null {
+    const matrixRate = roomRates.find(
+      (r) => r.ratePlanId === ratePlanId && r.roomTypeId === roomTypeId
+    );
+    if (matrixRate) return matrixRate.amount;
+    const plan = ratePlans.find((p) => p.id === ratePlanId);
+    return plan?.baseRate ?? null;
+  }
+
+  // Handle rate plan selection — auto-fill rateAmount from matrix or plan baseRate
   function handleRatePlanChange(ratePlanId: string) {
     setSelectedRatePlanId(ratePlanId);
     if (ratePlanId) {
-      const plan = ratePlans.find((rp) => rp.id === ratePlanId);
-      if (plan?.baseRate) {
-        setRateAmount(plan.baseRate);
-      }
+      const rate = getRateForPlanAndType(ratePlanId, selectedRoomTypeId);
+      if (rate) setRateAmount(rate);
     }
   }
 
@@ -377,7 +399,12 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
           value={selectedRoomTypeId}
           onChange={(e) => {
             setSelectedRoomTypeId(e.target.value);
-            setSelectedRoomId(""); // Reset room when type changes
+            setSelectedRoomId("");
+            // Auto-fill rate from matrix when room type changes
+            if (selectedRatePlanId && e.target.value) {
+              const rate = getRateForPlanAndType(selectedRatePlanId, e.target.value);
+              if (rate) setRateAmount(rate);
+            }
           }}
           className="w-full px-3 py-2 border rounded"
         >

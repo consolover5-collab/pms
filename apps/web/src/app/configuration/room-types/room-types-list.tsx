@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { formatCurrency } from "@/lib/format";
 
 
 type RoomType = {
@@ -10,7 +9,6 @@ type RoomType = {
   code: string;
   name: string;
   maxOccupancy: number;
-  baseRate: string;
   description: string | null;
   sortOrder: number;
 };
@@ -59,9 +57,6 @@ export function RoomTypesList({ roomTypes, propertyId }: { roomTypes: RoomType[]
             <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
               Max Occ.
             </th>
-            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
-              Base Rate
-            </th>
             <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">
               Actions
             </th>
@@ -78,9 +73,6 @@ export function RoomTypesList({ roomTypes, propertyId }: { roomTypes: RoomType[]
                 )}
               </td>
               <td className="px-4 py-3">{rt.maxOccupancy}</td>
-              <td className="px-4 py-3">
-                {formatCurrency(rt.baseRate)}
-              </td>
               <td className="px-4 py-3 text-right space-x-2">
                 <a
                   href={`/configuration/room-types/${rt.id}/edit`}

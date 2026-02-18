@@ -9,6 +9,7 @@ import {
   timestamp,
   decimal,
   index,
+  unique,
 } from "drizzle-orm/pg-core";
 import { properties } from "./properties";
 import { rooms, roomTypes } from "./rooms";
@@ -28,6 +29,26 @@ export const ratePlans = pgTable("rate_plans", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+// Rate matrix: one price per rate plan per room type
+export const ratePlanRoomRates = pgTable(
+  "rate_plan_room_rates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ratePlanId: uuid("rate_plan_id")
+      .notNull()
+      .references(() => ratePlans.id, { onDelete: "restrict" }),
+    roomTypeId: uuid("room_type_id")
+      .notNull()
+      .references(() => roomTypes.id, { onDelete: "restrict" }),
+    amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    unique("rate_plan_room_type_unique").on(table.ratePlanId, table.roomTypeId),
+  ],
+);
 
 export const bookings = pgTable("bookings", {
   id: uuid("id").primaryKey().defaultRandom(),

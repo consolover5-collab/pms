@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api";
-import Link from "next/link";
+import { BackButton } from "@/components/back-button";
 import { RoomTypeForm } from "../../room-type-form";
 
 type RoomType = {
@@ -25,12 +25,7 @@ export default async function EditRoomTypePage({
 
   return (
     <main className="p-8 max-w-4xl mx-auto">
-      <Link
-        href="/configuration/room-types"
-        className="text-blue-600 hover:underline text-sm"
-      >
-        &larr; Back to Room Types
-      </Link>
+      <BackButton fallbackHref="/configuration/room-types" label="Back to Room Types" />
       <h1 className="text-2xl font-bold mt-2 mb-6">Edit Room Type: {roomType.name}</h1>
 
       <RoomTypeForm
