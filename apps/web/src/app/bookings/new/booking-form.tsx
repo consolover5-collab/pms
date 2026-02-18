@@ -70,15 +70,17 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
   useEffect(() => {
     async function loadData() {
       try {
-        const [g, rt, rm, rp] = await Promise.all([
-          fetch(`/api/guests`).then((r) => r.json()),
+        const [gRaw, rt, rm, rpRaw] = await Promise.all([
+          fetch(`/api/guests?propertyId=${propertyId}`).then((r) => r.json()),
           fetch(`/api/room-types?propertyId=${propertyId}`).then((r) => r.json()),
           fetch(`/api/rooms?propertyId=${propertyId}`).then((r) => r.json()),
           fetch(`/api/rate-plans?propertyId=${propertyId}`).then((r) => r.json()).catch(() => []),
         ]);
+        const g = Array.isArray(gRaw) ? gRaw : (gRaw.data ?? []);
+        const rp = Array.isArray(rpRaw) ? rpRaw : (rpRaw.data ?? []);
         setGuests(g);
-        setRoomTypes(rt);
-        setRooms(rm);
+        setRoomTypes(Array.isArray(rt) ? rt : (rt.data ?? []));
+        setRooms(Array.isArray(rm) ? rm : (rm.data ?? []));
         setRatePlans(rp);
         // Загружаем матрицу цен для всех тарифных планов
         const allRates = await Promise.all(

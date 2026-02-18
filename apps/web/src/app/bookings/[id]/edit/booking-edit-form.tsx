@@ -135,15 +135,15 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
     async function loadData() {
       try {
         const [g, rt, rm, rp] = await Promise.all([
-          fetch(`/api/guests`).then((r) => r.json()),
+          fetch(`/api/guests?propertyId=${propertyId}`).then((r) => r.json()),
           fetch(`/api/room-types?propertyId=${propertyId}`).then((r) => r.json()),
           fetch(`/api/rooms?propertyId=${propertyId}`).then((r) => r.json()),
           fetch(`/api/rate-plans?propertyId=${propertyId}`).then((r) => r.json()).catch(() => []),
         ]);
-        setGuests(g);
-        setRoomTypes(rt);
-        setRooms(rm);
-        setRatePlans(rp);
+        setGuests(Array.isArray(g) ? g : (g.data ?? []));
+        setRoomTypes(Array.isArray(rt) ? rt : (rt.data ?? []));
+        setRooms(Array.isArray(rm) ? rm : (rm.data ?? []));
+        setRatePlans(Array.isArray(rp) ? rp : (rp.data ?? []));
         setDataLoaded(true);
       } catch {
         setError("Could not load data. Check that the API server is running.");
