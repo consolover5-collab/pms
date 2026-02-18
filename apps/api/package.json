@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "node --import tsx/esm --test src/lib/validation.test.ts",
+    "test:integration": "node --import tsx/esm --test src/routes/integration.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
