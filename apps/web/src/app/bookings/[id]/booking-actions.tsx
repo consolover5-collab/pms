@@ -178,7 +178,7 @@ export function BookingActions({
   const canCheckIn = status === "confirmed" && checkInDate <= today;
   const isFutureArrival = status === "confirmed" && checkInDate > today;
   const canCheckOut = status === "checked_in";
-  const canCancel = status === "confirmed" || status === "no_show";
+  const canCancel = status === "confirmed";
   // Cancel Check-in только в дату заезда (гость ещё не ночевал)
   const canCancelCheckIn = status === "checked_in" && checkInDate === today;
   const canReinstate = status === "cancelled" || status === "no_show" || status === "checked_out";
@@ -268,8 +268,10 @@ export function BookingActions({
             onClick={() => {
               const confirmMsg =
                 status === "checked_out"
-                  ? "Reinstate this booking? The guest will be checked back in and the room re-occupied."
-                  : "Reinstate this booking? It will return to confirmed status.";
+                  ? "Восстановить бронирование? Гость будет заново заселён, комната занята."
+                  : status === "no_show"
+                  ? "Восстановить бронирование? Дата заезда будет перенесена на сегодня (текущую бизнес-дату)."
+                  : "Восстановить бронирование? Статус вернётся в «Подтверждено».";
               if (confirm(confirmMsg)) {
                 performAction("reinstate");
               }

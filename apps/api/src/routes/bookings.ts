@@ -716,8 +716,8 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         });
       }
 
-      // Проверка актуальности дат для cancelled/no_show
-      if (booking.status === "cancelled" || booking.status === "no_show") {
+      // Проверка актуальности дат для cancelled
+      if (booking.status === "cancelled") {
         const bizDateReinstate = await getBusinessDate(app.db, booking.propertyId);
         if (booking.checkOutDate <= bizDateReinstate) {
           return reply.status(400).send({
@@ -730,6 +730,30 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
             error: `Нельзя восстановить: дата заезда (${booking.checkInDate}) уже прошла (бизнес-дата: ${bizDateReinstate}). Создайте новое бронирование с актуальными датами.`,
             code: "DATES_EXPIRED",
           });
+        }
+      }
+
+      // Для no_show: дата заезда переносится на текущую бизнес-дату (гость приехал после аудита).
+      // Блокируем только если дата выезда уже прошла — переселять некуда.
+      let noShowNewCheckInDate: string | null = null;
+      if (booking.status === "no_show") {
+        const bizDateNoShow = await getBusinessDate(app.db, booking.propertyId);
+        if (booking.checkOutDate <= bizDateNoShow) {
+          return reply.status(400).send({
+            error: `Нельзя восстановить: дата выезда (${booking.checkOutDate}) уже прошла (бизнес-дата: ${bizDateNoShow}).`,
+            code: "DATES_EXPIRED",
+          });
+        }
+        noShowNewCheckInDate = bizDateNoShow;
+        // Проверяем конфликт комнаты по новой дате заезда
+        if (booking.roomId) {
+          const conflict = await checkRoomConflict(app.db, booking.roomId, bizDateNoShow, booking.checkOutDate, booking.id);
+          if (conflict) {
+            return reply.status(400).send({
+              error: `Нельзя восстановить: ${conflict}`,
+              code: "ROOM_CONFLICT",
+            });
+          }
         }
       }
 
@@ -769,10 +793,15 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         };
       }
 
-      // Clear cancellation-related fields when reinstating from cancelled
+      // Clear cancellation-related fields when reinstating from cancelled/no_show
       if (booking.status === "cancelled" || booking.status === "no_show") {
         updates.actualCheckIn = null;
         updates.actualCheckOut = null;
+      }
+
+      // Перенос даты заезда на бизнес-дату при восстановлении из no_show
+      if (noShowNewCheckInDate) {
+        updates.checkInDate = noShowNewCheckInDate;
       }
 
       const result = await app.db.transaction(async (tx) => {
@@ -939,7 +968,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         });
       }
 
-      const allowedStatuses = ["confirmed", "no_show"];
+      const allowedStatuses = ["confirmed"];
       if (!allowedStatuses.includes(booking.status)) {
         let suggestion = "";
         if (booking.status === "checked_in") {
