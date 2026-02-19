@@ -40,8 +40,8 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(404).send({ error: "No open business date" });
     }
 
-    // Due outs: checked_in with checkOut <= business date
-    const dueOuts = await app.db
+    // Overdue due outs: checked_in with checkOut < bizDate (блокирующие — аудит нельзя запустить)
+    const overdueDueOuts = await app.db
       .select({
         id: bookings.id,
         confirmationNumber: bookings.confirmationNumber,
@@ -52,7 +52,23 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
         and(
           eq(bookings.propertyId, propertyId),
           eq(bookings.status, "checked_in"),
-          sql`${bookings.checkOutDate} <= ${bizDate.date}`,
+          sql`${bookings.checkOutDate} < ${bizDate.date}`,
+        ),
+      );
+
+    // Due today: checked_in with checkOut = bizDate (информационные — выезжают сегодня)
+    const dueToday = await app.db
+      .select({
+        id: bookings.id,
+        confirmationNumber: bookings.confirmationNumber,
+        checkOutDate: bookings.checkOutDate,
+      })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.propertyId, propertyId),
+          eq(bookings.status, "checked_in"),
+          sql`${bookings.checkOutDate} = ${bizDate.date}`,
         ),
       );
 
@@ -115,15 +131,19 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
     });
 
     const warnings: string[] = [];
-    if (dueOuts.length > 0) {
+    if (overdueDueOuts.length > 0) {
       warnings.push(
-        `${dueOuts.length} due-out guest(s) still checked in`,
+        `БЛОКИРОВКА: ${overdueDueOuts.length} гост(ей) с просроченным выездом — checkout до запуска аудита`,
       );
+    }
+    if (dueToday.length > 0) {
+      warnings.push(`${dueToday.length} гост(ей) выезжает сегодня`);
     }
 
     return {
       businessDate: bizDate.date,
-      dueOuts: dueOuts.length,
+      overdueDueOuts: overdueDueOuts.length,
+      dueToday: dueToday.length,
       pendingNoShows: pendingNoShows.length,
       pendingNoShowDetails: pendingNoShows.map((b) => ({
         id: b.id,
@@ -197,6 +217,35 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
       return reply
         .status(400)
         .send({ error: "ROOM_TAX transaction code not found but tax rate is set. Add ROOM_TAX code or set tax rate to 0." });
+    }
+
+    // B-01: Блокировка при наличии просроченных due outs
+    // Opera не позволяет запустить EOD если есть заселённые гости с checkOut < bizDate
+    const overdueDueOuts = await app.db
+      .select({
+        id: bookings.id,
+        confirmationNumber: bookings.confirmationNumber,
+        checkOutDate: bookings.checkOutDate,
+      })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.propertyId, propertyId),
+          eq(bookings.status, "checked_in"),
+          sql`${bookings.checkOutDate} < ${bizDate.date}`,
+        ),
+      );
+
+    if (overdueDueOuts.length > 0) {
+      return reply.status(400).send({
+        error: `Невозможно запустить ночной аудит: ${overdueDueOuts.length} гост(ей) с просроченным выездом (checkOut < ${bizDate.date}). Сначала выполните checkout или продлите бронь.`,
+        code: "OVERDUE_DUE_OUTS",
+        overdueDueOuts: overdueDueOuts.map((b) => ({
+          id: b.id,
+          confirmationNumber: b.confirmationNumber,
+          checkOutDate: b.checkOutDate,
+        })),
+      });
     }
 
     // Execute all steps in single DB transaction
