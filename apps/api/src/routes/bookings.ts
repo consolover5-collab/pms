@@ -360,12 +360,12 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           code: "DATES_LOCKED",
         });
       }
-      // Нельзя продлить на дату в прошлом
+      // Нельзя продлить на дату в прошлом (checkOut = bizDate разрешено — due out today)
       if (request.body.checkOutDate) {
         const bizDateExtend = await getBusinessDate(app.db, existing.propertyId);
-        if (request.body.checkOutDate <= bizDateExtend) {
+        if (request.body.checkOutDate < bizDateExtend) {
           return reply.status(400).send({
-            error: `Нельзя установить дату выезда (${request.body.checkOutDate}): она должна быть позже текущей бизнес-даты (${bizDateExtend}).`,
+            error: `Нельзя установить дату выезда (${request.body.checkOutDate}): она не может быть раньше текущей бизнес-даты (${bizDateExtend}).`,
             code: "DATES_EXPIRED",
           });
         }
