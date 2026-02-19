@@ -15,11 +15,13 @@ type NoShowBooking = {
   guestName: string;
   checkInDate: string;
   checkOutDate: string;
+  guaranteeCode: string | null;
 };
 
 type PreviewData = {
   businessDate: string;
-  dueOuts: number;
+  overdueDueOuts: number;
+  dueToday: number;
   pendingNoShows: number;
   pendingNoShowDetails: NoShowBooking[];
   roomsToCharge: number;
@@ -36,6 +38,7 @@ type RunResult = {
   roomChargesPosted: number;
   taxChargesPosted: number;
   roomsUpdated: number;
+  oooRoomsRestored: number;
   totalRevenue: number;
 };
 
@@ -185,10 +188,19 @@ export default function NightAuditPage() {
                   {formatCurrency(preview.estimatedRevenue)} ₽
                 </span>
               </div>
-              <div>
-                <span className="text-gray-500">Due-outs:</span>{" "}
-                <span className="font-bold">{preview.dueOuts}</span>
-              </div>
+              {preview.overdueDueOuts > 0 && (
+                <div>
+                  <span className="text-red-600 font-medium">Просрочен выезд:</span>{" "}
+                  <span className="font-bold text-red-600">{preview.overdueDueOuts}</span>
+                  <span className="text-xs text-red-500 ml-1">(блокируют аудит)</span>
+                </div>
+              )}
+              {preview.dueToday > 0 && (
+                <div>
+                  <span className="text-gray-500">Выезжают сегодня:</span>{" "}
+                  <span className="font-bold">{preview.dueToday}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -207,6 +219,7 @@ export default function NightAuditPage() {
                     <th className="pb-1">Бронь</th>
                     <th className="pb-1">Гость</th>
                     <th className="pb-1">Заезд</th>
+                    <th className="pb-1">Гарантия</th>
                     <th className="pb-1">Действие</th>
                   </tr>
                 </thead>
@@ -216,6 +229,7 @@ export default function NightAuditPage() {
                       <td className="py-1 font-mono text-xs">{b.confirmationNumber}</td>
                       <td className="py-1">{b.guestName}</td>
                       <td className="py-1 text-xs">{b.checkInDate}</td>
+                      <td className="py-1 text-xs text-gray-500">{b.guaranteeCode || "—"}</td>
                       <td className="py-1">
                         <select
                           value={noShowDecisions[b.id] ?? "no_show"}
@@ -345,6 +359,12 @@ export default function NightAuditPage() {
                 <span className="text-gray-500">Rooms set to dirty:</span>{" "}
                 <span className="font-bold">{result.roomsUpdated}</span>
               </div>
+              {result.oooRoomsRestored > 0 && (
+                <div>
+                  <span className="text-gray-500">OOO восстановлено:</span>{" "}
+                  <span className="font-bold text-green-700">{result.oooRoomsRestored}</span>
+                </div>
+              )}
             </div>
           </div>
 

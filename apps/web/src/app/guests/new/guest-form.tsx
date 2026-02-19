@@ -27,7 +27,7 @@ export function GuestForm({ propertyId }: { propertyId: string }) {
       if (val && String(val).trim()) body[key] = String(val).trim();
     }
     const vip = form.get("vipStatus");
-    if (vip && String(vip).trim()) body.vipStatus = Number(vip);
+    if (vip && String(vip).trim()) body.vipStatus = String(vip).trim();
 
     try {
       const res = await fetch(`/api/guests`, {
@@ -100,11 +100,9 @@ export function GuestForm({ propertyId }: { propertyId: string }) {
           <label className="block text-xs text-gray-500 mb-1">VIP Status</label>
           <select name="vipStatus" className="w-full px-3 py-2 border rounded">
             <option value="">None</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
+            <option value="SILVER">SILVER</option>
+            <option value="GOLD">GOLD</option>
+            <option value="VIP">VIP</option>
           </select>
         </div>
       </div>

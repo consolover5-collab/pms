@@ -17,7 +17,7 @@ type Booking = {
   adults: number;
   children: number;
   rateAmount: string | null;
-  totalAmount: string | null;
+  guaranteeCode: string | null;
   paymentMethod: string | null;
   notes: string | null;
   guest: { id: string; firstName: string; lastName: string };
@@ -97,6 +97,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
   const [adultsVal, setAdultsVal] = useState(booking.adults);
   const [childrenVal, setChildrenVal] = useState(booking.children);
   const [rateAmount, setRateAmount] = useState(booking.rateAmount || "");
+  const [guaranteeCodeVal, setGuaranteeCodeVal] = useState(booking.guaranteeCode || "");
   const [paymentMethodVal, setPaymentMethodVal] = useState(booking.paymentMethod || "");
   const [notesVal, setNotesVal] = useState(booking.notes || "");
 
@@ -224,7 +225,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
 
     if (canEditFinancials) {
       body.rateAmount = rateAmount || null;
-      body.totalAmount = totalAmount || null;
+      body.guaranteeCode = guaranteeCodeVal || null;
       body.paymentMethod = paymentMethodVal || null;
       body.ratePlanId = selectedRatePlanId || null;
     }
@@ -487,7 +488,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           />
         </FormField>
         <FormField
-          label="Total Amount"
+          label="Расч. сумма"
           disabled
         >
           <input
@@ -498,11 +499,31 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           />
           {nights > 0 && rateAmount && (
             <p className="text-xs text-gray-500 mt-1">
-              {formatCurrency(rateAmount)} ₽ × {nights} nights
+              {formatCurrency(rateAmount)} ₽ × {nights} ноч.
             </p>
           )}
         </FormField>
       </div>
+
+      <FormField
+        label="Гарантия"
+        disabled={!canEditFinancials}
+        lockedReason={!canEditFinancials ? "Cannot change guarantee for completed bookings" : undefined}
+      >
+        <select
+          disabled={!canEditFinancials}
+          value={guaranteeCodeVal}
+          onChange={(e) => setGuaranteeCodeVal(e.target.value)}
+          className={`w-full px-3 py-2 border rounded ${!canEditFinancials ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
+        >
+          <option value="">Не указана</option>
+          <option value="cc_guaranteed">Кредитная карта</option>
+          <option value="deposit_guaranteed">Депозит</option>
+          <option value="company_guaranteed">Компания</option>
+          <option value="non_guaranteed">Без гарантии</option>
+          <option value="travel_agent_guaranteed">Турагент</option>
+        </select>
+      </FormField>
 
       <FormField
         label="Payment Method"

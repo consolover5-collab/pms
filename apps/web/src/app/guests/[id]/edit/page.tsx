@@ -14,7 +14,7 @@ type Guest = {
   gender: string | null;
   language: string | null;
   dateOfBirth: string | null;
-  vipStatus: number | null;
+  vipStatus: string | null;
   notes: string | null;
 };
 

@@ -17,7 +17,7 @@ type Guest = {
   gender: string | null;
   language: string | null;
   dateOfBirth: string | null;
-  vipStatus: number | null;
+  vipStatus: string | null;
   notes: string | null;
 };
 
@@ -71,7 +71,7 @@ export function GuestEditForm({ guest }: { guest: Guest }) {
     }
 
     const vipStatus = form.get("vipStatus");
-    body.vipStatus = vipStatus ? Number(vipStatus) : null;
+    body.vipStatus = vipStatus && String(vipStatus).trim() ? String(vipStatus).trim() : null;
 
     try {
       const res = await fetch(`/api/guests/${guest.id}`, {
@@ -153,9 +153,11 @@ export function GuestEditForm({ guest }: { guest: Guest }) {
         </div>
         <div>
           <label className="block text-xs text-gray-500 mb-1">VIP Status</label>
-          <select name="vipStatus" defaultValue={guest.vipStatus?.toString() || ""} className="w-full px-3 py-2 border rounded">
+          <select name="vipStatus" defaultValue={guest.vipStatus || ""} className="w-full px-3 py-2 border rounded">
             <option value="">None</option>
-            {[1,2,3,4,5].map((v) => <option key={v} value={v}>VIP {v}</option>)}
+            <option value="SILVER">SILVER</option>
+            <option value="GOLD">GOLD</option>
+            <option value="VIP">VIP</option>
           </select>
         </div>
       </div>

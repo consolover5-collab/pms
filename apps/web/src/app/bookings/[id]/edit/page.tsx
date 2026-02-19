@@ -12,7 +12,7 @@ type Booking = {
   adults: number;
   children: number;
   rateAmount: string | null;
-  totalAmount: string | null;
+  guaranteeCode: string | null;
   paymentMethod: string | null;
   notes: string | null;
   guest: { id: string; firstName: string; lastName: string };

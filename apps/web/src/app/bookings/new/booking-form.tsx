@@ -34,6 +34,7 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
   const [rateAmount, setRateAmount] = useState("");
+  const [guaranteeCode, setGuaranteeCode] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -215,7 +216,7 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
     if (selectedRoomId) body.roomId = selectedRoomId;
     if (selectedRatePlanId) body.ratePlanId = selectedRatePlanId;
     if (rateAmount) body.rateAmount = rateAmount;
-    if (totalAmount) body.totalAmount = totalAmount;
+    if (guaranteeCode) body.guaranteeCode = guaranteeCode;
     if (paymentMethod) body.paymentMethod = paymentMethod;
     if (notes) body.notes = notes;
 
@@ -510,19 +511,36 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
         </div>
       </div>
 
-      <div>
-        <label className="block text-xs text-gray-500 mb-1">Payment Method</label>
-        <select
-          value={paymentMethod}
-          onChange={(e) => setPaymentMethod(e.target.value)}
-          className="w-full px-3 py-2 border rounded"
-        >
-          <option value="">Not specified</option>
-          <option value="cash">Cash</option>
-          <option value="card">Credit Card</option>
-          <option value="bank_transfer">Bank Transfer</option>
-          <option value="company">Company Account</option>
-        </select>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Payment Method</label>
+          <select
+            value={paymentMethod}
+            onChange={(e) => setPaymentMethod(e.target.value)}
+            className="w-full px-3 py-2 border rounded"
+          >
+            <option value="">Not specified</option>
+            <option value="cash">Cash</option>
+            <option value="card">Credit Card</option>
+            <option value="bank_transfer">Bank Transfer</option>
+            <option value="company">Company Account</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Гарантия</label>
+          <select
+            value={guaranteeCode}
+            onChange={(e) => setGuaranteeCode(e.target.value)}
+            className="w-full px-3 py-2 border rounded"
+          >
+            <option value="">Не указана</option>
+            <option value="cc_guaranteed">Кредитная карта</option>
+            <option value="deposit_guaranteed">Депозит</option>
+            <option value="company_guaranteed">Компания</option>
+            <option value="non_guaranteed">Без гарантии</option>
+            <option value="travel_agent_guaranteed">Турагент</option>
+          </select>
+        </div>
       </div>
 
       <div>

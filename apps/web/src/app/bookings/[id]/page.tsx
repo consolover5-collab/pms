@@ -15,7 +15,7 @@ type Booking = {
   adults: number;
   children: number;
   rateAmount: string | null;
-  totalAmount: string | null;
+  guaranteeCode: string | null;
   paymentMethod: string | null;
   actualCheckIn: string | null;
   actualCheckOut: string | null;
@@ -167,14 +167,17 @@ export default async function BookingDetailPage({
           }
         />
         <Field
-          label="Total"
+          label="Расч. сумма"
           value={
-            booking.totalAmount
-              ? `${formatCurrency(booking.totalAmount)} ₽`
+            booking.rateAmount
+              ? `${formatCurrency(String(parseFloat(booking.rateAmount) * nights))} ₽`
               : null
           }
         />
         <Field label="Payment" value={booking.paymentMethod} />
+        {booking.guaranteeCode && (
+          <Field label="Гарантия" value={booking.guaranteeCode} />
+        )}
       </div>
 
       {/* Actual times */}
