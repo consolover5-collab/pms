@@ -299,5 +299,122 @@ describe("POST /api/night-audit/preview", () => {
     assert.ok(Array.isArray(data.pendingNoShowDetails), "pendingNoShowDetails must be array");
     assert.ok("businessDate" in data, "missing businessDate");
     assert.ok("roomsToCharge" in data, "missing roomsToCharge");
+    assert.ok("overdueDueOuts" in data, "missing overdueDueOuts");
+    assert.ok("dueToday" in data, "missing dueToday");
+    assert.equal(typeof data.overdueDueOuts, "number", "overdueDueOuts must be number");
+    assert.equal(typeof data.dueToday, "number", "dueToday must be number");
+  });
+});
+
+// ── B-05: OOO validation ──────────────────────────────────────────────────
+
+describe("POST /api/rooms/:id/status — OOO validation (B-05)", () => {
+  test("cannot set OOO on an occupied room (ROOM_IS_OCCUPIED)", async () => {
+    // Find a checked_in booking with a room
+    const { data: all } = await api<any>(`/api/bookings?propertyId=${PROP}&limit=50`);
+    const bookingList: any[] = Array.isArray(all) ? all : (all.data ?? []);
+    const checkedIn = bookingList.find((b: any) => b.status === "checked_in" && b.room);
+    if (!checkedIn) return; // graceful skip if no seed data matches
+
+    const { status, data } = await api<any>(`/api/rooms/${checkedIn.room.id}/status`, {
+      method: "POST",
+      payload: {
+        housekeepingStatus: "out_of_order",
+        oooFromDate: "2026-02-20",
+        oooToDate: "2026-02-25",
+      },
+    });
+    assert.equal(status, 400);
+    assert.equal(data.code, "ROOM_IS_OCCUPIED");
+  });
+
+  test("cannot set OOO without dates (OOO_DATES_REQUIRED)", async () => {
+    // Find a clean, vacant room
+    const { data: rooms } = await api<any[]>(`/api/rooms?propertyId=${PROP}&occupancyStatus=vacant`);
+    const roomList: any[] = Array.isArray(rooms) ? rooms : [];
+    const vacantRoom = roomList.find((r: any) => r.housekeepingStatus === "clean");
+    if (!vacantRoom) return;
+
+    const { status, data } = await api<any>(`/api/rooms/${vacantRoom.id}/status`, {
+      method: "POST",
+      payload: { housekeepingStatus: "out_of_order" },
+    });
+    assert.equal(status, 400);
+    assert.equal(data.code, "OOO_DATES_REQUIRED");
+  });
+
+  test("OOO dates saved and returned in GET /api/rooms/:id", async () => {
+    // Find a clean, vacant room with no bookings
+    const { data: rooms } = await api<any[]>(`/api/rooms?propertyId=${PROP}&occupancyStatus=vacant`);
+    const roomList: any[] = Array.isArray(rooms) ? rooms : [];
+    const vacantClean = roomList.find((r: any) =>
+      r.housekeepingStatus === "clean" || r.housekeepingStatus === "dirty"
+    );
+    if (!vacantClean) return;
+
+    const fromDate = "2099-06-01";
+    const toDate = "2099-06-10";
+
+    const { status, data } = await api<any>(`/api/rooms/${vacantClean.id}/status`, {
+      method: "POST",
+      payload: {
+        housekeepingStatus: "out_of_order",
+        oooFromDate: fromDate,
+        oooToDate: toDate,
+        returnStatus: "clean",
+      },
+    });
+    assert.equal(status, 200, `Expected 200, got ${status}: ${JSON.stringify(data)}`);
+    assert.equal(data.oooFromDate, fromDate);
+    assert.equal(data.oooToDate, toDate);
+    assert.equal(data.returnStatus, "clean");
+
+    // Restore room to clean state for other tests
+    await api(`/api/rooms/${vacantClean.id}/status`, {
+      method: "POST",
+      payload: { housekeepingStatus: "clean" },
+    });
+  });
+});
+
+// ── P-01: guaranteeCode in bookings ──────────────────────────────────────
+
+describe("POST /api/bookings — guaranteeCode, marketCode, channel (P-01, P-02)", () => {
+  test("new booking with guaranteeCode/marketCode/channel saved and returned", async () => {
+    // Find a room type to use
+    const { data: rts } = await api<any[]>(`/api/room-types?propertyId=${PROP}`);
+    const rtList: any[] = Array.isArray(rts) ? rts : [];
+    const rt = rtList[0];
+    if (!rt) return;
+
+    // Find a guest
+    const { data: gAll } = await api<any>(`/api/guests?propertyId=${PROP}&limit=5`);
+    const gList: any[] = Array.isArray(gAll) ? gAll : (gAll.data ?? []);
+    const guest = gList[0];
+    if (!guest) return;
+
+    // Create booking with guarantee/market/channel
+    const { status, data } = await api<any>("/api/bookings", {
+      method: "POST",
+      payload: {
+        propertyId: PROP,
+        guestId: guest.id,
+        roomTypeId: rt.id,
+        checkInDate: "2099-07-01",
+        checkOutDate: "2099-07-05",
+        adults: 1,
+        children: 0,
+        rateAmount: "3000",
+        guaranteeCode: "cc_guaranteed",
+        marketCode: "direct",
+        sourceCode: "web",
+        channel: "booking_com",
+      },
+    });
+    assert.equal(status, 201, `Expected 201, got ${status}: ${JSON.stringify(data)}`);
+    assert.equal(data.guaranteeCode, "cc_guaranteed");
+    assert.equal(data.marketCode, "direct");
+    assert.equal(data.sourceCode, "web");
+    assert.equal(data.channel, "booking_com");
   });
 });
