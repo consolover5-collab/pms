@@ -4,7 +4,7 @@ user_name: Oci
 date: '2026-02-18'
 sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'quality_rules', 'workflow_rules', 'critical_rules']
 status: complete
-rule_count: 47
+rule_count: 52
 optimized_for_llm: true
 ---
 
@@ -53,8 +53,10 @@ _This file contains critical rules and patterns that AI agents must follow when 
   Незахваченные исключения → Fastify отдаёт 500 автоматически
 - **UUID**: все ID генерируются БД через `gen_random_uuid()`, не в коде приложения
 - **Drizzle-типы**: `typeof table.$inferSelect` / `typeof table.$inferInsert` вместо ручных интерфейсов
-- **Drizzle-enum**: используй `pgEnum` из `drizzle-orm/pg-core` (тип на уровне БД),
-  не TypeScript `enum`; определения в `packages/db/src/schema/`
+- **Статусы и коды**: хранятся как `varchar` с комментарием "Valid values: ...". Схема
+  намеренно не использует `pgEnum` — это позволяет добавлять значения без ALTER TYPE.
+  Валидация происходит на уровне API (Fastify), не на уровне БД. Допустимые значения
+  определены в Drizzle-схемах и проверяются в route handler'ах.
 - **Domain-функции**: явно экспортируй типы возвращаемых значений в `packages/domain/`
   (не полагайся на вывод типов при потреблении из `@pms/api`)
 - **Явный return**: в роутах всегда `return` перед `reply` — Fastify 5 не сериализует `undefined`
@@ -178,6 +180,26 @@ _This file contains critical rules and patterns that AI agents must follow when 
 **Auth**
 - Аутентификация: код реализован но **намеренно отключён** (см. `apps/api/src/plugins/auth.ts`)
   Не "чини" auth middleware — он выключен осознанно для разработки
+
+### Opera PMS First — Обязательное правило для всех новых фич
+
+> **Перед реализацией ЛЮБОЙ бизнес-логики** — сначала исследуй как это устроено в Opera PMS.
+> Цель: не придумывать логику с нуля, а упростить и адаптировать проверенные паттерны Opera.
+
+**Алгоритм для каждой новой задачи:**
+1. **Изучить Opera DB** через MCP (`mcp__opera__query`, `mcp__opera__describe_table`) — посмотреть реальные данные HA336
+2. **Сверить со схемой проекта** — найти пробелы и несоответствия
+3. **Реализовать по логике Opera** — максимально упрощая, сохраняя бизнес-логику
+4. **Не расширять без необходимости** — если Opera делает проще, делай проще
+
+**Доступные источники:**
+- Opera DB: MCP-инструменты (`opera1` schema, hotel `HA336`)
+- Opera Help: через Tailscale/браузер на сервере с БД
+- Схема проекта: `packages/db/src/schema/`
+
+**Принцип**: этот проект — упрощённая open-source замена Opera. Бизнес-логика должна коррелировать с Opera, даже если реализация проще.
+
+---
 
 ### Critical Don't-Miss Rules
 
