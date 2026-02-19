@@ -91,7 +91,6 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         status: bookings.status,
         adults: bookings.adults,
         children: bookings.children,
-        totalAmount: bookings.totalAmount,
         guest: {
           id: guests.id,
           firstName: guests.firstName,
@@ -134,7 +133,6 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           adults: bookings.adults,
           children: bookings.children,
           rateAmount: bookings.rateAmount,
-          totalAmount: bookings.totalAmount,
           paymentMethod: bookings.paymentMethod,
           actualCheckIn: bookings.actualCheckIn,
           actualCheckOut: bookings.actualCheckOut,
@@ -188,9 +186,12 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       adults?: number;
       children?: number;
       rateAmount?: string;
-      totalAmount?: string;
       paymentMethod?: string;
       notes?: string;
+      guaranteeCode?: string;
+      marketCode?: string;
+      sourceCode?: string;
+      channel?: string;
     };
   }>("/api/bookings", async (request, reply) => {
     // Проверка существования гостя
@@ -270,15 +271,6 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
 
     const propertyCode = property?.code || "PMS";
 
-    // Авторасчёт totalAmount если не указан
-    let calcTotalAmount = request.body.totalAmount;
-    if (!calcTotalAmount && request.body.rateAmount) {
-      const checkIn = new Date(request.body.checkInDate);
-      const checkOut = new Date(request.body.checkOutDate);
-      const nights = Math.max(1, Math.round((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)));
-      calcTotalAmount = String(Math.round(Number(request.body.rateAmount) * nights * 100) / 100);
-    }
-
     const booking = await app.db.transaction(async (tx) => {
       const prefix = propertyCode + "-";
       // Lock bookings table for this property to prevent concurrent inserts
@@ -318,8 +310,11 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           adults: request.body.adults || 1,
           children: request.body.children || 0,
           rateAmount: request.body.rateAmount || null,
-          totalAmount: calcTotalAmount || null,
           paymentMethod: request.body.paymentMethod || null,
+          guaranteeCode: request.body.guaranteeCode || null,
+          marketCode: request.body.marketCode || null,
+          sourceCode: request.body.sourceCode || null,
+          channel: request.body.channel || null,
           notes: request.body.notes || null,
           confirmationNumber: confNum,
           status: "confirmed",
@@ -345,9 +340,12 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       adults?: number;
       children?: number;
       rateAmount?: string;
-      totalAmount?: string;
       paymentMethod?: string;
       notes?: string;
+      guaranteeCode?: string;
+      marketCode?: string;
+      sourceCode?: string;
+      channel?: string;
     };
   }>("/api/bookings/:id", async (request, reply) => {
     // Загрузить текущее бронирование для merge с обновляемыми полями

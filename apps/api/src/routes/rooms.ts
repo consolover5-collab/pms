@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import { rooms, roomTypes, bookings } from "@pms/db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { VALID_HK_TRANSITIONS } from "@pms/domain";
 
 // Use domain state machine as single source of truth
@@ -83,6 +83,9 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
         floor: rooms.floor,
         housekeepingStatus: rooms.housekeepingStatus,
         occupancyStatus: rooms.occupancyStatus,
+        oooFromDate: rooms.oooFromDate,
+        oooToDate: rooms.oooToDate,
+        returnStatus: rooms.returnStatus,
         roomTypeId: rooms.roomTypeId,
         roomType: {
           id: roomTypes.id,
@@ -109,6 +112,9 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
           floor: rooms.floor,
           housekeepingStatus: rooms.housekeepingStatus,
           occupancyStatus: rooms.occupancyStatus,
+          oooFromDate: rooms.oooFromDate,
+          oooToDate: rooms.oooToDate,
+          returnStatus: rooms.returnStatus,
           propertyId: rooms.propertyId,
           roomType: {
             id: roomTypes.id,
@@ -130,18 +136,91 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
   // Update room status (POST for convenience)
   app.post<{
     Params: { id: string };
-    Body: { housekeepingStatus?: string; occupancyStatus?: string };
+    Body: {
+      housekeepingStatus?: string;
+      occupancyStatus?: string;
+      oooFromDate?: string;  // YYYY-MM-DD
+      oooToDate?: string;    // YYYY-MM-DD, включительно
+      returnStatus?: string; // clean | dirty
+    };
   }>("/api/rooms/:id/status", async (request, reply) => {
-    const { housekeepingStatus, occupancyStatus } = request.body;
+    const { housekeepingStatus, occupancyStatus, oooFromDate, oooToDate, returnStatus } = request.body;
 
     const valid = await validateRoomStatusUpdate(app.db, request.params.id, housekeepingStatus, occupancyStatus, reply);
     if (!valid) return;
 
-    const updates: Record<string, unknown> = {
-      updatedAt: new Date(),
-    };
+    // OOO/OOS specific validations (B-02, B-05)
+    if (housekeepingStatus === "out_of_order" || housekeepingStatus === "out_of_service") {
+      const [room] = await app.db
+        .select({ occupancyStatus: rooms.occupancyStatus })
+        .from(rooms)
+        .where(eq(rooms.id, request.params.id));
+
+      // B-05a: Нельзя OOO если комната занята
+      if (room?.occupancyStatus === "occupied") {
+        return reply.status(400).send({
+          error: "Нельзя перевести занятую комнату в статус Out of Order. Сначала выполните checkout.",
+          code: "ROOM_IS_OCCUPIED",
+        });
+      }
+
+      // B-02: Даты OOO обязательны
+      if (!oooFromDate || !oooToDate) {
+        return reply.status(400).send({
+          error: "Для OOO/OOS обязательно укажите даты начала и окончания периода.",
+          code: "OOO_DATES_REQUIRED",
+        });
+      }
+
+      // B-05b: Нельзя OOO если есть активные брони в периоде
+      const conflictingBookings = await app.db
+        .select({ id: bookings.id, confirmationNumber: bookings.confirmationNumber })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.roomId, request.params.id),
+            inArray(bookings.status, ["confirmed", "checked_in"]),
+            sql`${bookings.checkInDate} < ${oooToDate}`,
+            sql`${bookings.checkOutDate} > ${oooFromDate}`,
+          ),
+        );
+
+      if (conflictingBookings.length > 0) {
+        return reply.status(400).send({
+          error: `Нельзя установить Out of Order: комната забронирована на этот период (${conflictingBookings.length} брон(ей)).`,
+          code: "ROOM_HAS_BOOKINGS_IN_PERIOD",
+          conflictingBookings: conflictingBookings.map((b) => b.confirmationNumber),
+        });
+      }
+    }
+
+    // Валидация дат OOO
+    if (oooToDate && oooFromDate && oooToDate < oooFromDate) {
+      return reply.status(400).send({
+        error: "Дата окончания OOO не может быть раньше даты начала.",
+        code: "INVALID_OOO_DATES",
+      });
+    }
+    if (returnStatus && !["clean", "dirty"].includes(returnStatus)) {
+      return reply.status(400).send({
+        error: "Статус возврата должен быть clean или dirty.",
+        code: "INVALID_RETURN_STATUS",
+      });
+    }
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (housekeepingStatus) updates.housekeepingStatus = housekeepingStatus;
     if (occupancyStatus) updates.occupancyStatus = occupancyStatus;
+    if (oooFromDate !== undefined) updates.oooFromDate = oooFromDate;
+    if (oooToDate !== undefined) updates.oooToDate = oooToDate;
+    if (returnStatus !== undefined) updates.returnStatus = returnStatus;
+
+    // При снятии OOO/OOS — очищать даты автоматически
+    if (housekeepingStatus && housekeepingStatus !== "out_of_order" && housekeepingStatus !== "out_of_service") {
+      updates.oooFromDate = null;
+      updates.oooToDate = null;
+      updates.returnStatus = null;
+    }
 
     const [updated] = await app.db
       .update(rooms)
@@ -156,18 +235,85 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
   // PATCH version (keeping for compatibility, same validation as POST)
   app.patch<{
     Params: { id: string };
-    Body: { housekeepingStatus?: string; occupancyStatus?: string };
+    Body: {
+      housekeepingStatus?: string;
+      occupancyStatus?: string;
+      oooFromDate?: string;
+      oooToDate?: string;
+      returnStatus?: string;
+    };
   }>("/api/rooms/:id/status", async (request, reply) => {
-    const { housekeepingStatus, occupancyStatus } = request.body;
+    const { housekeepingStatus, occupancyStatus, oooFromDate, oooToDate, returnStatus } = request.body;
 
     const valid = await validateRoomStatusUpdate(app.db, request.params.id, housekeepingStatus, occupancyStatus, reply);
     if (!valid) return;
 
-    const updates: Record<string, unknown> = {
-      updatedAt: new Date(),
-    };
+    if (housekeepingStatus === "out_of_order" || housekeepingStatus === "out_of_service") {
+      const [room] = await app.db
+        .select({ occupancyStatus: rooms.occupancyStatus })
+        .from(rooms)
+        .where(eq(rooms.id, request.params.id));
+
+      if (room?.occupancyStatus === "occupied") {
+        return reply.status(400).send({
+          error: "Нельзя перевести занятую комнату в статус Out of Order. Сначала выполните checkout.",
+          code: "ROOM_IS_OCCUPIED",
+        });
+      }
+
+      if (!oooFromDate || !oooToDate) {
+        return reply.status(400).send({
+          error: "Для OOO/OOS обязательно укажите даты начала и окончания периода.",
+          code: "OOO_DATES_REQUIRED",
+        });
+      }
+
+      const conflictingBookings = await app.db
+        .select({ id: bookings.id, confirmationNumber: bookings.confirmationNumber })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.roomId, request.params.id),
+            inArray(bookings.status, ["confirmed", "checked_in"]),
+            sql`${bookings.checkInDate} < ${oooToDate}`,
+            sql`${bookings.checkOutDate} > ${oooFromDate}`,
+          ),
+        );
+
+      if (conflictingBookings.length > 0) {
+        return reply.status(400).send({
+          error: `Нельзя установить Out of Order: комната забронирована на этот период (${conflictingBookings.length} брон(ей)).`,
+          code: "ROOM_HAS_BOOKINGS_IN_PERIOD",
+          conflictingBookings: conflictingBookings.map((b) => b.confirmationNumber),
+        });
+      }
+    }
+
+    if (oooToDate && oooFromDate && oooToDate < oooFromDate) {
+      return reply.status(400).send({
+        error: "Дата окончания OOO не может быть раньше даты начала.",
+        code: "INVALID_OOO_DATES",
+      });
+    }
+    if (returnStatus && !["clean", "dirty"].includes(returnStatus)) {
+      return reply.status(400).send({
+        error: "Статус возврата должен быть clean или dirty.",
+        code: "INVALID_RETURN_STATUS",
+      });
+    }
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (housekeepingStatus) updates.housekeepingStatus = housekeepingStatus;
     if (occupancyStatus) updates.occupancyStatus = occupancyStatus;
+    if (oooFromDate !== undefined) updates.oooFromDate = oooFromDate;
+    if (oooToDate !== undefined) updates.oooToDate = oooToDate;
+    if (returnStatus !== undefined) updates.returnStatus = returnStatus;
+
+    if (housekeepingStatus && housekeepingStatus !== "out_of_order" && housekeepingStatus !== "out_of_service") {
+      updates.oooFromDate = null;
+      updates.oooToDate = null;
+      updates.returnStatus = null;
+    }
 
     const [updated] = await app.db
       .update(rooms)

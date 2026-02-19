@@ -4,6 +4,7 @@ import {
   varchar,
   integer,
   decimal,
+  date,
   text,
   timestamp,
   unique,
@@ -44,6 +45,14 @@ export const rooms = pgTable("rooms", {
   occupancyStatus: varchar("occupancy_status", { length: 20 })
     .notNull()
     .default("vacant"),
+  /**
+   * @opera Даты OOO/OOS периода (из логики ROOM_OOO)
+   * Обязательны при установке out_of_order / out_of_service
+   */
+  oooFromDate: date("ooo_from_date"),
+  oooToDate: date("ooo_to_date"),
+  /** Статус возврата после окончания OOO: clean | dirty */
+  returnStatus: varchar("return_status", { length: 20 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => [

@@ -73,9 +73,29 @@ export const bookings = pgTable("bookings", {
   adults: integer("adults").notNull().default(1),
   children: integer("children").notNull().default(0),
   rateAmount: decimal("rate_amount", { precision: 10, scale: 2 }),
-  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
   /** Valid values: cash, credit_card, bank_transfer, other */
   paymentMethod: varchar("payment_method", { length: 20 }),
+  /**
+   * @opera GUARANTEE_CODE на RESERVATION_NAME (VARCHAR2 20)
+   * Valid values: cc_guaranteed, company_guaranteed, deposit_guaranteed,
+   *               non_guaranteed, travel_agent_guaranteed
+   */
+  guaranteeCode: varchar("guarantee_code", { length: 30 }),
+  /**
+   * @opera MARKET_CODE — упрощение: на уровне брони (не посуточно)
+   * Примеры: direct, corporate, ota, group, government, leisure
+   */
+  marketCode: varchar("market_code", { length: 20 }),
+  /**
+   * @opera SOURCE_CODE в FINANCIAL_TRANSACTIONS
+   * Примеры: phone, web, ota, walk_in, gds
+   */
+  sourceCode: varchar("source_code", { length: 20 }),
+  /**
+   * @opera CHANNEL VARCHAR2(40) в RESERVATION_NAME
+   * Примеры: direct, booking_com, expedia, airbnb, other
+   */
+  channel: varchar("channel", { length: 40 }),
   actualCheckIn: timestamp("actual_check_in"),
   actualCheckOut: timestamp("actual_check_out"),
   notes: text("notes"),

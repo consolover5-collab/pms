@@ -3,7 +3,6 @@ import {
   uuid,
   varchar,
   date,
-  integer,
   text,
   timestamp,
   index,
@@ -25,7 +24,11 @@ export const guests = pgTable("guests", {
   gender: varchar("gender", { length: 1 }),
   language: varchar("language", { length: 10 }),
   dateOfBirth: date("date_of_birth"),
-  vipStatus: integer("vip_status"),
+  /**
+   * @opera VIP_STATUS VARCHAR2(20) — коды "VIP", "GOLD", "SILVER" и т.п.
+   * Изменено с integer: Opera хранит строку, не число
+   */
+  vipStatus: varchar("vip_status", { length: 20 }),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

@@ -64,7 +64,7 @@ export const guestsRoutes: FastifyPluginAsync = async (app) => {
       gender?: string;
       language?: string;
       dateOfBirth?: string;
-      vipStatus?: number;
+      vipStatus?: string | null;
       notes?: string;
       force?: boolean;
     };
@@ -111,7 +111,7 @@ export const guestsRoutes: FastifyPluginAsync = async (app) => {
       gender?: string;
       language?: string;
       dateOfBirth?: string;
-      vipStatus?: number;
+      vipStatus?: string | null;
       notes?: string;
     };
   }>("/api/guests/:id", async (request, reply) => {
