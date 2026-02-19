@@ -43,10 +43,11 @@ async function seed() {
   await db.delete(guests);
   await db.delete(properties);
 
-  // Fictional demo property
+  // Fictional demo property — fixed UUID for test stability
   const [property] = await db
     .insert(properties)
     .values({
+      id: "ff1d9135-dfb9-4baa-be46-0e739cd26dad",
       name: "Grand Baltic Hotel",
       code: "GBH",
       address: "Озёрный проезд, 2",

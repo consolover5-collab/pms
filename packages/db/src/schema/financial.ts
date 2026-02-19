@@ -84,7 +84,6 @@ export const folioTransactions = pgTable("folio_transactions", {
   transactionCodeId: uuid("transaction_code_id")
     .notNull()
     .references(() => transactionCodes.id, { onDelete: "restrict" }),
-  folioWindow: integer("folio_window").notNull().default(1),
   debit: decimal("debit", { precision: 10, scale: 2 }).notNull().default("0"),
   credit: decimal("credit", { precision: 10, scale: 2 })
     .notNull()
