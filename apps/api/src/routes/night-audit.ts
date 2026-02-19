@@ -93,7 +93,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
         ),
       );
 
-    // Rooms to charge: all checked_in bookings with room + guest details
+    // Rooms to charge: checked_in bookings with checkOut > bizDate (день выезда не начисляется)
     const roomsToCharge = await app.db
       .select({
         id: bookings.id,
@@ -109,6 +109,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
         and(
           eq(bookings.propertyId, propertyId),
           eq(bookings.status, "checked_in"),
+          sql`${bookings.checkOutDate} > ${bizDate.date}`,
         ),
       );
 
@@ -308,7 +309,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
             .returning({ id: bookings.id })
         : [];
 
-      // Step 3 & 4: Post room charges + tax for each checked_in booking
+      // Step 3 & 4: Post room charges + tax (пропускаем гостей с checkOut = bizDate — день выезда не начисляется)
       const checkedIn = await tx
         .select({
           id: bookings.id,
@@ -320,6 +321,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
           and(
             eq(bookings.propertyId, propertyId),
             eq(bookings.status, "checked_in"),
+            sql`${bookings.checkOutDate} > ${bizDate.date}`,
           ),
         );
 

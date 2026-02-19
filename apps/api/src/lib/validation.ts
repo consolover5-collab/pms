@@ -46,8 +46,8 @@ export async function checkRoomConflict(
 
 export function validateBookingDates(checkInDate: string, checkOutDate: string): string | null {
   if (!checkInDate || !checkOutDate) return null;
-  if (checkInDate >= checkOutDate) {
-    return `Дата выезда (${checkOutDate}) должна быть позже даты заезда (${checkInDate}).`;
+  if (checkInDate > checkOutDate) {
+    return `Дата выезда (${checkOutDate}) не может быть раньше даты заезда (${checkInDate}).`;
   }
   return null;
 }
