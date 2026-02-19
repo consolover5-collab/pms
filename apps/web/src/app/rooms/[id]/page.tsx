@@ -9,6 +9,9 @@ type Room = {
   floor: number | null;
   housekeepingStatus: string;
   occupancyStatus: string;
+  oooFromDate: string | null;
+  oooToDate: string | null;
+  returnStatus: string | null;
   propertyId: string;
   roomType: {
     id: string;
@@ -83,31 +86,31 @@ export default async function RoomDetailPage({
       <BackButton fallbackHref="/rooms" label="Back to rooms" />
 
       <div className="mt-4 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <h1 className="text-3xl font-bold font-mono">#{room.roomNumber}</h1>
-        <span
-          className={`text-xs px-2 py-1 rounded ${hkStatusColors[room.housekeepingStatus]}`}
-        >
-          {hkStatusLabels[room.housekeepingStatus]}
-        </span>
-        <span
-          className={`text-xs px-2 py-1 rounded ${
-            room.occupancyStatus === "occupied"
-              ? "bg-blue-100 text-blue-800"
-              : "bg-green-100 text-green-800"
-          }`}
-        >
-          {room.occupancyStatus === "occupied" ? "Occupied" : "Vacant"}
-        </span>
-      </div>
-      {room.occupancyStatus !== "occupied" && (
-        <Link
-          href={`/rooms/${room.id}/edit`}
-          className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200"
-        >
-          Edit Room
-        </Link>
-      )}
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold font-mono">#{room.roomNumber}</h1>
+          <span
+            className={`text-xs px-2 py-1 rounded ${hkStatusColors[room.housekeepingStatus]}`}
+          >
+            {hkStatusLabels[room.housekeepingStatus]}
+          </span>
+          <span
+            className={`text-xs px-2 py-1 rounded ${
+              room.occupancyStatus === "occupied"
+                ? "bg-blue-100 text-blue-800"
+                : "bg-green-100 text-green-800"
+            }`}
+          >
+            {room.occupancyStatus === "occupied" ? "Occupied" : "Vacant"}
+          </span>
+        </div>
+        {room.occupancyStatus !== "occupied" && (
+          <Link
+            href={`/rooms/${room.id}/edit`}
+            className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200"
+          >
+            Настройки комнаты
+          </Link>
+        )}
       </div>
 
       {/* Current guest info when occupied */}
@@ -160,6 +163,9 @@ export default async function RoomDetailPage({
         roomId={room.id}
         housekeepingStatus={room.housekeepingStatus}
         occupancyStatus={room.occupancyStatus}
+        oooFromDate={room.oooFromDate}
+        oooToDate={room.oooToDate}
+        returnStatus={room.returnStatus}
       />
     </main>
   );

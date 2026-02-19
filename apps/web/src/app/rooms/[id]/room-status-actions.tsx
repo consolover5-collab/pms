@@ -9,16 +9,30 @@ export function RoomStatusActions({
   roomId,
   housekeepingStatus,
   occupancyStatus,
+  oooFromDate,
+  oooToDate,
+  returnStatus,
 }: {
   roomId: string;
   housekeepingStatus: string;
   occupancyStatus: string;
+  oooFromDate?: string | null;
+  oooToDate?: string | null;
+  returnStatus?: string | null;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ApiErrorDetail | null>(null);
 
-  async function updateStatus(newStatus: string) {
+  // OOO date form state
+  const [showOooForm, setShowOooForm] = useState(false);
+  const [oooFrom, setOooFrom] = useState(oooFromDate || "");
+  const [oooTo, setOooTo] = useState(oooToDate || "");
+  const [oooReturn, setOooReturn] = useState<"dirty" | "clean">(
+    (returnStatus as "dirty" | "clean") || "dirty"
+  );
+
+  async function updateStatus(newStatus: string, extra?: Record<string, string>) {
     setLoading(true);
     setError(null);
 
@@ -28,7 +42,7 @@ export function RoomStatusActions({
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ housekeepingStatus: newStatus }),
+        body: JSON.stringify({ housekeepingStatus: newStatus, ...extra }),
       });
 
       if (!res.ok) {
@@ -46,6 +60,7 @@ export function RoomStatusActions({
         return;
       }
 
+      setShowOooForm(false);
       router.refresh();
     } catch (err) {
       if (err instanceof TypeError && err.message === "Failed to fetch") {
@@ -68,41 +83,149 @@ export function RoomStatusActions({
     }
   }
 
+  function handleOooSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!oooFrom || !oooTo) return;
+    updateStatus("out_of_order", {
+      oooFromDate: oooFrom,
+      oooToDate: oooTo,
+      returnStatus: oooReturn,
+    });
+  }
+
+  const isOoo = housekeepingStatus === "out_of_order" || housekeepingStatus === "out_of_service";
+
   const actions: { label: string; status: string; color: string }[] = [];
 
   if (housekeepingStatus === "dirty") {
-    actions.push({ label: "Mark Clean", status: "clean", color: "bg-green-600 hover:bg-green-700" });
-    actions.push({ label: "Mark Pickup", status: "pickup", color: "bg-yellow-600 hover:bg-yellow-700" });
+    actions.push({ label: "Clean", status: "clean", color: "bg-green-600 hover:bg-green-700" });
+    actions.push({ label: "Pickup", status: "pickup", color: "bg-yellow-600 hover:bg-yellow-700" });
   } else if (housekeepingStatus === "pickup") {
-    actions.push({ label: "Mark Clean", status: "clean", color: "bg-green-600 hover:bg-green-700" });
+    actions.push({ label: "Clean", status: "clean", color: "bg-green-600 hover:bg-green-700" });
   } else if (housekeepingStatus === "clean") {
-    actions.push({ label: "Mark Inspected", status: "inspected", color: "bg-blue-600 hover:bg-blue-700" });
-    actions.push({ label: "Mark Dirty", status: "dirty", color: "bg-red-600 hover:bg-red-700" });
+    actions.push({ label: "Inspected", status: "inspected", color: "bg-blue-600 hover:bg-blue-700" });
+    actions.push({ label: "Dirty", status: "dirty", color: "bg-red-600 hover:bg-red-700" });
   } else if (housekeepingStatus === "inspected") {
-    actions.push({ label: "Mark Dirty", status: "dirty", color: "bg-red-600 hover:bg-red-700" });
-  }
-
-  if (housekeepingStatus !== "out_of_order" && housekeepingStatus !== "out_of_service") {
-    actions.push({ label: "Out of Order", status: "out_of_order", color: "bg-gray-600 hover:bg-gray-700" });
-  } else {
-    actions.push({ label: "Return to Service", status: "dirty", color: "bg-green-600 hover:bg-green-700" });
+    actions.push({ label: "Dirty", status: "dirty", color: "bg-red-600 hover:bg-red-700" });
   }
 
   return (
     <div className="mt-6">
-      <h2 className="text-sm font-semibold mb-3">Quick Actions</h2>
+      <h2 className="text-sm font-semibold mb-3">Статус уборки</h2>
       {error && <ErrorDisplay error={error} onDismiss={() => setError(null)} />}
-      <div className="flex flex-wrap gap-2 mt-3">
-        {actions.map((action) => (
-          <button key={action.status} onClick={() => updateStatus(action.status)} disabled={loading}
-            className={`px-4 py-2 text-white rounded ${action.color} disabled:opacity-50`}>
-            {action.label}
-          </button>
-        ))}
+
+      {/* Regular HK status actions */}
+      {!isOoo && (
+        <div className="flex flex-wrap gap-2">
+          {actions.map((action) => (
+            <button
+              key={action.status}
+              onClick={() => updateStatus(action.status)}
+              disabled={loading}
+              className={`px-4 py-2 text-white text-sm rounded ${action.color} disabled:opacity-50`}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* OOO section */}
+      <div className="mt-4">
+        {isOoo ? (
+          // Room is OOO/OOS — show current period + return button
+          <div className="p-3 bg-gray-100 rounded-lg">
+            <p className="text-sm font-medium text-gray-700 mb-1">Out of Order / Out of Service</p>
+            {oooFromDate && oooToDate && (
+              <p className="text-xs text-gray-500 mb-2">
+                Период: {oooFromDate} → {oooToDate}
+                {returnStatus && <span className="ml-2">| После: {returnStatus}</span>}
+              </p>
+            )}
+            <button
+              onClick={() => updateStatus("dirty")}
+              disabled={loading}
+              className="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50"
+            >
+              Вернуть в работу (dirty)
+            </button>
+          </div>
+        ) : (
+          // Show OOO button or inline form
+          <>
+            {!showOooForm ? (
+              <button
+                onClick={() => setShowOooForm(true)}
+                disabled={loading}
+                className="px-4 py-2 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 disabled:opacity-50"
+              >
+                Out of Order
+              </button>
+            ) : (
+              <form
+                onSubmit={handleOooSubmit}
+                className="p-4 border border-gray-300 rounded-lg bg-gray-50 space-y-3 max-w-sm"
+              >
+                <p className="text-sm font-medium text-gray-700">Установить Out of Order</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">С даты *</label>
+                    <input
+                      type="date"
+                      required
+                      value={oooFrom}
+                      onChange={(e) => setOooFrom(e.target.value)}
+                      className="w-full px-2 py-1 border rounded text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">По дату *</label>
+                    <input
+                      type="date"
+                      required
+                      value={oooTo}
+                      onChange={(e) => setOooTo(e.target.value)}
+                      className="w-full px-2 py-1 border rounded text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Статус после OOO</label>
+                  <select
+                    value={oooReturn}
+                    onChange={(e) => setOooReturn(e.target.value as "dirty" | "clean")}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  >
+                    <option value="dirty">Dirty (требует уборки)</option>
+                    <option value="clean">Clean (готова)</option>
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={loading || !oooFrom || !oooTo}
+                    className="px-4 py-2 bg-gray-700 text-white text-sm rounded hover:bg-gray-800 disabled:opacity-50"
+                  >
+                    {loading ? "..." : "Подтвердить OOO"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowOooForm(false)}
+                    disabled={loading}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </form>
+            )}
+          </>
+        )}
       </div>
+
       {occupancyStatus === "occupied" && (
         <p className="mt-3 text-sm text-yellow-700 bg-yellow-50 p-2 rounded">
-          Room is currently occupied. Some status changes may not take effect until checkout.
+          Комната занята. Out of Order недоступен до выезда гостя.
         </p>
       )}
     </div>

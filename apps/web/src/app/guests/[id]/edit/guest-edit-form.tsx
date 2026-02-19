@@ -154,10 +154,10 @@ export function GuestEditForm({ guest }: { guest: Guest }) {
         <div>
           <label className="block text-xs text-gray-500 mb-1">VIP Status</label>
           <select name="vipStatus" defaultValue={guest.vipStatus || ""} className="w-full px-3 py-2 border rounded">
-            <option value="">None</option>
-            <option value="SILVER">SILVER</option>
-            <option value="GOLD">GOLD</option>
-            <option value="VIP">VIP</option>
+            <option value="">Нет</option>
+            <option value="VIP1">VIP 1</option>
+            <option value="VIP2">VIP 2</option>
+            <option value="VIP3">VIP 3</option>
           </select>
         </div>
       </div>
