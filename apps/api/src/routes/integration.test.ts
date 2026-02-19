@@ -11,6 +11,7 @@
  *   - DATES_LOCKED (checkInDate blocked for checked_in)
  *   - CANCEL_CHECKIN_TOO_LATE guard
  *   - Room Move validations
+ *   - Cancel protection: HAS_FOLIO_TRANSACTIONS
  *   - Night Audit preview structure
  */
 
@@ -245,6 +246,41 @@ describe("POST /api/bookings/:id/room-move", () => {
     );
     assert.equal(status, 400);
     assert.equal(data.code, "ROOM_MOVE_INVALID");
+  });
+});
+
+// ── Cancel Protection ─────────────────────────────────────────────────────
+
+describe("POST /api/bookings/:id/cancel — HAS_FOLIO_TRANSACTIONS", () => {
+  test("blocks cancellation when booking has folio transactions", async () => {
+    // Find a confirmed booking
+    const { data: all } = await api<any>(`/api/bookings?propertyId=${PROP}&limit=50`);
+    const bookingList: any[] = Array.isArray(all) ? all : (all.data ?? []);
+    const confirmed = bookingList.find((b: any) => b.status === "confirmed");
+    if (!confirmed) {
+      // No confirmed booking in seed — skip gracefully
+      return;
+    }
+
+    // Find a charge transaction code
+    const { data: codes } = await api<any[]>(`/api/transaction-codes?propertyId=${PROP}`);
+    const chargeCode = codes.find((c: any) => c.transactionType === "charge");
+    if (!chargeCode) return;
+
+    // Post a folio charge to the confirmed booking
+    const postRes = await api(`/api/bookings/${confirmed.id}/folio/post`, {
+      method: "POST",
+      payload: { transactionCodeId: chargeCode.id, amount: 100, description: "Test charge" },
+    });
+    assert.equal(postRes.status, 201, "folio post should succeed");
+
+    // Now try to cancel — must be blocked
+    const { status, data } = await api<any>(`/api/bookings/${confirmed.id}/cancel`, {
+      method: "POST",
+      payload: {},
+    });
+    assert.equal(status, 400);
+    assert.equal(data.code, "HAS_FOLIO_TRANSACTIONS");
   });
 });
 

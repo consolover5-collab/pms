@@ -359,6 +359,16 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           code: "DATES_LOCKED",
         });
       }
+      // Нельзя продлить на дату в прошлом
+      if (request.body.checkOutDate) {
+        const bizDateExtend = await getBusinessDate(app.db, existing.propertyId);
+        if (request.body.checkOutDate <= bizDateExtend) {
+          return reply.status(400).send({
+            error: `Нельзя установить дату выезда (${request.body.checkOutDate}): она должна быть позже текущей бизнес-даты (${bizDateExtend}).`,
+            code: "DATES_EXPIRED",
+          });
+        }
+      }
     }
     // У выехавших броней даты не меняются совсем
     if (existing.status === "checked_out" && (request.body.checkInDate || request.body.checkOutDate)) {
