@@ -306,7 +306,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
 
         const rate = parseFloat(booking.rateAmount!);
 
-        // Room charge
+        // Room charge — ON CONFLICT DO NOTHING: DB-уровень защиты от дублей при конкурентном аудите
         const [roomCharge] = await tx
           .insert(folioTransactions)
           .values({
@@ -320,7 +320,13 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
             isSystemGenerated: true,
             postedBy,
           })
+          .onConflictDoNothing()
           .returning();
+
+        if (!roomCharge) {
+          skippedDuplicates++;
+          continue;
+        }
 
         roomChargesPosted++;
         totalRevenue += rate;
