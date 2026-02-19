@@ -26,6 +26,12 @@ const configSections = [
     description: "View charge and payment codes for folio postings",
     icon: "receipt",
   },
+  {
+    title: "Коды гарантии",
+    href: "/configuration/guarantee-codes",
+    description: "Типы гарантий бронирования и обработка no-show",
+    icon: "shield",
+  },
 ];
 
 export default function ConfigurationPage() {
