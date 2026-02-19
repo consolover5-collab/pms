@@ -8,7 +8,7 @@ import {
   transactionCodes,
   folioTransactions,
 } from "@pms/db";
-import { eq, and, lt, sql, inArray } from "drizzle-orm";
+import { eq, and, lt, lte, or, sql, inArray } from "drizzle-orm";
 import { calculateTax, shouldPostRoomCharge } from "@pms/domain";
 import { isValidUuid } from "../lib/validation";
 
@@ -79,6 +79,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
         confirmationNumber: bookings.confirmationNumber,
         checkInDate: bookings.checkInDate,
         checkOutDate: bookings.checkOutDate,
+        guaranteeCode: bookings.guaranteeCode,
         guestFirstName: guests.firstName,
         guestLastName: guests.lastName,
       })
@@ -151,6 +152,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
         guestName: `${b.guestFirstName} ${b.guestLastName}`,
         checkInDate: b.checkInDate,
         checkOutDate: b.checkOutDate,
+        guaranteeCode: b.guaranteeCode,
       })),
       roomsToCharge: roomsToCharge.length,
       estimatedRevenue: Math.round(estimatedRevenue * 100) / 100,
@@ -453,6 +455,41 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
         }
       }
 
+      // Step 6b: Restore OOO/OOS rooms whose oooToDate <= business date (P-03)
+      // @opera Логика аналогична ночному восстановлению комнат в Opera
+      const expiredOooRooms = await tx
+        .select({
+          id: rooms.id,
+          returnStatus: rooms.returnStatus,
+        })
+        .from(rooms)
+        .where(
+          and(
+            eq(rooms.propertyId, propertyId),
+            or(
+              eq(rooms.housekeepingStatus, "out_of_order"),
+              eq(rooms.housekeepingStatus, "out_of_service"),
+            ),
+            lte(rooms.oooToDate, bizDate.date),
+          ),
+        );
+
+      let oooRoomsRestored = 0;
+      for (const room of expiredOooRooms) {
+        const restoredStatus = (room.returnStatus as string) || "dirty";
+        await tx
+          .update(rooms)
+          .set({
+            housekeepingStatus: restoredStatus,
+            oooFromDate: null,
+            oooToDate: null,
+            returnStatus: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(rooms.id, room.id));
+        oooRoomsRestored++;
+      }
+
       // Step 7: Close business date
       await tx
         .update(businessDates)
@@ -480,6 +517,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
         skippedDuplicates,
         roomsUpdated: roomsUpdated.length,
         orphanedRoomsFixed,
+        oooRoomsRestored,
         totalRevenue: Math.round(totalRevenue * 100) / 100,
       };
     });
