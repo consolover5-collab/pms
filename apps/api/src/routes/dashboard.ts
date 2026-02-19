@@ -16,8 +16,10 @@ async function getBusinessDate(
         eq(businessDates.status, "open"),
       ),
     );
-  // Fallback to system date if no business date configured
-  return bizDate?.date ?? new Date().toISOString().split("T")[0];
+  if (!bizDate) {
+    throw { statusCode: 500, code: "NO_OPEN_BUSINESS_DATE", message: "Открытая бизнес-дата не найдена. Выполните ночной аудит." };
+  }
+  return bizDate.date;
 }
 
 

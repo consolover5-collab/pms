@@ -4,14 +4,17 @@ import { eq, and, or, ne, lte, gte, lt, gt, sql, ilike, count } from "drizzle-or
 import { validateBookingDates, validateOccupancy, checkRoomConflict, validateReinstateCheckedOut, validateRoomMove } from "../lib/validation";
 import { calculateFolioBalance } from "@pms/domain";
 
-/** Возвращает текущую открытую бизнес-дату отеля. Фолбэк на системный день если нет открытой даты. */
+/** Возвращает текущую открытую бизнес-дату отеля. Выбрасывает ошибку если открытой даты нет. */
 async function getBusinessDate(db: any, propertyId: string): Promise<string> {
   const [bizDate] = await db
     .select({ date: businessDates.date })
     .from(businessDates)
     .where(and(eq(businessDates.propertyId, propertyId), eq(businessDates.status, "open")))
     .limit(1);
-  return bizDate?.date ?? new Date().toISOString().split("T")[0];
+  if (!bizDate) {
+    throw { statusCode: 500, code: "NO_OPEN_BUSINESS_DATE", message: "Открытая бизнес-дата не найдена. Выполните ночной аудит." };
+  }
+  return bizDate.date;
 }
 
 export const bookingsRoutes: FastifyPluginAsync = async (app) => {
