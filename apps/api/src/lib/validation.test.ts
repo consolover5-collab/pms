@@ -39,10 +39,8 @@ describe("validateBookingDates", () => {
     assert.equal(validateBookingDates("2026-03-01", "2026-03-02"), null);
   });
 
-  it("returns error when checkOut equals checkIn (0 nights)", () => {
-    const result = validateBookingDates("2026-03-01", "2026-03-01");
-    assert.ok(result !== null, "should return error message");
-    assert.ok(result!.includes("2026-03-01"), "error should mention the date");
+  it("allows day-use booking when checkOut equals checkIn (0 nights)", () => {
+    assert.equal(validateBookingDates("2026-03-01", "2026-03-01"), null);
   });
 
   it("returns error when checkOut is before checkIn", () => {
