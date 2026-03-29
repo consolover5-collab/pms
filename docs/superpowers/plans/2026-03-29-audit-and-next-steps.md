@@ -8,77 +8,130 @@
 - GitHub: consolover5-collab/pms (public)
 - Seed data: 1 отель (GBH), 54 номера, 11 гостей, 13 бронирований
 
+## Исправлено в этой сессии
+- [x] Unit test `validateBookingDates` — ожидал ошибку для day-use, обновлён
+- [x] `.env.example` — дополнен всеми переменными
+- [x] MEMORY.md — реструктурирован (5 файлов вместо 1 монолита)
+
+---
+
 ## Найденные проблемы
 
-### Исправлено в этой сессии
-- [x] Unit test `validateBookingDates` — ожидал ошибку для day-use (checkIn==checkOut), но код уже разрешает это с коммита `8c57257`
-- [x] `.env.example` не содержал всех переменных — дополнен
+### CRITICAL (5) — Безопасность
 
-### Требует исправления (Important)
+#### C-01. Auth полностью отключён
+**Файл:** `apps/api/src/app.ts:31` — `// await app.register(authPlugin)`
+Все API эндпоинты доступны без аутентификации. `postedBy` в folio всегда `"system"` — аудит-трейл бесполезен.
 
-#### I-01. `...request.body` spread в mutations
-**Файлы:** `rate-plans.ts:108`, `guests.ts:92,120`, `transaction-codes.ts:89`
-**Проблема:** Spread `request.body` напрямую в `.set()` / `.values()` позволяет клиенту передать произвольные поля (id, createdAt, propertyId). Drizzle отфильтрует неизвестные колонки, но это неявная защита.
-**Решение:** Explicit field whitelist — деструктурировать нужные поля.
+#### C-02. Mass assignment через `...request.body`
+**Файлы:** `bookings.ts:404`, `guests.ts:120`, `rate-plans.ts:108`, `room-types.ts:85`, `properties.ts:54`
+Без Fastify JSON Schema лишние поля не фильтруются. Атакующий может послать `{"status":"checked_in"}` на PUT /bookings/:id и обойти state machine.
 
-#### I-02. propertyId не валидируется как UUID в ряде GET-эндпоинтов
-**Файлы:** Большинство GET-роутов берут `propertyId` из query без `isValidUuid()`.
-**Проблема:** Невалидный UUID передаётся в SQL WHERE, что приводит к 500 (UNDEFINED_VALUE) вместо 400.
-**Решение:** Добавить `if (!propertyId || !isValidUuid(propertyId)) return reply.status(400)` на все GET-эндпоинты.
+#### C-03. CORS отражает любой origin + credentials
+**Файл:** `app.ts:24` — `{ origin: true, credentials: true }`
+Любой сайт может делать cross-origin запросы с куками. При включении auth — полный доступ с любого домена.
 
-#### I-03. Нет CORS конфигурации
-**Файл:** `apps/api/src/server.ts`
-**Проблема:** Фронтенд на :3000 обращается к API на :3001 — CORS не настроен (работает только потому что Next.js SSR делает запросы server-side).
-**Решение:** `@fastify/cors` с whitelist origin.
+#### C-04. Session cookie без `secure` флага
+**Файл:** `auth.ts:54-58` — `httpOnly: true, sameSite: "lax"`, но нет `secure: true`.
 
-#### I-04. Нет loading/not-found/error boundaries в Next.js
-**Проблема:** Нет `loading.tsx` (нет skeleton screens), нет `not-found.tsx` (стандартная 404).
-**Решение:** Добавить базовые loading.tsx и not-found.tsx в app/.
+#### C-05. Захардкоженные seed-пароли
+**Файл:** `seed.ts:561-581` — `"admin123"`, `"front123"`, `"hk123"`.
 
-#### I-05. Тесты оставляют данные в БД
-**Проблема:** integration tests создают бронирования/гостей и не чистят за собой (11 гостей вместо 10, 13 букингов вместо 10).
-**Решение:** Добавить cleanup в afterEach или использовать транзакцию-rollback.
+### IMPORTANT (10) — Качество и надёжность
 
-### Желательные улучшения (Minor)
+#### I-01. Нет UUID-валидации на params
+`request.params.id` идёт в SQL без `isValidUuid()` в rooms, guests, bookings, rate-plans, room-types, properties. Невалидный UUID → 500 вместо 400.
 
-#### M-01. Нет README.md
-Публичный репо на GitHub без README. Нужен минимальный с описанием, stack, как запустить.
+#### I-02. Нет Fastify JSON Schema ни на одном роуте
+TypeScript generics дают только compile-time проверку. В рантайме body/query не валидируются — пропущенные поля → SQL-ошибки 500.
 
-#### M-02. `docs/project-context.md` — устаревшие версии
-Указан Next.js 16.1.6, но реальная версия может отличаться (Node.js 25 установлен, а в доке — 22 LTS).
+#### I-03. Нет rate-limit на login
+Неограниченный brute-force + слабые seed-пароли = компрометация.
 
-#### M-03. Нет health-check для web
-API имеет `/health`, web — нет. Для мониторинга полезно.
+#### I-04. Нет security headers
+Нет `@fastify/helmet` — отсутствуют X-Content-Type-Options, X-Frame-Options, CSP, HSTS.
 
-#### M-04. Бизнес-дата в seed — `2026-02-22`
-Фиксированная дата в seed не совпадает с текущей. Night audit требует ручного продвижения.
+#### I-05. DB pool не закрывается при shutdown
+Нет `app.addHook('onClose', ...)`, нет SIGTERM/SIGINT handler в server.ts.
 
-#### M-05. Auth отключён
-Код есть, но middleware не применяется. Для production нужна активация.
+#### I-06. Expired sessions не чистятся
+Sessions с `expiresAt < now()` не удаляются — таблица растёт бесконечно.
 
-#### M-06. Нет rate-limiter на API
-Все эндпоинты без ограничения частоты запросов.
+#### I-07. PUT /bookings/:id обходит state machine
+`...request.body` spread позволяет передать `status` напрямую, минуя check-in/check-out/cancel валидации. **Самая опасная бизнес-уязвимость.**
 
-## План дальнейшей работы (приоритет)
+#### I-08. Дублирование OOO-валидации в POST/PATCH rooms
+`rooms.ts:137-233` и `rooms.ts:236-326` — ~90 строк идентичной логики.
 
-### Фаза 1 — Hardening (1 сессия)
-1. I-01: Explicit field whitelists в mutations
-2. I-02: propertyId UUID validation на все GET
-3. I-03: CORS configuration
-4. M-01: README.md для GitHub
+#### I-09. `getBusinessDate()` дублирован в 3 файлах
+bookings.ts, dashboard.ts, night-audit (inline). Разные обработки ошибок.
 
-### Фаза 2 — UX Polish (1 сессия)
-1. I-04: loading.tsx, not-found.tsx, улучшить error.tsx
-2. M-03: Health check для web
-3. Responsive design audit (мобильные таблицы)
+#### I-10. Night audit preview: тип Querystring, чтение из body
+`night-audit.ts:17-20` — TypeScript type говорит Querystring, код читает body.
 
-### Фаза 3 — Test Infrastructure (1 сессия)
-1. I-05: Test isolation (cleanup или rollback)
-2. Добавить тесты на folio, night-audit, guests CRUD
-3. CI pipeline (GitHub Actions: typecheck + test)
+### MINOR (10) — Технический долг
 
-### Фаза 4 — Production Readiness
-1. M-05: Активация auth middleware
-2. M-06: Rate limiting
-3. Docker Compose для deployment
-4. Обновить project-context.md
+| # | Проблема | Файл(ы) |
+|---|----------|---------|
+| M-01 | 66 `any` по 8 файлам | validation.ts, folio.ts, night-audit.ts |
+| M-02 | Смешение русских/английских ошибок | rooms.ts, room-types.ts vs bookings.ts |
+| M-03 | Нет loading.tsx / not-found.tsx | apps/web/src/app/ |
+| M-04 | Frontend fetch без error handling | booking-actions.tsx:35-47 |
+| M-05 | Properties без propertyId scoping | properties.ts:6 |
+| M-06 | Seed использует `new Date()` | seed.ts:231 |
+| M-07 | Domain state machine не используется | booking/state-machine.ts определён, API не вызывает |
+| M-08 | formatCurrency без символа валюты | format.ts |
+| M-09 | Unused imports в validation.ts | `rooms`, `roomTypes` не используются |
+| M-10 | Night audit N+1 queries | night-audit.ts:335-406 |
+
+---
+
+## Что работает хорошо
+- `SELECT ... FOR UPDATE` для race condition prevention (check-in, room-move, confirmation numbers)
+- Append-only folio с ON CONFLICT DO NOTHING (idempotency)
+- Business date discipline — `getBusinessDate()` вместо `new Date()`
+- RESTRICT FK + pre-check dependencies с русскими сообщениями
+- Domain logic isolation в `packages/domain/`
+- 47 тестов (29 unit + 18 integration) — все зелёные
+
+---
+
+## План дальнейшей работы
+
+### Фаза 1 — Security Hardening (приоритет: высокий)
+1. **C-02 + I-07**: Explicit field whitelists на ВСЕ PUT/POST endpoints (особенно bookings)
+2. **C-03**: CORS — ограничить origin до `localhost:3000` / env variable
+3. **I-01**: UUID validation на все `:id` params (Fastify preValidation hook)
+4. **I-02**: JSON Schema хотя бы на bookings POST/PUT, night-audit POST
+5. **C-04**: `secure: true` на cookie в production
+6. **I-04**: `@fastify/helmet` для security headers
+7. README.md для публичного GitHub
+
+### Фаза 2 — Code Quality (приоритет: средний)
+1. **I-07 + M-07**: Подключить domain state machine в API routes
+2. **I-08**: Извлечь OOO-валидацию в общую функцию
+3. **I-09**: Вынести `getBusinessDate()` в `apps/api/src/lib/business-date.ts`
+4. **I-10**: Исправить type mismatch в night-audit preview
+5. **M-09**: Удалить unused imports
+6. **M-02**: Унифицировать язык ошибок (русский)
+7. **M-01**: Заменить `any` на proper types
+
+### Фаза 3 — UX & Frontend (приоритет: средний)
+1. **M-03**: loading.tsx, not-found.tsx
+2. **M-04**: Error handling в client-side fetch
+3. **M-08**: formatCurrency с символом валюты
+4. Responsive design для мобильных таблиц
+
+### Фаза 4 — Infrastructure (приоритет: низкий)
+1. **I-05**: Graceful shutdown (DB pool close + signal handlers)
+2. **I-03**: Rate limiting на login (`@fastify/rate-limit`)
+3. **I-06**: Session cleanup (night audit или cron)
+4. Test isolation — cleanup/rollback для integration tests
+5. CI pipeline (GitHub Actions: typecheck + test)
+6. Docker Compose
+
+### Фаза 5 — Production (когда готовы)
+1. **C-01**: Активация auth middleware
+2. **C-05**: Seed-пароли из env или document "never run in prod"
+3. HTTPS + secure cookies
+4. Обновить docs/project-context.md
