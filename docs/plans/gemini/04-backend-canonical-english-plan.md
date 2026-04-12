@@ -59,11 +59,21 @@
    FROM "bookings" b
    WHERE fw.booking_id = b.id AND fw.window_number = 1;
 
-   -- Заполняем данными из bookings (для Window 2 - если компания/агент)
+   -- Заполняем данными из bookings (для Window 2+ где payee_type = company)
    UPDATE "folio_windows" fw
-   SET "profile_id" = COALESCE(b.company_profile_id, b.agent_profile_id)
+   SET "profile_id" = b.company_profile_id
    FROM "bookings" b
-   WHERE fw.booking_id = b.id AND fw.window_number > 1 AND fw.payee_type IN ('company', 'travel_agent');
+   WHERE fw.booking_id = b.id
+     AND fw.payee_type = 'company'
+     AND b.company_profile_id IS NOT NULL;
+
+   -- Заполняем данными из bookings (для Window 2+ где payee_type = travel_agent)
+   UPDATE "folio_windows" fw
+   SET "profile_id" = b.agent_profile_id
+   FROM "bookings" b
+   WHERE fw.booking_id = b.id
+     AND fw.payee_type = 'travel_agent'
+     AND b.agent_profile_id IS NOT NULL;
 
    -- Фоллбэк: если profile_id всё ещё NULL — ставим guest профайл брони
    UPDATE "folio_windows" fw
