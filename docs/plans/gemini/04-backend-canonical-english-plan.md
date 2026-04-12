@@ -98,15 +98,20 @@
    ```
    *Не забыть обновить `packages/db/drizzle/meta/_journal.json`.*
 3. **Обновить API создания броней (`bookings.ts`)**:
-   - При создании первого окна фолио (Window 1), брать `name` из профиля главного гостя (`guestProfileId`) и передавать его в `label` и `profileId` (например, `"Ivan Ivanov"`).
-   - Если создаются дополнительные окна для компании или агента (Window 2+), передавать соответствующий `profiles.name` (например, `"Baltic Lines LLC"`) и `companyProfileId`/`agentProfileId`.
+   - При создании Window 1: выполнить `SELECT name FROM profiles WHERE id = guestProfileId` → использовать результат как `label` и `profileId`.
+   - При создании Window 2+ для компании: `SELECT name FROM profiles WHERE id = companyProfileId` → `label` + `profileId`.
+   - При создании Window 2+ для агента: `SELECT name FROM profiles WHERE id = agentProfileId` → `label` + `profileId`.
+   - Важно: name брать из БД, не из request body — там его может не быть.
 4. **Обновить API создания окон (`folio.ts`)**:
-   - Обновить роут `POST /api/bookings/:bookingId/folio/windows`, чтобы он принимал `profileId` и брал `label` из соответствующего профиля.
-5. **Обновить UI**:
+   - Обновить роут `POST /api/bookings/:bookingId/folio/windows`: принимает `profileId`, выполняет `SELECT name FROM profiles WHERE id = profileId`, использует `name` как `label`. Возвращать 404 если профайл не найден.
+5. **Обновить DELETE /api/profiles (profiles.ts после GLM 05)**:
+   - Помимо проверки броней, добавить проверку `folio_windows`: если у профайла есть связанные окна фолио → вернуть 400 с `{ code: "HAS_FOLIO_WINDOWS", count }` вместо того чтобы падать с FK constraint на уровне БД.
+6. **Обновить UI**:
    - Фронтенду больше не нужно переводить системные слова. Он будет выводить `label` "как есть" (например, `W1: Ivan Ivanov`, `W2: Baltic Lines LLC`), что является самым каноничным и бизнес-логичным подходом.
-6. **Обновить тесты**:
+7. **Обновить тесты**:
    - Обновить интеграционные тесты в `apps/api/src/routes/integration.test.ts`, которые проверяют folio windows, так как структура схемы изменилась.
-7. **Проверка:** В конце фазы запустить явную проверку:
+   - Добавить тест: DELETE профайла с folio window → 400, code=HAS_FOLIO_WINDOWS.
+8. **Проверка:** В конце фазы запустить явную проверку:
    ```bash
    cd apps/api && npx tsc --noEmit
    cd ../web && npx tsc --noEmit
