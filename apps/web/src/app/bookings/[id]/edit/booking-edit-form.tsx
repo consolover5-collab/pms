@@ -20,16 +20,20 @@ type Booking = {
   guaranteeCode: string | null;
   paymentMethod: string | null;
   notes: string | null;
+  companyProfileId: string | null;
+  agentProfileId: string | null;
+  sourceProfileId: string | null;
   guest: { id: string; firstName: string; lastName: string };
   room: { id: string; roomNumber: string } | null;
   roomType: { id: string; name: string; code: string };
   ratePlan: { id: string; name: string; code: string } | null;
 };
 
-type Guest = { id: string; firstName: string; lastName: string };
+type Guest = { id: string; firstName: string; lastName: string; name: string };
 type RoomType = { id: string; name: string; code: string };
 type Room = { id: string; roomNumber: string; roomTypeId: string; occupancyStatus: string; housekeepingStatus: string };
 type RatePlan = { id: string; name: string; code: string; baseRate: string | null };
+type Profile = { id: string; name: string };
 
 const paymentMethods = [
   { value: "", label: "Not specified" },
@@ -40,7 +44,7 @@ const paymentMethods = [
 ];
 
 const statusExplanations: Record<string, string> = {
-  checked_in: "Гость заселён. Дата заезда, тип номера и гость заблокированы. Можно продлить дату выезда, изменить комнату, тариф и заметки.",
+  checked_in: "Guest is checked in. Check-in date, room type and guest are locked. You can extend check-out date, change room, rate and notes.",
   checked_out: "Stay is completed. Only notes can be updated for historical records.",
   cancelled: "Booking is cancelled. Use 'Reinstate' to restore it before making changes.",
   no_show: "Marked as no-show. Use 'Reinstate' to restore it before making changes.",
@@ -86,12 +90,18 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
   const [rooms, setRooms] = useState<Room[]>([]);
   const [ratePlans, setRatePlans] = useState<RatePlan[]>([]);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [companies, setCompanies] = useState<Profile[]>([]);
+  const [agents, setAgents] = useState<Profile[]>([]);
+  const [sources, setSources] = useState<Profile[]>([]);
 
   // Controlled state — initialized from booking
   const [selectedGuestId, setSelectedGuestId] = useState(booking.guest.id);
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState(booking.roomType.id);
   const [selectedRoomId, setSelectedRoomId] = useState(booking.room?.id || "");
   const [selectedRatePlanId, setSelectedRatePlanId] = useState(booking.ratePlan?.id || "");
+  const [selectedCompanyId, setSelectedCompanyId] = useState(booking.companyProfileId || "");
+  const [selectedAgentId, setSelectedAgentId] = useState(booking.agentProfileId || "");
+  const [selectedSourceId, setSelectedSourceId] = useState(booking.sourceProfileId || "");
   const [checkInDate, setCheckInDate] = useState(booking.checkInDate);
   const [checkOutDate, setCheckOutDate] = useState(booking.checkOutDate);
   const [adultsVal, setAdultsVal] = useState(booking.adults);
@@ -136,16 +146,22 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
   useEffect(() => {
     async function loadData() {
       try {
-        const [g, rt, rm, rp] = await Promise.all([
-          fetch(`/api/guests?propertyId=${propertyId}`).then((r) => r.json()),
+        const [g, rt, rm, rp, compRaw, agentRaw, sourceRaw] = await Promise.all([
+          fetch(`/api/profiles?propertyId=${propertyId}&type=individual`).then((r) => r.json()),
           fetch(`/api/room-types?propertyId=${propertyId}`).then((r) => r.json()),
           fetch(`/api/rooms?propertyId=${propertyId}`).then((r) => r.json()),
           fetch(`/api/rate-plans?propertyId=${propertyId}`).then((r) => r.json()).catch(() => []),
+          fetch(`/api/profiles?propertyId=${propertyId}&type=company`).then((r) => r.json()),
+          fetch(`/api/profiles?propertyId=${propertyId}&type=travel_agent`).then((r) => r.json()),
+          fetch(`/api/profiles?propertyId=${propertyId}&type=source`).then((r) => r.json()),
         ]);
         setGuests(Array.isArray(g) ? g : (g.data ?? []));
         setRoomTypes(Array.isArray(rt) ? rt : (rt.data ?? []));
         setRooms(Array.isArray(rm) ? rm : (rm.data ?? []));
         setRatePlans(Array.isArray(rp) ? rp : (rp.data ?? []));
+        setCompanies(compRaw.data ?? []);
+        setAgents(agentRaw.data ?? []);
+        setSources(sourceRaw.data ?? []);
         setDataLoaded(true);
       } catch {
         setError("Could not load data. Check that the API server is running.");
@@ -206,7 +222,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
 
     // Only include fields that can be edited for current status
     if (canEditCoreFields) {
-      body.guestId = selectedGuestId;
+      body.guestProfileId = selectedGuestId;
       body.roomTypeId = selectedRoomTypeId;
       body.checkInDate = checkInDate;
       body.checkOutDate = checkOutDate;
@@ -228,6 +244,9 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
       body.guaranteeCode = guaranteeCodeVal || null;
       body.paymentMethod = paymentMethodVal || null;
       body.ratePlanId = selectedRatePlanId || null;
+      body.companyProfileId = selectedCompanyId || null;
+      body.agentProfileId = selectedAgentId || null;
+      body.sourceProfileId = selectedSourceId || null;
     }
 
     if (canEditNotes) {
@@ -321,11 +340,68 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           onChange={(e) => setSelectedGuestId(e.target.value)}
           className={`w-full px-3 py-2 border rounded ${!canEditCoreFields ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
         >
-          {guests.map((g) => <option key={g.id} value={g.id}>{g.lastName}, {g.firstName}</option>)}
+          {guests.map((g) => <option key={g.id} value={g.id}>{g.lastName || g.name}, {g.firstName}</option>)}
           {/* Fallback if data not loaded yet */}
           {!dataLoaded && (
             <option value={booking.guest.id}>{booking.guest.lastName}, {booking.guest.firstName}</option>
           )}
+        </select>
+      </FormField>
+
+      {/* Company */}
+      <FormField
+        label="Company"
+        disabled={!canEditFinancials}
+        lockedReason={!canEditFinancials ? "Cannot change company for completed bookings" : undefined}
+      >
+        <select
+          disabled={!canEditFinancials}
+          value={selectedCompanyId}
+          onChange={(e) => setSelectedCompanyId(e.target.value)}
+          className={`w-full px-3 py-2 border rounded ${!canEditFinancials ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
+        >
+          <option value="">— None —</option>
+          {companies.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </FormField>
+
+      {/* Travel Agent */}
+      <FormField
+        label="Travel Agent"
+        disabled={!canEditFinancials}
+        lockedReason={!canEditFinancials ? "Cannot change agent for completed bookings" : undefined}
+      >
+        <select
+          disabled={!canEditFinancials}
+          value={selectedAgentId}
+          onChange={(e) => setSelectedAgentId(e.target.value)}
+          className={`w-full px-3 py-2 border rounded ${!canEditFinancials ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
+        >
+          <option value="">— None —</option>
+          {agents.map((a) => (
+            <option key={a.id} value={a.id}>{a.name}</option>
+          ))}
+        </select>
+      </FormField>
+
+      {/* Source */}
+      <FormField
+        label="Source"
+        disabled={!canEditFinancials}
+        lockedReason={!canEditFinancials ? "Cannot change source for completed bookings" : undefined}
+      >
+        <select
+          disabled={!canEditFinancials}
+          value={selectedSourceId}
+          onChange={(e) => setSelectedSourceId(e.target.value)}
+          className={`w-full px-3 py-2 border rounded ${!canEditFinancials ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
+        >
+          <option value="">— None —</option>
+          {sources.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
         </select>
       </FormField>
 
@@ -366,8 +442,8 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
             className={`w-full px-3 py-2 border rounded ${(!canEditCoreFields && !canExtendStay) ? "bg-gray-100 text-gray-500 cursor-not-allowed" : dateError ? "border-red-500" : ""}`}
           />
           {dateError && <p className="text-xs text-red-500 mt-1">{dateError}</p>}
-          {nights > 0 && <p className="text-xs text-gray-500 mt-1">{nights} ноч{nights === 1 ? "ь" : nights < 5 ? "и" : "ей"}</p>}
-          {canExtendStay && !canEditCoreFields && <p className="text-xs text-blue-600 mt-1">Можно продлить проживание, изменив дату выезда</p>}
+          {nights > 0 && <p className="text-xs text-gray-500 mt-1">{nights} night{nights > 1 ? "s" : ""}</p>}
+          {canExtendStay && !canEditCoreFields && <p className="text-xs text-blue-600 mt-1">You can extend the stay by changing the check-out date</p>}
         </FormField>
       </div>
 
@@ -488,7 +564,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           />
         </FormField>
         <FormField
-          label="Расч. сумма"
+          label="Total"
           disabled
         >
           <input
@@ -499,14 +575,14 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           />
           {nights > 0 && rateAmount && (
             <p className="text-xs text-gray-500 mt-1">
-              {formatCurrency(rateAmount)} ₽ × {nights} ноч.
+              {formatCurrency(rateAmount)} ₽ × {nights} nights
             </p>
           )}
         </FormField>
       </div>
 
       <FormField
-        label="Гарантия"
+        label="Guarantee"
         disabled={!canEditFinancials}
         lockedReason={!canEditFinancials ? "Cannot change guarantee for completed bookings" : undefined}
       >
@@ -516,12 +592,12 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           onChange={(e) => setGuaranteeCodeVal(e.target.value)}
           className={`w-full px-3 py-2 border rounded ${!canEditFinancials ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
         >
-          <option value="">Не указана</option>
-          <option value="cc_guaranteed">Кредитная карта</option>
-          <option value="deposit_guaranteed">Депозит</option>
-          <option value="company_guaranteed">Компания</option>
-          <option value="non_guaranteed">Без гарантии</option>
-          <option value="travel_agent_guaranteed">Турагент</option>
+          <option value="">Not specified</option>
+          <option value="cc_guaranteed">Credit Card</option>
+          <option value="deposit_guaranteed">Deposit</option>
+          <option value="company_guaranteed">Company</option>
+          <option value="non_guaranteed">No Guarantee</option>
+          <option value="travel_agent_guaranteed">Travel Agent</option>
         </select>
       </FormField>
 

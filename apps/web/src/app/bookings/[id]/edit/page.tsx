@@ -15,6 +15,9 @@ type Booking = {
   guaranteeCode: string | null;
   paymentMethod: string | null;
   notes: string | null;
+  companyProfileId: string | null;
+  agentProfileId: string | null;
+  sourceProfileId: string | null;
   guest: { id: string; firstName: string; lastName: string };
   room: { id: string; roomNumber: string } | null;
   roomType: { id: string; name: string; code: string };

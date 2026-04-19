@@ -56,9 +56,12 @@ export function GuestEditForm({ guest }: { guest: Guest }) {
     setError(null);
 
     const form = new FormData(e.currentTarget);
+    const firstName = String(form.get("firstName") || "").trim();
+    const lastName = String(form.get("lastName") || "").trim();
     const body: Record<string, unknown> = {
-      firstName: form.get("firstName"),
-      lastName: form.get("lastName"),
+      firstName,
+      lastName,
+      name: `${firstName} ${lastName}`,
     };
 
     const optionalFields = [
@@ -74,7 +77,7 @@ export function GuestEditForm({ guest }: { guest: Guest }) {
     body.vipStatus = vipStatus && String(vipStatus).trim() ? String(vipStatus).trim() : null;
 
     try {
-      const res = await fetch(`/api/guests/${guest.id}`, {
+      const res = await fetch(`/api/profiles/${guest.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -154,7 +157,7 @@ export function GuestEditForm({ guest }: { guest: Guest }) {
         <div>
           <label className="block text-xs text-gray-500 mb-1">VIP Status</label>
           <select name="vipStatus" defaultValue={guest.vipStatus || ""} className="w-full px-3 py-2 border rounded">
-            <option value="">Нет</option>
+            <option value="">None</option>
             <option value="VIP1">VIP 1</option>
             <option value="VIP2">VIP 2</option>
             <option value="VIP3">VIP 3</option>

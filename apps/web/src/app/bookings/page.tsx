@@ -3,6 +3,7 @@ import { formatCurrency } from "@/lib/format";
 import Link from "next/link";
 import { DateFilter } from "./date-filter";
 import { BookingSearchForm } from "./search-form";
+import { getLocale, getDict, t } from "@/lib/i18n";
 
 type Booking = {
   id: string;
@@ -13,6 +14,7 @@ type Booking = {
   adults: number;
   children: number;
   totalAmount: string | null;
+  actualCheckOut: string | null;
   guest: {
     id: string;
     firstName: string;
@@ -39,7 +41,7 @@ const statusColors: Record<string, string> = {
   checked_in: "bg-green-100 text-green-800",
   checked_out: "bg-gray-100 text-gray-800",
   cancelled: "bg-red-100 text-red-800",
-  no_show: "bg-yellow-100 text-yellow-800",
+  no_show: "bg-purple-100 text-purple-800",
 };
 
 const statusLabels: Record<string, string> = {
@@ -75,6 +77,8 @@ export default async function BookingsPage({
     page?: string;
   }>;
 }) {
+  const locale = await getLocale();
+  const dict = getDict(locale);
   const { status, view, dateFrom, dateTo, q, page } = await searchParams;
   const currentPage = Math.max(Number(page) || 1, 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
@@ -142,10 +146,12 @@ export default async function BookingsPage({
   queryParams.set("offset", String(offset));
 
   let result: BookingsResponse;
+  let bizDateRes: { date: string };
   try {
-    result = await apiFetch<BookingsResponse>(
-      `/api/bookings?${queryParams.toString()}`,
-    );
+    [result, bizDateRes] = await Promise.all([
+      apiFetch<BookingsResponse>(`/api/bookings?${queryParams.toString()}`),
+      apiFetch<{ date: string }>(`/api/business-date?propertyId=${property.id}`),
+    ]);
   } catch (err) {
     return (
       <main className="p-8">
@@ -189,7 +195,7 @@ export default async function BookingsPage({
       <div className="flex justify-between items-center mb-4">
         <div>
           <Link href="/" className="text-blue-600 hover:underline text-sm">
-            &larr; Dashboard
+            &larr; {t(dict, "nav.dashboard")}
           </Link>
           <h1 className="text-2xl font-bold">{pageTitle}</h1>
         </div>
@@ -266,12 +272,12 @@ export default async function BookingsPage({
           <thead>
             <tr className="border-b text-left">
               <th className="p-2">Confirmation</th>
-              <th className="p-2">Guest</th>
-              <th className="p-2">Room</th>
+              <th className="p-2">{t(dict, "common.guest")}</th>
+              <th className="p-2">{t(dict, "common.room")}</th>
               <th className="p-2">Check-in</th>
               <th className="p-2">Check-out</th>
-              <th className="p-2">Status</th>
-              <th className="p-2">Total</th>
+              <th className="p-2">{t(dict, "common.status")}</th>
+              <th className="p-2">{t(dict, "common.total")}</th>
               {(view === "arrivals" || view === "departures") && (
                 <th className="p-2">Action</th>
               )}
@@ -306,11 +312,33 @@ export default async function BookingsPage({
                 <td className="p-2">{booking.checkInDate}</td>
                 <td className="p-2">{booking.checkOutDate}</td>
                 <td className="p-2">
-                  <span
-                    className={`text-xs px-2 py-1 rounded ${statusColors[booking.status] || "bg-gray-100"}`}
-                  >
-                    {statusLabels[booking.status] || booking.status}
-                  </span>
+                  {(() => {
+                    let color = statusColors[booking.status] || "bg-gray-100 text-gray-800";
+                    let label = statusLabels[booking.status] || booking.status;
+                    const isTodayCheckIn = booking.checkInDate === bizDateRes.date;
+                    const isTodayCheckOut = booking.checkOutDate === bizDateRes.date;
+                    const isTodayActualCheckOut = booking.actualCheckOut?.startsWith(bizDateRes.date);
+
+                    if (booking.status === "confirmed" && isTodayCheckIn) {
+                      color = "bg-orange-100 text-orange-800";
+                      label = "Due In";
+                    } else if (booking.status === "checked_in" && isTodayCheckOut) {
+                      color = "bg-yellow-100 text-yellow-800";
+                      label = "Due Out";
+                    } else if (view === "arrivals" && booking.status === "checked_in" && isTodayCheckIn) {
+                      color = "bg-green-100 text-green-800";
+                      label = t(dict, "bookings.checkedInToday");
+                    } else if (view === "departures" && booking.status === "checked_out" && isTodayActualCheckOut) {
+                      color = "bg-gray-100 text-gray-800";
+                      label = t(dict, "bookings.checkedOutToday");
+                    }
+
+                    return (
+                      <span className={`text-xs px-2 py-1 rounded ${color}`}>
+                        {label}
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="p-2 text-right">
                   {booking.totalAmount

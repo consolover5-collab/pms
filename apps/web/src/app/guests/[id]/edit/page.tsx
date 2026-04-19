@@ -24,7 +24,7 @@ export default async function GuestEditPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const guest = await apiFetch<Guest>(`/api/guests/${id}`);
+  const guest = await apiFetch<Guest>(`/api/profiles/${id}`);
 
   return (
     <main className="p-8">

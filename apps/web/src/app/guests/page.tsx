@@ -6,11 +6,12 @@ type Guest = {
   id: string;
   firstName: string;
   lastName: string;
+  name: string;
   email: string | null;
   phone: string | null;
   nationality: string | null;
   gender: string | null;
-  vipStatus: number | null;
+  vipStatus: string | null;
 };
 
 type GuestsResponse = {
@@ -30,13 +31,15 @@ export default async function GuestsPage({
   const offset = (currentPage - 1) * PAGE_SIZE;
 
   const params = new URLSearchParams();
-  if (q) params.set("q", encodeURIComponent(q));
+  params.set("propertyId", "ff1d9135-dfb9-4baa-be46-0e739cd26dad");
+  params.set("type", "individual");
+  if (q) params.set("q", q);
   params.set("limit", String(PAGE_SIZE));
   params.set("offset", String(offset));
 
   let result: GuestsResponse;
   try {
-    result = await apiFetch<GuestsResponse>(`/api/guests?${params.toString()}`);
+    result = await apiFetch<GuestsResponse>(`/api/profiles?${params.toString()}`);
   } catch (err) {
     return (
       <main className="p-8">
@@ -61,16 +64,13 @@ export default async function GuestsPage({
   const { data: guests, total } = result;
   const totalPages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
 
-  const vipBadge = (level: number) => {
-    const colors = [
-      "",
-      "bg-yellow-100 text-yellow-800",
-      "bg-yellow-200 text-yellow-900",
-      "bg-orange-100 text-orange-800",
-      "bg-orange-200 text-orange-900",
-      "bg-red-100 text-red-800",
-    ];
-    return colors[level] || "";
+  const vipBadge = (level: string) => {
+    const map: Record<string, string> = {
+      VIP: "bg-red-100 text-red-800",
+      GOLD: "bg-yellow-100 text-yellow-800",
+      SILVER: "bg-gray-200 text-gray-800",
+    };
+    return map[level] || "bg-gray-100 text-gray-700";
   };
 
   function pageUrl(p: number) {
@@ -120,7 +120,7 @@ export default async function GuestsPage({
                     href={`/guests/${guest.id}`}
                     className="text-blue-600 hover:underline font-medium"
                   >
-                    {guest.lastName}, {guest.firstName}
+                    {guest.lastName || guest.name}, {guest.firstName}
                   </Link>
                 </td>
                 <td className="p-2 text-gray-600">{guest.email || "\u2014"}</td>
@@ -131,7 +131,7 @@ export default async function GuestsPage({
                     <span
                       className={`text-xs px-2 py-1 rounded ${vipBadge(guest.vipStatus)}`}
                     >
-                      VIP {guest.vipStatus}
+                      {guest.vipStatus}
                     </span>
                   ) : null}
                 </td>

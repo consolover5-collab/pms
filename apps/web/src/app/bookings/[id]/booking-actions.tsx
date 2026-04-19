@@ -3,6 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { ErrorDisplay, type ApiErrorDetail } from "@/components/error-display";
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
+import type { Dictionary } from "@/lib/i18n/locales/en";
 
 type AvailableRoom = {
   id: string;
@@ -19,6 +22,7 @@ function RoomPickerModal({
   excludeRoomId,
   onConfirm,
   onCancel,
+  dict,
 }: {
   title: string;
   propertyId: string;
@@ -26,6 +30,7 @@ function RoomPickerModal({
   excludeRoomId?: string | null;
   onConfirm: (roomId: string) => void;
   onCancel: () => void;
+  dict: Dictionary;
 }) {
   const [rooms, setRooms] = useState<AvailableRoom[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -53,19 +58,19 @@ function RoomPickerModal({
         <h3 className="text-base font-semibold mb-4">{title}</h3>
 
         {loading ? (
-          <p className="text-sm text-gray-500">Загрузка комнат…</p>
+          <p className="text-sm text-gray-500">{t(dict, "booking.loadingRooms")}</p>
         ) : rooms.length === 0 ? (
-          <p className="text-sm text-red-600">Нет свободных чистых комнат данного типа.</p>
+          <p className="text-sm text-red-600">{t(dict, "booking.noCleanRooms")}</p>
         ) : (
           <select
             className="w-full border rounded px-3 py-2 text-sm"
             value={selectedId}
             onChange={(e) => setSelectedId(e.target.value)}
           >
-            <option value="">— выберите комнату —</option>
+            <option value="">{t(dict, "booking.selectRoom")}</option>
             {rooms.map((r) => (
               <option key={r.id} value={r.id}>
-                №{r.roomNumber}{r.floor ? ` · эт.${r.floor}` : ""} · {r.housekeepingStatus} / {r.occupancyStatus}
+                №{r.roomNumber}{r.floor ? ` · fl.${r.floor}` : ""} · {r.housekeepingStatus} / {r.occupancyStatus}
               </option>
             ))}
           </select>
@@ -76,14 +81,14 @@ function RoomPickerModal({
             onClick={onCancel}
             className="px-4 py-2 text-sm rounded border hover:bg-gray-50"
           >
-            Отмена
+            {t(dict, "booking.cancel")}
           </button>
           <button
             onClick={() => selectedId && onConfirm(selectedId)}
             disabled={!selectedId}
             className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
           >
-            Подтвердить
+            {t(dict, "booking.confirm")}
           </button>
         </div>
       </div>
@@ -109,10 +114,12 @@ export function BookingActions({
   currentRoomId: string | null;
 }) {
   const router = useRouter();
+  const { dict } = useLocale();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ApiErrorDetail | null>(null);
   const [showForceCheckout, setShowForceCheckout] = useState(false);
   const [showRoomPickerFor, setShowRoomPickerFor] = useState<"check-in" | "room-move" | null>(null);
+  const [showDirtyWarning, setShowDirtyWarning] = useState<{ roomId?: string; message: string; } | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -120,6 +127,7 @@ export function BookingActions({
     setLoading(true);
     setError(null);
     setShowForceCheckout(false);
+    setShowDirtyWarning(null);
 
     const url = `/api/bookings/${bookingId}/${action}`;
 
@@ -151,6 +159,12 @@ export function BookingActions({
           return;
         }
 
+        // Предупреждение о грязной комнате
+        if (data.code === "ROOM_NOT_READY" && action === "check-in") {
+          setShowDirtyWarning({ roomId: body.roomId as string | undefined, message: data.error });
+          return;
+        }
+
         setError(errorDetail);
         return;
       }
@@ -159,10 +173,10 @@ export function BookingActions({
     } catch (err) {
       const message =
         err instanceof TypeError && err.message === "Failed to fetch"
-          ? `Connection error: Cannot reach the API server. Check that it is running.`
+          ? t(dict, "booking.connectionError")
           : err instanceof Error
           ? err.message
-          : "Network error - check your connection";
+          : t(dict, "booking.networkError");
 
       setError({
         error: message,
@@ -195,14 +209,14 @@ export function BookingActions({
             aria-label="Check in guest"
             className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
           >
-            Check In
+            {t(dict, "booking.checkIn")}
           </button>
         )}
 
         {/* Future arrival note */}
         {isFutureArrival && (
           <span className="px-4 py-2 bg-gray-100 text-gray-500 rounded text-sm">
-            Check-in available on {checkInDate}
+            {t(dict, "booking.checkInAvailable", { date: checkInDate })}
           </span>
         )}
 
@@ -214,7 +228,7 @@ export function BookingActions({
             aria-label="Check out guest"
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
           >
-            Check Out
+            {t(dict, "booking.checkOut")}
           </button>
         )}
 
@@ -226,7 +240,7 @@ export function BookingActions({
             aria-label="Move guest to another room"
             className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
           >
-            Сменить комнату
+            {t(dict, "booking.changeRoom")}
           </button>
         )}
 
@@ -234,7 +248,7 @@ export function BookingActions({
         {canCancelCheckIn && (
           <button
             onClick={() => {
-              if (confirm("Cancel check-in? The guest will need to check in again.")) {
+              if (confirm(t(dict, "booking.cancelCheckInConfirm"))) {
                 performAction("cancel-check-in");
               }
             }}
@@ -242,7 +256,7 @@ export function BookingActions({
             aria-label="Cancel check-in - guest will need to check in again"
             className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-50"
           >
-            Cancel Check-in
+            {t(dict, "booking.cancelCheckIn")}
           </button>
         )}
 
@@ -250,7 +264,7 @@ export function BookingActions({
         {canCancel && (
           <button
             onClick={() => {
-              const reason = prompt("Cancellation reason (optional):");
+              const reason = prompt(t(dict, "booking.cancelReason"));
               if (reason === null) return;
               performAction("cancel", reason ? { reason } : {});
             }}
@@ -258,7 +272,7 @@ export function BookingActions({
             aria-label="Cancel this booking"
             className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
           >
-            Cancel Booking
+            {t(dict, "booking.cancelBooking")}
           </button>
         )}
 
@@ -268,10 +282,10 @@ export function BookingActions({
             onClick={() => {
               const confirmMsg =
                 status === "checked_out"
-                  ? "Восстановить бронирование? Гость будет заново заселён, комната занята."
+                  ? t(dict, "booking.reinstateCheckedOut")
                   : status === "no_show"
-                  ? "Восстановить бронирование? Дата заезда будет перенесена на сегодня (текущую бизнес-дату)."
-                  : "Восстановить бронирование? Статус вернётся в «Подтверждено».";
+                  ? t(dict, "booking.reinstateNoShow")
+                  : t(dict, "booking.reinstateCancelled");
               if (confirm(confirmMsg)) {
                 performAction("reinstate");
               }
@@ -280,7 +294,7 @@ export function BookingActions({
             aria-label="Reinstate this booking"
             className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
           >
-            Reinstate
+            {t(dict, "booking.reinstate")}
           </button>
         )}
       </div>
@@ -294,7 +308,7 @@ export function BookingActions({
             disabled={loading}
             className="px-3 py-1 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700 disabled:opacity-50"
           >
-            Confirm Check-out
+            {t(dict, "booking.confirmCheckOut")}
           </button>
         </div>
       )}
@@ -308,8 +322,7 @@ export function BookingActions({
       {status === "checked_in" && !hasRoom && (
         <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
           <p className="text-sm text-orange-800">
-            Warning: This booking is checked-in but has no room assigned.
-            Please assign a room to proceed with check-out.
+            {t(dict, "booking.noRoomWarning")}
           </p>
         </div>
       )}
@@ -317,7 +330,7 @@ export function BookingActions({
       {/* Room picker modal: выбор комнаты для заселения */}
       {showRoomPickerFor === "check-in" && (
         <RoomPickerModal
-          title="Выберите комнату для заселения"
+          title={t(dict, "booking.selectRoomForCheckIn")}
           propertyId={propertyId}
           roomTypeId={roomTypeId}
           excludeRoomId={null}
@@ -326,13 +339,14 @@ export function BookingActions({
             setShowRoomPickerFor(null);
             performAction("check-in", { roomId });
           }}
+          dict={dict}
         />
       )}
 
       {/* Room picker modal: смена комнаты */}
       {showRoomPickerFor === "room-move" && (
         <RoomPickerModal
-          title="Смена комнаты"
+          title={t(dict, "booking.roomChange")}
           propertyId={propertyId}
           roomTypeId={roomTypeId}
           excludeRoomId={currentRoomId}
@@ -341,7 +355,39 @@ export function BookingActions({
             setShowRoomPickerFor(null);
             performAction("room-move", { newRoomId });
           }}
+          dict={dict}
         />
+      )}
+
+      {/* Dirty room warning modal */}
+      {showDirtyWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4 text-orange-600">{t(dict, "booking.dirtyWarning.title")}</h2>
+            <p className="mb-6">{showDirtyWarning.message}</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDirtyWarning(null)}
+                className="px-4 py-2 border rounded hover:bg-gray-100"
+              >
+                {t(dict, "booking.cancel")}
+              </button>
+              <button
+                onClick={() => {
+                  const payload: Record<string, unknown> = { force: true };
+                  if (showDirtyWarning.roomId) {
+                    payload.roomId = showDirtyWarning.roomId;
+                  }
+                  setShowDirtyWarning(null);
+                  performAction("check-in", payload);
+                }}
+                className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+              >
+                {t(dict, "booking.dirtyWarning.forceCheckIn")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

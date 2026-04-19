@@ -35,7 +35,7 @@ export default async function GuestDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const guest = await apiFetch<Guest>(`/api/guests/${id}`);
+  const guest = await apiFetch<Guest>(`/api/profiles/${id}`);
 
   const genderLabel: Record<string, string> = { M: "Male", F: "Female" };
 

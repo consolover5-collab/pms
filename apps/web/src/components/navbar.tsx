@@ -4,39 +4,42 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useUser, type UserRole } from "@/lib/use-user";
+import { useAuth } from "@/components/auth-provider";
+import { useLocale } from "@/components/locale-provider";
+import { LOCALES } from "@/lib/i18n";
+import type { DictionaryKey } from "@/lib/i18n/locales/en";
+import { t } from "@/lib/i18n";
 
 interface NavItem {
   href: string;
-  label: string;
-  labelRu: string;
+  labelKey: DictionaryKey;
   /** If set, only these roles can see the link */
   visibleTo?: UserRole[];
 }
 
 const navItems: NavItem[] = [
-  { href: "/", label: "Dashboard", labelRu: "Дашборд" },
-  { href: "/bookings", label: "Bookings", labelRu: "Бронирования" },
-  { href: "/rooms", label: "Rooms", labelRu: "Номера" },
-  { href: "/tape-chart", label: "Tape Chart", labelRu: "Шахматка" },
-  { href: "/guests", label: "Guests", labelRu: "Гости" },
+  { href: "/", labelKey: "nav.dashboard" },
+  { href: "/bookings", labelKey: "nav.bookings" },
+  { href: "/rooms", labelKey: "nav.rooms" },
+  { href: "/tape-chart", labelKey: "nav.tapeChart" },
+  { href: "/configuration/profiles", labelKey: "nav.guests" },
+  { href: "/housekeeping", labelKey: "nav.housekeeping" },
   {
     href: "/night-audit",
-    label: "Night Audit",
-    labelRu: "Ночной аудит",
+    labelKey: "nav.nightAudit",
     visibleTo: ["admin", "manager", "front_desk"],
   },
   {
     href: "/configuration",
-    label: "Settings",
-    labelRu: "Настройки",
+    labelKey: "nav.settings",
     visibleTo: ["admin", "manager"],
   },
-  { href: "/help", label: "Справка", labelRu: "Справка" },
+  { href: "/help", labelKey: "nav.help" },
 ];
 
-function formatBusinessDate(dateStr: string): string {
+function formatBusinessDate(dateStr: string, localeCode: string): string {
   const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("ru-RU", {
+  return d.toLocaleDateString(localeCode === "ru" ? "ru-RU" : "en-US", {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -45,15 +48,17 @@ function formatBusinessDate(dateStr: string): string {
 }
 
 const ROLE_LABELS: Record<string, string> = {
-  admin: "Админ",
-  front_desk: "Ресепшен",
-  housekeeping: "Горничная",
+  admin: "Admin",
+  front_desk: "Front Desk",
+  housekeeping: "Housekeeping",
 };
 
 export function Navbar() {
   const pathname = usePathname();
   const currentUser = useUser();
-  const [businessDate, setBusinessDate] = useState<string>("");
+  const { logout } = useAuth();
+  const { locale, setLocale, dict } = useLocale();
+  const [businessDateRaw, setBusinessDateRaw] = useState<string>("");
 
   useEffect(() => {
     async function fetchBusinessDate() {
@@ -68,17 +73,13 @@ export function Navbar() {
         );
         if (!bdRes.ok) {
           // Fallback to system date
-          setBusinessDate(
-            formatBusinessDate(new Date().toISOString().split("T")[0]),
-          );
+          setBusinessDateRaw(new Date().toISOString().split("T")[0]);
           return;
         }
         const bd = await bdRes.json();
-        setBusinessDate(formatBusinessDate(bd.date));
+        setBusinessDateRaw(bd.date);
       } catch {
-        setBusinessDate(
-          formatBusinessDate(new Date().toISOString().split("T")[0]),
-        );
+        setBusinessDateRaw(new Date().toISOString().split("T")[0]);
       }
     }
     fetchBusinessDate();
@@ -88,6 +89,8 @@ export function Navbar() {
     if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
   };
+
+  const businessDate = businessDateRaw ? formatBusinessDate(businessDateRaw, locale) : "";
 
   return (
     <nav className="bg-gray-900 text-white px-6 py-3 flex items-center justify-between">
@@ -112,7 +115,7 @@ export function Navbar() {
                   : "text-gray-300 hover:text-white hover:bg-gray-800"
               }`}
             >
-              {item.label}
+              {t(dict, item.labelKey)}
             </Link>
           ))}
         </div>
@@ -120,7 +123,7 @@ export function Navbar() {
       <div className="flex items-center gap-4 text-sm">
         {businessDate && (
           <div className="flex items-center gap-2 bg-gray-800 px-3 py-1 rounded">
-            <span className="text-gray-400 text-xs uppercase">Бизнес-дата</span>
+            <span className="text-gray-400 text-xs uppercase">{t(dict, "nav.businessDate")}</span>
             <span className="text-white font-medium">{businessDate}</span>
           </div>
         )}
@@ -131,6 +134,29 @@ export function Navbar() {
               ({ROLE_LABELS[currentUser.role] || currentUser.role})
             </span>
           </span>
+          <button
+            onClick={logout}
+            className="text-gray-400 hover:text-white text-xs underline"
+          >
+            {t(dict, "nav.logout")}
+          </button>
+        </div>
+        
+        {/* Language Switcher */}
+        <div className="flex gap-1 border-l border-gray-700 pl-4 ml-2">
+          {LOCALES.map(({ code, label }) => (
+            <button
+              key={code}
+              onClick={() => setLocale(code)}
+              className={`px-2 py-1 text-xs rounded transition-colors ${
+                locale === code
+                  ? "bg-gray-700 text-white"
+                  : "text-gray-400 hover:text-white hover:bg-gray-800"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
     </nav>
