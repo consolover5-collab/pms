@@ -13,7 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { properties } from "./properties";
 import { rooms, roomTypes } from "./rooms";
-import { guests } from "./guests";
+import { profiles } from "./profiles";
 
 export const ratePlans = pgTable("rate_plans", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -55,14 +55,20 @@ export const bookings = pgTable("bookings", {
   propertyId: uuid("property_id")
     .notNull()
     .references(() => properties.id, { onDelete: "restrict" }),
-  guestId: uuid("guest_id")
+  guestProfileId: uuid("guest_profile_id")
     .notNull()
-    .references(() => guests.id, { onDelete: "restrict" }),
+    .references(() => profiles.id, { onDelete: "restrict" }),
   roomId: uuid("room_id").references(() => rooms.id, { onDelete: "restrict" }),
   roomTypeId: uuid("room_type_id")
     .notNull()
     .references(() => roomTypes.id, { onDelete: "restrict" }),
   ratePlanId: uuid("rate_plan_id").references(() => ratePlans.id, { onDelete: "restrict" }),
+  companyProfileId: uuid("company_profile_id")
+    .references(() => profiles.id, { onDelete: "restrict" }),
+  agentProfileId: uuid("agent_profile_id")
+    .references(() => profiles.id, { onDelete: "restrict" }),
+  sourceProfileId: uuid("source_profile_id")
+    .references(() => profiles.id, { onDelete: "restrict" }),
   confirmationNumber: varchar("confirmation_number", { length: 20 })
     .notNull()
     .unique(),
@@ -103,6 +109,6 @@ export const bookings = pgTable("bookings", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => [
   index("bookings_property_id_idx").on(table.propertyId),
-  index("bookings_guest_id_idx").on(table.guestId),
+  index("bookings_guest_profile_id_idx").on(table.guestProfileId),
   index("bookings_room_id_idx").on(table.roomId),
 ]);
