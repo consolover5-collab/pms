@@ -1,148 +1,260 @@
-# План канонизации бэкенда и рефакторинга Folio Windows
+# Канонизация бэкенда и i18n фронтенда
 
-## Проблема
-По результатам аудита кодовой базы (`packages/db` и `apps/api`), в системе найдено большое количество жестко зашитых строк на русском языке. Это нарушает принцип "locale-agnostic backend" (бэкенд должен быть независимым от языка пользователя).
+## Статусы фаз
 
-Более того, архитектура окон фолио (Folio Windows) сейчас использует статичные захардкоженные названия ("Основной", "Компания") и старую систему типов `payee_type`. В рамках перехода на **Unified Profiles** (единая таблица `profiles` для гостей, компаний, агентов и источников, см. `05-unified-profiles.md`), окна фолио должны динамически привязываться к конкретному профилю и наследовать его имя.
-
----
-
-## Фаза 04-A: Тексты ошибок API и валидации (API Error Messages)
-**Статус:** НЕЗАВИСИМО. Можно (и нужно) делать параллельно с GLM 05.
-
-Практически все API-ендпоинты возвращают ошибки на русском языке. Фронтенд просто выводит `error.message`, и англоязычный пользователь увидит русскую ошибку.
-
-**Где искать (явный список файлов):**
-- `apps/api/src/routes/cashier.ts`
-- `apps/api/src/routes/rooms.ts`
-- `apps/api/src/routes/night-audit.ts`
-- `apps/api/src/routes/bookings.ts`
-- `apps/api/src/routes/folio.ts`
-- `apps/api/src/routes/guests.ts` (если останется после GLM)
-- `apps/api/src/routes/companies.ts` (если останется)
-- `apps/api/src/routes/travel-agents.ts` (если останется)
-- `apps/api/src/lib/validation.ts`
-
-**План исправления:**
-1. **Каноничные сообщения на английском:** Заменить все русские строки `error: "..."` в API на английские (например, `error: "Property ID and name are required"` вместо `"propertyId и name обязательны"`).
-2. **Использование кодов ошибок:** Часть роутов уже возвращает `code`. Существующие коды (дополнять, не переименовывать!): `POSSIBLE_DUPLICATE`, `HAS_BOOKINGS`, `HAS_FOLIO_TRANSACTIONS`, `ROOM_OCCUPIED`, `NIGHT_AUDIT_BLOCKING_DUE_OUTS`, `CANCEL_CHECKIN_TOO_LATE`.
-   Убедиться, что вместе с текстом ошибки API всегда возвращает уникальный `code` для всех новых переведенных ошибок.
-3. **Локализация ошибок на клиенте:**
-   - Обновить словари `apps/web/src/lib/i18n/locales/en.ts` и `ru.ts` плоскими ключами для кодов ошибок (например, `"err_room_occupied": "Room is occupied"`). Использовать flat style без точек в формате snake_case, так как наш словарь плоский (DictionaryKey — keyof typeof en). Обязательно добавить фоллбэк-ключ `"err_unknown": "An error occurred"` / `"err_unknown": "Произошла ошибка"`.
-   - Обновить UI-компоненты: там, где сейчас выводится текст ошибки (например, `setError(err.message)`), заменить логику на использование перевода `t(dict, err.code ?? 'err_unknown')` (добавить такой фоллбэк), используя сообщение бэкенда только если код не распознан.
-4. **Проверка:** В конце фазы запустить явную проверку (Turbo cache может врать):
-   ```bash
-   cd apps/api && npx tsc --noEmit
-   cd ../web && npx tsc --noEmit
-   ```
+| Фаза | Описание | Статус |
+|---|---|---|
+| 04-A | API error messages → EN + коды + i18n | ✅ DONE |
+| 04-B | Folio Windows → profileId | ⏳ BLOCKED — ждать GLM (налоги) |
+| 04-C | Seed data → EN | ▶️ СЕЙЧАС |
+| 04-D | i18n: transaction-codes страницы | ▶️ СЕЙЧАС |
+| 04-E | i18n: housekeeping страницы | ▶️ СЕЙЧАС |
+| 04-F | Мелочи: rate-plan-form + error-display chrome | ▶️ СЕЙЧАС |
 
 ---
 
-## Фаза 04-B: Рефакторинг и динамическое именование окон фолио (Folio Windows)
-**Статус:** ЗАВИСИМО. Выполнять строго после завершения GLM 05 (Unified Profiles).
+## Фаза 04-C: Seed data → English
+**Файл:** `packages/db/src/seed.ts`
 
-Окно фолио должно отражать реального плательщика — будь то гость, компания или турагент. Имя окна должно быть динамическим и браться из таблицы `profiles`.
+Заменить все кириллические строки в данных. **Структуру файла не трогать** — только строковый контент.
 
-**Шаги:**
-1. **Обновить схему БД (`financial.ts`)**:
-   - Удалить `payeeType` и `payeeId`.
-   - Добавить поле `profileId` (ссылка на `profiles.id`).
-   - Убрать `.default("Основной")` у поля `label` и явно добавить `.notNull()` (чтобы не было расхождения схемы и БД).
-2. **Написать скрипт миграции (`packages/db/drizzle/0008_folio_profile_id.sql`)**:
-   ```sql
-   -- Добавляем колонку
-   ALTER TABLE "folio_windows" ADD COLUMN "profile_id" uuid REFERENCES "profiles"("id") ON DELETE RESTRICT;
-   
-   -- Заполняем данными из bookings (для Window 1 - главный гость)
-   UPDATE "folio_windows" fw
-   SET "profile_id" = b.guest_profile_id
-   FROM "bookings" b
-   WHERE fw.booking_id = b.id AND fw.window_number = 1;
+### Замены:
 
-   -- Заполняем данными из bookings (для Window 2+ где payee_type = company)
-   UPDATE "folio_windows" fw
-   SET "profile_id" = b.company_profile_id
-   FROM "bookings" b
-   WHERE fw.booking_id = b.id
-     AND fw.payee_type = 'company'
-     AND b.company_profile_id IS NOT NULL;
+**Property (строки ~65–66):**
+```
+address: "Озёрный проезд, 2"  →  address: "2 Lake Drive, Kaliningrad"
+city: "Калининград"           →  city: "Kaliningrad"
+```
 
-   -- Заполняем данными из bookings (для Window 2+ где payee_type = travel_agent)
-   UPDATE "folio_windows" fw
-   SET "profile_id" = b.agent_profile_id
-   FROM "bookings" b
-   WHERE fw.booking_id = b.id
-     AND fw.payee_type = 'travel_agent'
-     AND b.agent_profile_id IS NOT NULL;
+**Profiles — companies (~247–268):**
+```
+name: "ООО «Балтийские Линии»"   →  name: "Baltic Lines LLC"
+shortName: "Балтийские Линии"    →  shortName: "Baltic Lines"
+address: "г. Калининград, ул. Советская, 15"  →  address: "15 Sovetskaya St, Kaliningrad"
+contactPerson: "Петрова Елена"   →  contactPerson: "Elena Petrova"
 
-   -- Фоллбэк: если profile_id всё ещё NULL — ставим guest профайл брони
-   UPDATE "folio_windows" fw
-   SET "profile_id" = b.guest_profile_id
-   FROM "bookings" b
-   WHERE fw.booking_id = b.id AND fw.profile_id IS NULL;
+name: "АО «Запфильм»"           →  name: "Westfilm Inc."
+shortName: "Запфильм"           →  shortName: "Westfilm"
+address: "г. Калининград, пр. Мира, 42"  →  address: "42 Mira Ave, Kaliningrad"
+contactPerson: "Сидоров Андрей"  →  contactPerson: "Andrey Sidorov"
 
-   -- Обновляем label существующих записей из профайлов перед тем как сделать его NOT NULL
-   UPDATE "folio_windows" fw
-   SET "label" = p.name
-   FROM "profiles" p
-   WHERE fw.profile_id = p.id AND (fw.label IS NULL OR fw.label IN ('Основной', 'Компания'));
+name: "ИП Козлов В.А."          →  name: "Kozlov & Co."
+shortName: "Козлов"             →  shortName: "Kozlov"
+contactPerson: "Иванова Мария"   →  contactPerson: "Maria Ivanova"
+```
 
-   -- Делаем profile_id обязательным
-   ALTER TABLE "folio_windows" ALTER COLUMN "profile_id" SET NOT NULL;
+**Packages — description (~670, 680):**
+```
+description: "Завтрак"  →  description: "Breakfast"
+description: "Парковка" →  description: "Parking"
+```
 
-   -- Делаем label обязательным
-   ALTER TABLE "folio_windows" ALTER COLUMN "label" SET NOT NULL;
+**Packages — name (~697, 707):**
+```
+name: "Завтрак"  →  name: "Breakfast"
+name: "Парковка" →  name: "Parking"
+```
 
-   -- Удаляем старые колонки
-   ALTER TABLE "folio_windows" DROP COLUMN "payee_type", DROP COLUMN "payee_id";
-   ```
-   *Не забыть обновить `packages/db/drizzle/meta/_journal.json`.*
-3. **Обновить API создания броней (`bookings.ts`)**:
-   - При создании Window 1: выполнить `SELECT name FROM profiles WHERE id = guestProfileId` → использовать результат как `label` и `profileId`.
-   - При создании Window 2+ для компании: `SELECT name FROM profiles WHERE id = companyProfileId` → `label` + `profileId`.
-   - При создании Window 2+ для агента: `SELECT name FROM profiles WHERE id = agentProfileId` → `label` + `profileId`.
-   - Важно: name брать из БД, не из request body — там его может не быть.
-4. **Обновить API создания окон (`folio.ts`)**:
-   - Обновить роут `POST /api/bookings/:bookingId/folio/windows`: принимает `profileId`, выполняет `SELECT name FROM profiles WHERE id = profileId`, использует `name` как `label`. Возвращать 404 если профайл не найден.
-5. **Обновить DELETE /api/profiles (profiles.ts после GLM 05)**:
-   - Помимо проверки броней, добавить проверку `folio_windows`: если у профайла есть связанные окна фолио → вернуть 400 с `{ code: "HAS_FOLIO_WINDOWS", count }` вместо того чтобы падать с FK constraint на уровне БД.
-6. **Обновить UI**:
-   - Фронтенду больше не нужно переводить системные слова. Он будет выводить `label` "как есть" (например, `W1: Ivan Ivanov`, `W2: Baltic Lines LLC`), что является самым каноничным и бизнес-логичным подходом.
-7. **Обновить тесты**:
-   - Обновить интеграционные тесты в `apps/api/src/routes/integration.test.ts`, которые проверяют folio windows, так как структура схемы изменилась.
-   - Добавить тест: DELETE профайла с folio window → 400, code=HAS_FOLIO_WINDOWS.
-8. **Проверка:** В конце фазы запустить явную проверку:
-   ```bash
-   cd apps/api && npx tsc --noEmit
-   cd ../web && npx tsc --noEmit
-   ```
+**Folio transactions — description (~775–794):**
+```
+description: "Завтрак"  →  description: "Breakfast"
+```
 
----
+**Комментарии в коде (~342, 359, 392):** заменить упоминания кириллицы в комментариях на английские эквиваленты (`// Baltic Lines`, `// Westfilm`, `// Baltic Lines, TA: Baltic Travel`).
 
-## Фаза 04-C: Данные для сидирования (Seed Data — Контент)
-**Статус:** ЗАВИСИМО. Выполнять строго после завершения GLM 05 (Unified Profiles).
-
-**Важно:** GLM 05 переписывает *структуру* `seed.ts` (заменяет `guests/companies/travel_agents` на `profiles`). Задача Gemini на этом этапе — заниматься **исключительно контентом**. Структуру (как вставляются профили) трогать нельзя. Нужно лишь перевести кириллические строки на английский.
-
-**Где найдено:**
-- `packages/db/src/seed.ts`
-
-**План исправления (только перевод строк):**
-Заменить все тестовые данные в seed-файле на интернациональные/английские аналоги:
-- Пакеты (таблица `packages`): `"Breakfast"`, `"Parking"` (вместо "Завтрак", "Парковка")
-- Компании: `"Baltic Lines LLC"`, `"Westfilm Inc."` (вместо "ООО «Балтийские Линии»", "АО «Запфильм»")
-- Имена: `"Elena Petrova"`, `"Andrey Sidorov"`
-- Адреса: `"2 Lake Drive, Kaliningrad"` (вместо "Озёрный проезд, 2")
-
-**Проверка:** В конце фазы запустить:
+**Проверка:**
 ```bash
 cd packages/db && npx tsc --noEmit
 ```
 
 ---
 
+## Фаза 04-D: i18n — Transaction Codes страницы
+
+### Паттерн i18n в этом проекте
+
+**Server Component** (нет `"use client"`):
+```typescript
+import { getLocale, getDict, t } from "@/lib/i18n";
+// внутри async функции:
+const locale = await getLocale();
+const dict = getDict(locale);
+// использование:
+t(dict, "txCodes.title")
+```
+
+**Client Component** (`"use client"`):
+```typescript
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
+// внутри компонента:
+const { dict } = useLocale();
+// использование:
+t(dict, "txCodes.title")
+```
+
+Ключи добавляются в **оба** файла: `apps/web/src/lib/i18n/locales/en.ts` и `ru.ts`.  
+Формат: плоский, snake_case с точкой (`"txCodes.title"`). `DictionaryKey = keyof typeof en` — TypeScript подхватит автоматически.
+
+### Файл 1: `apps/web/src/app/configuration/transaction-codes/page.tsx`
+Server Component. Добавить импорт getLocale/getDict/t, передать `dict` или использовать напрямую.
+
+Новые ключи (добавить в en.ts и ru.ts):
+```
+"txCodes.title"          EN: "Transaction Codes"         RU: "Коды транзакций"
+"txCodes.newCode"        EN: "+ New Code"                 RU: "+ Новый код"
+"txCodes.empty"          EN: "No transaction codes configured."  RU: "Коды транзакций не настроены."
+"txCodes.charges"        EN: "Charges ({count})"          RU: "Начисления ({count})"
+"txCodes.payments"       EN: "Payments ({count})"         RU: "Оплаты ({count})"
+"txCodes.colCode"        EN: "Code"                       RU: "Код"
+"txCodes.colName"        EN: "Name"                       RU: "Название"
+"txCodes.colGroup"       EN: "Group"                      RU: "Группа"
+"txCodes.colType"        EN: "Type"                       RU: "Тип"
+"txCodes.edit"           EN: "Edit"                       RU: "Изменить"
+```
+
+Для `"txCodes.charges"` и `"txCodes.payments"` используй `t(dict, "txCodes.charges", { count: chargeCodes.length })`.
+
+### Файл 2: `apps/web/src/app/configuration/transaction-codes/transaction-code-form.tsx`
+Client Component. Добавить `useLocale` + `t`.
+
+Новые ключи:
+```
+"txCodes.form.labelCode"        EN: "Code *"                   RU: "Код *"
+"txCodes.form.labelSortOrder"   EN: "Sort Order"               RU: "Порядок сортировки"
+"txCodes.form.labelDescription" EN: "Description *"            RU: "Описание *"
+"txCodes.form.placeholderDesc"  EN: "Room Charge"              RU: "Проживание"
+"txCodes.form.labelType"        EN: "Type *"                   RU: "Тип *"
+"txCodes.form.typeCharge"       EN: "Charge"                   RU: "Начисление"
+"txCodes.form.typePayment"      EN: "Payment"                  RU: "Оплата"
+"txCodes.form.labelGroup"       EN: "Group *"                  RU: "Группа *"
+"txCodes.form.allowManual"      EN: "Allow manual posting"     RU: "Разрешить ручное начисление"
+"txCodes.form.isActive"         EN: "Active"                   RU: "Активен"
+"txCodes.form.saving"           EN: "Saving…"                  RU: "Сохранение..."
+"txCodes.form.create"           EN: "Create"                   RU: "Создать"
+"txCodes.form.update"           EN: "Update"                   RU: "Обновить"
+"txCodes.form.cancel"           EN: "Cancel"                   RU: "Отмена"
+"txCodes.form.saveError"        EN: "Failed to save"           RU: "Ошибка сохранения"
+```
+
+Замени `<a href="...">Отмена</a>` на `<Link href="...">` (уже есть импорт Link в соседних файлах).
+
+**Проверка:**
+```bash
+cd apps/web && npx tsc --noEmit
+```
+
+---
+
+## Фаза 04-E: i18n — Housekeeping страницы
+
+### Файл 1: `apps/web/src/app/housekeeping/housekeeping-client.tsx`
+Client Component. Добавить `useLocale` + `t`. Заменить захардкоженные объекты-словари на i18n.
+
+Новые ключи:
+```
+"hk.taskType.checkout_clean"   EN: "Checkout Clean"           RU: "Уборка (выезд)"
+"hk.taskType.stayover_clean"   EN: "Stayover Clean"           RU: "Уборка (проживание)"
+"hk.taskType.inspection"       EN: "Inspection"               RU: "Инспекция"
+"hk.taskType.deep_clean"       EN: "Deep Clean"               RU: "Генеральная уборка"
+"hk.taskType.turndown"         EN: "Turndown"                 RU: "Вечерняя уборка"
+
+"hk.status.pending"            EN: "Pending"                  RU: "Ожидает"
+"hk.status.in_progress"        EN: "In Progress"              RU: "В процессе"
+"hk.status.completed"          EN: "Completed"                RU: "Завершено"
+"hk.status.skipped"            EN: "Skipped"                  RU: "Пропущено"
+
+"hk.filterAllStatuses"         EN: "All statuses"             RU: "Все статусы"
+"hk.filterByMaid"              EN: "Filter by attendant…"     RU: "Фильтр по горничной..."
+"hk.generateBtn"               EN: "Generate today's tasks"   RU: "Сгенерировать задания на сегодня"
+"hk.generating"                EN: "Generating…"              RU: "Генерация..."
+"hk.generated"                 EN: "Tasks generated: {count}" RU: "Сгенерировано заданий: {count}"
+"hk.emptyNoTasks"              EN: "No housekeeping tasks for today. Click Generate."  RU: "На текущую дату нет заданий по уборке. Нажмите «Сгенерировать»."
+"hk.emptyFiltered"             EN: "No tasks match the current filters."  RU: "Нет заданий, подходящих под фильтры."
+"hk.floor"                     EN: "Floor {floor}"            RU: "Этаж {floor}"
+"hk.floorNone"                 EN: "No floor"                 RU: "Без этажа"
+"hk.tasks"                     EN: "{count} tasks"            RU: "{count} заданий"
+"hk.assignMaid"                EN: "Assign attendant:"        RU: "Назначить горничную:"
+"hk.maidPlaceholder"           EN: "Attendant name…"          RU: "Имя горничной..."
+"hk.actionStart"               EN: "Start"                    RU: "Начать"
+"hk.actionDone"                EN: "Done"                     RU: "Готово"
+"hk.actionSkip"                EN: "Skip"                     RU: "Пропустить"
+```
+
+Важно: `TASK_TYPE_LABELS` и `STATUS_LABELS` — замени на вызовы `t(dict, ...)` вместо object lookup.  
+`"Без этажа"` используется как ключ в `tasksByFloor` для сортировки — замени строку на константу `NO_FLOOR = "no_floor"` и переводи при отображении через `t(dict, "hk.floorNone")`.  
+`alert(...)` — замени на `t(dict, "hk.generated", { count: data.created })`.
+
+### Файл 2: `apps/web/src/app/housekeeping/page.tsx`
+Server Component.
+
+Новые ключи:
+```
+"hk.title"              EN: "Housekeeping"                     RU: "Хаускипинг"
+"hk.titleWithDate"      EN: "Housekeeping — {date}"           RU: "Хаускипинг — {date}"
+"hk.subtitle"           EN: "Manage housekeeping tasks"       RU: "Управление заданиями на уборку"
+"hk.noProperty"         EN: "Property not found"              RU: "Свойство не найдено"
+```
+
+**Проверка:**
+```bash
+cd apps/web && npx tsc --noEmit
+```
+
+---
+
+## Фаза 04-F: Мелочи
+
+### `apps/web/src/app/configuration/rate-plans/rate-plan-form.tsx`
+Одна строка (~141):
+```tsx
+// Было:
+<span className="text-gray-500">(выбирается по умолчанию при создании брони)</span>
+
+// Стало (добавить ключ "ratePlan.defaultHint"):
+<span className="text-gray-500">{t(dict, "ratePlan.defaultHint")}</span>
+```
+```
+"ratePlan.defaultHint"  EN: "(selected by default when creating a booking)"  RU: "(выбирается по умолчанию при создании брони)"
+```
+Файл — Client Component, `useLocale` добавить.
+
+### `apps/web/src/components/error-display.tsx`
+Три строки UI-хрома (строки ~89, 100):
+```tsx
+// Было:
+"Скрыть детали" / "Техническая информация"
+"Скопировать для техподдержки"
+
+// Стало:
+t(dict, "error.hideDetails") / t(dict, "error.technicalInfo")
+t(dict, "error.copyForSupport")
+```
+```
+"error.hideDetails"     EN: "Hide details"            RU: "Скрыть детали"
+"error.technicalInfo"   EN: "Technical information"   RU: "Техническая информация"
+"error.copyForSupport"  EN: "Copy for support"        RU: "Скопировать для техподдержки"
+```
+`useLocale` уже импортирован в этом файле — просто добавить ключи и заменить строки.
+
+**Проверка:**
+```bash
+cd apps/web && npx tsc --noEmit
+```
+
+---
+
 ## Итоговый порядок выполнения
-1. **GLM 05**: Unified Profiles (schema + migration + API + frontend + seed structure). Выполняется агентом GLM.
-2. **Gemini 04-A**: API error messages → English + codes. **Можно выполнять параллельно с шагом 1.**
-3. **Gemini 04-B**: Folio Windows → `profileId`. Ждем завершения шага 1.
-4. **Gemini 04-C**: Seed data (перевод контента на `en`). Ждем завершения шага 1.
+
+1. **04-C** (seed.ts) — только данные, ноль риска конфликтов
+2. **04-D** (transaction-codes) — только web
+3. **04-E** (housekeeping) — только web
+4. **04-F** (мелочи) — только web
+5. **04-B** (folio windows) — **ПОСЛЕ** завершения GLM по налогам
+
+## Отчёт
+
+Сохрани результат в `docs/plans/gemini/04-result.md`:
+- список изменённых файлов
+- новые i18n ключи (сколько добавлено)
+- результат `tsc --noEmit`
