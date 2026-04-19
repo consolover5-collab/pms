@@ -124,7 +124,7 @@ describe("validateRoomMove", () => {
   it("returns error when booking is not checked_in", () => {
     const result = validateRoomMove({ ...validBooking, status: "confirmed" }, validNewRoom);
     assert.ok(result !== null);
-    assert.ok(result!.toLowerCase().includes("заселен") || result!.toLowerCase().includes("checked_in"));
+    assert.ok(result!.toLowerCase().includes("checked-in") || result!.toLowerCase().includes("checked_in"));
   });
 
   it("returns error when new room is same as current room", () => {
