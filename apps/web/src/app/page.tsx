@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
+import { getLocale, getDict, t } from "@/lib/i18n";
 
 type Property = { id: string; name: string };
 
@@ -35,9 +36,9 @@ type DashboardSummary = {
   currentBusinessDate: string;
 };
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string, locale: string): string {
   const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("ru-RU", {
+  return d.toLocaleDateString(locale === "ru" ? "ru-RU" : "en-US", {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -46,6 +47,9 @@ function formatDate(dateStr: string): string {
 }
 
 export default async function Home() {
+  const locale = await getLocale();
+  const dict = getDict(locale);
+
   // Get property (single-property MVP)
   let properties: Property[];
   try {
@@ -55,16 +59,16 @@ export default async function Home() {
       <main className="p-8">
         <div className="border-2 border-red-300 bg-red-50 rounded-lg p-4">
           <h2 className="text-lg font-bold text-red-800">
-            Failed to load dashboard
+            {t(dict, "dashboard.failedToLoad")}
           </h2>
           <p className="text-red-700 text-sm mt-1">
-            {err instanceof Error ? err.message : "Could not connect to API"}
+            {err instanceof Error ? err.message : t(dict, "dashboard.couldNotConnect")}
           </p>
           <Link
             href="/"
             className="inline-block mt-3 text-sm text-blue-600 hover:underline"
           >
-            Retry
+            {t(dict, "dashboard.retry")}
           </Link>
         </div>
       </main>
@@ -76,9 +80,9 @@ export default async function Home() {
   if (!property) {
     return (
       <main className="p-8">
-        <h1 className="text-2xl font-bold">No property configured</h1>
+        <h1 className="text-2xl font-bold">{t(dict, "dashboard.noProperty")}</h1>
         <p className="text-gray-600 mt-2">
-          Run database seed to initialize the system.
+          {t(dict, "dashboard.runSeed")}
         </p>
       </main>
     );
@@ -103,16 +107,16 @@ export default async function Home() {
       <main className="p-8">
         <div className="border-2 border-red-300 bg-red-50 rounded-lg p-4">
           <h2 className="text-lg font-bold text-red-800">
-            Failed to load dashboard data
+            {t(dict, "dashboard.failedToLoad")}
           </h2>
           <p className="text-red-700 text-sm mt-1">
-            {err instanceof Error ? err.message : "Could not connect to API"}
+            {err instanceof Error ? err.message : t(dict, "dashboard.couldNotConnect")}
           </p>
           <Link
             href="/"
             className="inline-block mt-3 text-sm text-blue-600 hover:underline"
           >
-            Retry
+            {t(dict, "dashboard.retry")}
           </Link>
         </div>
       </main>
@@ -128,9 +132,9 @@ export default async function Home() {
     <main className="p-8 max-w-6xl mx-auto">
       {/* Business Date */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-1">Dashboard</h1>
+        <h1 className="text-3xl font-bold mb-1">{t(dict, "dashboard.title")}</h1>
         <p className="text-lg text-gray-600">
-          {formatDate(summary.currentBusinessDate)}
+          {formatDate(summary.currentBusinessDate, locale)}
         </p>
       </div>
 
@@ -144,14 +148,14 @@ export default async function Home() {
             </span>
           </div>
           <div className="text-xs text-gray-500 uppercase mt-1">
-            Occupied ({occupancyPct}%)
+            {t(dict, "dashboard.occupied")} ({occupancyPct}%)
           </div>
         </div>
         <div className="bg-white border rounded-lg p-4 text-center">
           <div className="text-2xl font-bold text-green-600">
             {summary.vacantRooms}
           </div>
-          <div className="text-xs text-gray-500 uppercase mt-1">Vacant</div>
+          <div className="text-xs text-gray-500 uppercase mt-1">{t(dict, "dashboard.vacant")}</div>
         </div>
         {(summary.outOfOrderRooms > 0 || summary.outOfServiceRooms > 0) && (
           <div className="bg-white border rounded-lg p-4 text-center">
@@ -168,7 +172,7 @@ export default async function Home() {
           <div className="text-2xl font-bold text-orange-600">
             {summary.dirtyRooms}
           </div>
-          <div className="text-xs text-gray-500 uppercase mt-1">Dirty</div>
+          <div className="text-xs text-gray-500 uppercase mt-1">{t(dict, "dashboard.dirty")}</div>
         </Link>
         <Link
           href="/rooms?hk=clean"
@@ -177,7 +181,7 @@ export default async function Home() {
           <div className="text-2xl font-bold text-green-600">
             {summary.cleanRooms}
           </div>
-          <div className="text-xs text-gray-500 uppercase mt-1">Clean</div>
+          <div className="text-xs text-gray-500 uppercase mt-1">{t(dict, "dashboard.clean")}</div>
         </Link>
         <Link
           href="/rooms?hk=inspected"
@@ -186,7 +190,7 @@ export default async function Home() {
           <div className="text-2xl font-bold text-emerald-600">
             {summary.inspectedRooms}
           </div>
-          <div className="text-xs text-gray-500 uppercase mt-1">Inspected</div>
+          <div className="text-xs text-gray-500 uppercase mt-1">{t(dict, "dashboard.inspected")}</div>
         </Link>
       </div>
 
@@ -196,7 +200,7 @@ export default async function Home() {
         <div className="bg-white border rounded-lg p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold">
-              Arrivals
+              {t(dict, "dashboard.dueIn")}
               <span className="text-gray-400 font-normal ml-2 text-sm">
                 {arrivals.length}
               </span>
@@ -205,11 +209,11 @@ export default async function Home() {
               href="/bookings?view=arrivals"
               className="text-sm text-blue-600 hover:underline"
             >
-              View all
+              {t(dict, "dashboard.viewAll")}
             </Link>
           </div>
           {arrivals.length === 0 ? (
-            <p className="text-gray-400 text-sm">No arrivals today</p>
+            <p className="text-gray-400 text-sm">{t(dict, "dashboard.noArrivals")}</p>
           ) : (
             <div className="divide-y">
               {arrivals.slice(0, 8).map((b) => (
@@ -241,7 +245,7 @@ export default async function Home() {
                   href="/bookings?view=arrivals"
                   className="block text-center py-2 text-blue-600 hover:underline text-sm"
                 >
-                  +{arrivals.length - 8} more
+                  {t(dict, "dashboard.more", { count: arrivals.length - 8 })}
                 </Link>
               )}
             </div>
@@ -252,7 +256,7 @@ export default async function Home() {
         <div className="bg-white border rounded-lg p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold">
-              Departures
+              {t(dict, "dashboard.dueOut")}
               <span className="text-gray-400 font-normal ml-2 text-sm">
                 {departures.length}
               </span>
@@ -261,11 +265,11 @@ export default async function Home() {
               href="/bookings?view=departures"
               className="text-sm text-blue-600 hover:underline"
             >
-              View all
+              {t(dict, "dashboard.viewAll")}
             </Link>
           </div>
           {departures.length === 0 ? (
-            <p className="text-gray-400 text-sm">No departures today</p>
+            <p className="text-gray-400 text-sm">{t(dict, "dashboard.noDepartures")}</p>
           ) : (
             <div className="divide-y">
               {departures.slice(0, 8).map((b) => (
@@ -284,7 +288,7 @@ export default async function Home() {
                   </div>
                   <span className="text-sm text-gray-500">
                     {b.room?.roomNumber
-                      ? `Room ${b.room.roomNumber}`
+                      ? t(dict, "dashboard.room", { number: b.room.roomNumber })
                       : b.roomType.code}
                   </span>
                 </Link>
@@ -294,7 +298,7 @@ export default async function Home() {
                   href="/bookings?view=departures"
                   className="block text-center py-2 text-blue-600 hover:underline text-sm"
                 >
-                  +{departures.length - 8} more
+                  {t(dict, "dashboard.more", { count: departures.length - 8 })}
                 </Link>
               )}
             </div>
@@ -306,20 +310,20 @@ export default async function Home() {
       <div className="bg-white border rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold">
-            In-House
+            {t(dict, "dashboard.inHouse")}
             <span className="text-gray-400 font-normal ml-2 text-sm">
-              {inHouse.length} guests
+              {t(dict, "dashboard.guests", { count: inHouse.length })}
             </span>
           </h2>
           <Link
             href="/bookings?view=inhouse"
             className="text-sm text-blue-600 hover:underline"
           >
-            View all
+            {t(dict, "dashboard.viewAll")}
           </Link>
         </div>
         {inHouse.length === 0 ? (
-          <p className="text-gray-400 text-sm">No in-house guests</p>
+          <p className="text-gray-400 text-sm">{t(dict, "dashboard.noInHouse")}</p>
         ) : (
           <div className="max-h-64 overflow-y-auto divide-y">
             {inHouse.map((b) => (
@@ -338,13 +342,13 @@ export default async function Home() {
                 </div>
                 <div className="text-sm text-gray-500">
                   {b.room?.roomNumber && (
-                    <span className="mr-3">Room {b.room.roomNumber}</span>
+                    <span className="mr-3">{t(dict, "dashboard.room", { number: b.room.roomNumber })}</span>
                   )}
                   <span>
                     CO{" "}
                     {new Date(
                       b.checkOutDate + "T00:00:00",
-                    ).toLocaleDateString("ru-RU", {
+                    ).toLocaleDateString(locale === "ru" ? "ru-RU" : "en-US", {
                       day: "numeric",
                       month: "short",
                     })}

@@ -1,5 +1,7 @@
 "use client";
 
+import { useAuth } from "@/components/auth-provider";
+
 export type UserRole = "admin" | "front_desk" | "housekeeping" | "manager";
 
 export interface AppUser {
@@ -8,22 +10,20 @@ export interface AppUser {
   role: UserRole;
 }
 
-const DEFAULT_USER: AppUser = {
+const FALLBACK_USER: AppUser = {
   id: "default",
   username: "admin",
   role: "admin",
 };
 
-/**
- * Returns the current user. Auth is currently disabled —
- * returns default admin user so all UI is visible.
- * When auth is re-enabled, restore useAuth() integration.
- */
 export function useUser(): AppUser {
-  return DEFAULT_USER;
+  const { user } = useAuth();
+  if (user) {
+    return { id: user.id, username: user.username, role: user.role as UserRole };
+  }
+  return FALLBACK_USER;
 }
 
-/** Check if role can see admin/manager-only items */
 export function isAdminOrManager(role: UserRole): boolean {
   return role === "admin" || role === "manager";
 }

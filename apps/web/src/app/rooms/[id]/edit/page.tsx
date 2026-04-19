@@ -3,10 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
 
 type RoomType = { id: string; name: string; code: string };
 
 export default function EditRoomPage() {
+  const { dict } = useLocale();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
@@ -61,28 +64,28 @@ export default function EditRoomPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error || "Ошибка сохранения");
+        setError(data.error || t(dict, "common.failedToSave"));
         return;
       }
 
       router.replace(`/rooms/${id}`);
     } catch {
-      setError("Ошибка сети");
+      setError(t(dict, "rooms.networkError"));
     } finally {
       setSaving(false);
     }
   }
 
   if (loading) {
-    return <main className="p-8"><p className="text-gray-500">Загрузка…</p></main>;
+    return <main className="p-8"><p className="text-gray-500">{t(dict, "common.loading")}</p></main>;
   }
 
   return (
     <main className="p-8 max-w-lg">
       <Link href={`/rooms/${id}`} className="text-sm text-gray-500 hover:text-gray-700">
-        ← Назад к комнате
+        {t(dict, "rooms.backToRoom")}
       </Link>
-      <h1 className="text-2xl font-bold mt-4 mb-6">Редактировать комнату</h1>
+      <h1 className="text-2xl font-bold mt-4 mb-6">{t(dict, "rooms.editTitle")}</h1>
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-800">{error}</div>
@@ -90,7 +93,7 @@ export default function EditRoomPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs text-gray-500 uppercase mb-1">Номер комнаты *</label>
+          <label className="block text-xs text-gray-500 uppercase mb-1">{t(dict, "rooms.labelNumber")}</label>
           <input
             type="text"
             required
@@ -101,7 +104,7 @@ export default function EditRoomPage() {
         </div>
 
         <div>
-          <label className="block text-xs text-gray-500 uppercase mb-1">Этаж</label>
+          <label className="block text-xs text-gray-500 uppercase mb-1">{t(dict, "rooms.labelFloor")}</label>
           <input
             type="number"
             value={floor}
@@ -113,14 +116,14 @@ export default function EditRoomPage() {
         </div>
 
         <div>
-          <label className="block text-xs text-gray-500 uppercase mb-1">Тип номера *</label>
+          <label className="block text-xs text-gray-500 uppercase mb-1">{t(dict, "rooms.labelRoomType")}</label>
           <select
             required
             value={roomTypeId}
             onChange={(e) => setRoomTypeId(e.target.value)}
             className="w-full px-3 py-2 border rounded"
           >
-            <option value="">— выберите тип —</option>
+            <option value="">{t(dict, "rooms.selectType")}</option>
             {roomTypes.map((rt) => (
               <option key={rt.id} value={rt.id}>
                 {rt.name} ({rt.code})
@@ -135,13 +138,13 @@ export default function EditRoomPage() {
             disabled={saving}
             className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
           >
-            {saving ? "Сохранение…" : "Сохранить"}
+            {saving ? t(dict, "common.saving") : t(dict, "common.save")}
           </button>
           <Link
             href={`/rooms/${id}`}
             className="px-6 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
           >
-            Отмена
+            {t(dict, "common.cancel")}
           </Link>
         </div>
       </form>

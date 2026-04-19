@@ -2,6 +2,7 @@ import { apiFetch } from "@/lib/api";
 import { BackButton } from "@/components/back-button";
 import { RatePlanForm } from "../../rate-plan-form";
 import { RoomRatesMatrix } from "../../room-rates-matrix";
+import { getLocale, getDict, t } from "@/lib/i18n";
 
 type RatePlan = {
   id: string;
@@ -28,6 +29,8 @@ export default async function EditRatePlanPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const locale = await getLocale();
+  const dict = getDict(locale);
   const { id } = await params;
   const [ratePlan, properties] = await Promise.all([
     apiFetch<RatePlan>(`/api/rate-plans/${id}`),
@@ -49,7 +52,7 @@ export default async function EditRatePlanPage({
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <div>
-          <h2 className="text-base font-semibold mb-4 text-gray-700">Настройки тарифного плана</h2>
+          <h2 className="text-base font-semibold mb-4 text-gray-700">{t(dict, "ratePlan.settingsTitle")}</h2>
           <RatePlanForm
             ratePlan={{
               id: ratePlan.id,
@@ -66,7 +69,7 @@ export default async function EditRatePlanPage({
         </div>
 
         <div>
-          <h2 className="text-base font-semibold mb-4 text-gray-700">Цены по типам комнат</h2>
+          <h2 className="text-base font-semibold mb-4 text-gray-700">{t(dict, "ratePlan.roomRatesTitle")}</h2>
           <RoomRatesMatrix
             ratePlanId={id}
             roomTypes={roomTypes}
