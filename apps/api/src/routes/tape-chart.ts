@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { bookings, guests, rooms, roomTypes } from "@pms/db";
+import { bookings, profiles, rooms, roomTypes } from "@pms/db";
 import { eq, and, lt, gt, inArray } from "drizzle-orm";
 import { isValidUuid } from "../lib/validation";
 
@@ -53,8 +53,8 @@ export const tapeChartRoutes: FastifyPluginAsync = async (app) => {
       .select({
         id: bookings.id,
         confirmationNumber: bookings.confirmationNumber,
-        guestFirstName: guests.firstName,
-        guestLastName: guests.lastName,
+        guestFirstName: profiles.firstName,
+        guestLastName: profiles.lastName,
         roomId: bookings.roomId,
         roomTypeId: bookings.roomTypeId,
         checkInDate: bookings.checkInDate,
@@ -62,7 +62,7 @@ export const tapeChartRoutes: FastifyPluginAsync = async (app) => {
         status: bookings.status,
       })
       .from(bookings)
-      .innerJoin(guests, eq(bookings.guestId, guests.id))
+      .innerJoin(profiles, eq(bookings.guestProfileId, profiles.id))
       .where(
         and(
           eq(bookings.propertyId, propertyId),

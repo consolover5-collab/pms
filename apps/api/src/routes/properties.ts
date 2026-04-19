@@ -44,7 +44,7 @@ export const propertiesRoutes: FastifyPluginAsync = async (app) => {
         .where(eq(rooms.propertyId, request.params.id));
       if (request.body.numberOfRooms < Number(roomCount.count)) {
         return reply.status(400).send({
-          error: `Нельзя установить количество номеров ${request.body.numberOfRooms}: в системе уже ${roomCount.count} номеров. Удалите лишние номера или увеличьте значение.`,
+          error: `Cannot set number of rooms to ${request.body.numberOfRooms}: system already has ${roomCount.count} rooms. Delete excess rooms or increase the value.`, code: "INVALID_ROOM_COUNT",
         });
       }
     }

@@ -44,7 +44,7 @@ export const transactionCodesRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/transaction-codes", async (request, reply) => {
     const { propertyId, code, description, groupCode, transactionType, isManualPostAllowed, sortOrder } = request.body;
     if (!propertyId || !code || !description || !groupCode) {
-      return reply.status(400).send({ error: "propertyId, code, description, groupCode — обязательные поля" });
+      return reply.status(400).send({ error: "propertyId, code, description, groupCode are required", code: "MISSING_FIELDS" });
     }
     if (!isValidUuid(propertyId)) {
       return reply.status(400).send({ error: "Invalid propertyId format" });
@@ -115,8 +115,7 @@ export const transactionCodesRoutes: FastifyPluginAsync = async (app) => {
 
     if (Number(usage.cnt) > 0) {
       return reply.status(400).send({
-        error: `Нельзя удалить: код используется в ${usage.cnt} транзакциях фолио (Фолио)`,
-        code: "HAS_FOLIO_TRANSACTIONS",
+        error: `Cannot delete: code is used in ${usage.cnt} folio transactions.`, code: "HAS_FOLIO_TRANSACTIONS",
       });
     }
 

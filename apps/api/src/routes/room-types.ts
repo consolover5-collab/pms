@@ -95,7 +95,7 @@ export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
     "/api/room-types/:id",
     async (request, reply) => {
       const { propertyId } = request.query;
-      if (!propertyId) return reply.status(400).send({ error: "propertyId обязателен" });
+      if (!propertyId) return reply.status(400).send({ error: "propertyId is required", code: "MISSING_PROPERTY_ID" });
       // Проверить наличие комнат этого типа
       const roomCount = await app.db
         .select({ count: sql<number>`count(*)` })
@@ -120,8 +120,7 @@ export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
       const bookingCountNum = Number(bookingCount[0].count);
       if (bookingCountNum > 0) {
         return reply.status(400).send({
-          error: `Нельзя удалить: ${bookingCountNum} бронирований ссылаются на этот тип комнаты (Бронирования, Фолио)`,
-          code: "HAS_BOOKINGS",
+          error: `Cannot delete: ${bookingCountNum} bookings refer to this room type.`, code: "HAS_BOOKINGS",
           count: bookingCountNum,
         });
       }

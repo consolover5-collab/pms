@@ -4,6 +4,7 @@ import {
   transactionCodes,
   businessDates,
   bookings,
+  folioWindows,
 } from "@pms/db";
 import { eq, and, desc } from "drizzle-orm";
 import { calculateFolioBalance } from "@pms/domain";
@@ -40,6 +41,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
         debit: folioTransactions.debit,
         credit: folioTransactions.credit,
         description: folioTransactions.description,
+        folioWindowId: folioTransactions.folioWindowId,
         isSystemGenerated: folioTransactions.isSystemGenerated,
         appliedTaxRate: folioTransactions.appliedTaxRate,
         postedBy: folioTransactions.postedBy,
@@ -58,6 +60,36 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
       .orderBy(desc(folioTransactions.createdAt));
 
     const balance = calculateFolioBalance(transactions);
+    
+    // Get folio windows
+    const windows = await app.db
+      .select({
+        id: folioWindows.id,
+        bookingId: folioWindows.bookingId,
+        windowNumber: folioWindows.windowNumber,
+        label: folioWindows.label,
+        profileId: folioWindows.profileId,
+        paymentMethod: folioWindows.paymentMethod,
+        createdAt: folioWindows.createdAt,
+      })
+      .from(folioWindows)
+      .where(eq(folioWindows.bookingId, bookingId))
+      .orderBy(folioWindows.windowNumber);
+
+    const windowBalances = windows.map(w => {
+      const windowTx = transactions.filter(t => t.folioWindowId === w.id);
+      let charges = 0, payments = 0;
+      for (const t of windowTx) {
+        charges += parseFloat(t.debit) || 0;
+        payments += parseFloat(t.credit) || 0;
+      }
+      return {
+        ...w,
+        balance: Math.round((charges - payments) * 100) / 100,
+        totalCharges: Math.round(charges * 100) / 100,
+        totalPayments: Math.round(payments * 100) / 100,
+      };
+    });
     let totalCharges = 0;
     let totalPayments = 0;
     for (const t of transactions) {
@@ -68,6 +100,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
     return {
       balance: Math.round(balance * 100) / 100,
       transactions,
+      windows: windowBalances,
       summary: {
         totalCharges: Math.round(totalCharges * 100) / 100,
         totalPayments: Math.round(totalPayments * 100) / 100,
@@ -112,8 +145,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
     const allowedFolioStatuses = ["confirmed", "checked_in"];
     if (!allowedFolioStatuses.includes(booking.status)) {
       return reply.status(400).send({
-        error: `Нельзя постить на бронирование со статусом "${booking.status}". Допустимы: confirmed, checked_in.`,
-        code: "INVALID_BOOKING_STATUS",
+        error: `Cannot post to booking with status "${booking.status}". Allowed statuses: confirmed, checked_in.`, code: "INVALID_BOOKING_STATUS",
       });
     }
 
@@ -202,8 +234,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
     const allowedPaymentStatuses = ["confirmed", "checked_in", "checked_out"];
     if (!allowedPaymentStatuses.includes(booking.status)) {
       return reply.status(400).send({
-        error: `Нельзя принять оплату для бронирования со статусом "${booking.status}".`,
-        code: "INVALID_BOOKING_STATUS",
+        error: `Cannot accept payment for booking with status "${booking.status}".`, code: "INVALID_BOOKING_STATUS",
       });
     }
 
@@ -288,8 +319,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
     // Prevent adjusting an adjustment (double reversal)
     if (original.parentTransactionId) {
       return reply.status(400).send({
-        error: "Нельзя скорректировать корректировку. Корректируйте исходную транзакцию.",
-        code: "CANNOT_ADJUST_ADJUSTMENT",
+        error: "Cannot adjust an adjustment. Adjust the original transaction instead.", code: "CANNOT_ADJUST_ADJUSTMENT",
       });
     }
 

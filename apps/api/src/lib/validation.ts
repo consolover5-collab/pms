@@ -38,7 +38,7 @@ export async function checkRoomConflict(
 
   if (conflicts.length > 0) {
     const c = conflicts[0];
-    return `Комната занята бронированием #${c.confirmationNumber} (${c.checkInDate} — ${c.checkOutDate}).`;
+    return `Room occupied by booking #${c.confirmationNumber} (${c.checkInDate} - ${c.checkOutDate}).`;
   }
 
   return null;
@@ -47,7 +47,7 @@ export async function checkRoomConflict(
 export function validateBookingDates(checkInDate: string, checkOutDate: string): string | null {
   if (!checkInDate || !checkOutDate) return null;
   if (checkInDate > checkOutDate) {
-    return `Дата выезда (${checkOutDate}) не может быть раньше даты заезда (${checkInDate}).`;
+    return `Check-out date (${checkOutDate}) cannot be before check-in date (${checkInDate}).`;
   }
   return null;
 }
@@ -58,19 +58,19 @@ export function validateRoomMove(
   newRoom: { id: string; roomTypeId: string; occupancyStatus: string; housekeepingStatus: string },
 ): string | null {
   if (booking.status !== "checked_in") {
-    return `Смена комнаты возможна только для заселённых броней (checked_in). Текущий статус: ${booking.status}.`;
+    return `Room change is only possible for checked-in bookings. Current status: ${booking.status}.`;
   }
   if (newRoom.id === booking.roomId) {
-    return `Нельзя переселить гостя в ту же комнату.`;
+    return `Cannot move guest to the same room.`;
   }
   if (newRoom.roomTypeId !== booking.roomTypeId) {
-    return `Тип новой комнаты не совпадает с типом бронирования.`;
+    return `New room type does not match booking type.`;
   }
   if (newRoom.occupancyStatus !== "vacant") {
-    return `Комната ${newRoom.id} занята (${newRoom.occupancyStatus}).`;
+    return `Room ${newRoom.id} is occupied (${newRoom.occupancyStatus}).`;
   }
   if (newRoom.housekeepingStatus !== "clean" && newRoom.housekeepingStatus !== "inspected") {
-    return `Комната не готова к заселению (статус уборки: ${newRoom.housekeepingStatus}).`;
+    return `Room is not ready for check-in (housekeeping status: ${newRoom.housekeepingStatus}).`;
   }
   return null;
 }
@@ -78,7 +78,7 @@ export function validateRoomMove(
 /** Validate that a checked_out booking can be reinstated: checkOutDate must be after businessDate */
 export function validateReinstateCheckedOut(checkOutDate: string, businessDate: string): string | null {
   if (checkOutDate <= businessDate) {
-    return `Нельзя восстановить: дата выезда (${checkOutDate}) уже прошла (бизнес-дата: ${businessDate}).`;
+    return `Cannot reinstate: check-out date (${checkOutDate}) has already passed (business date: ${businessDate}).`;
   }
   return null;
 }
@@ -90,10 +90,10 @@ export function validateOccupancy(
 ): string | null {
   const total = adults + children;
   if (total > maxOccupancy) {
-    return `Общее количество гостей (${total}) превышает вместимость номера (${maxOccupancy}).`;
+    return `Total guests (${total}) exceeds room capacity (${maxOccupancy}).`;
   }
   if (adults < 1) {
-    return `Должен быть минимум 1 взрослый.`;
+    return `At least 1 adult is required.`;
   }
   return null;
 }

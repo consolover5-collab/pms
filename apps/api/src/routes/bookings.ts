@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { bookings, guests, rooms, roomTypes, ratePlans, properties, folioTransactions, businessDates } from "@pms/db";
+import { bookings, profiles, rooms, roomTypes, ratePlans, properties, folioTransactions, businessDates, folioWindows } from "@pms/db";
 import { eq, and, or, ne, lte, gte, lt, gt, sql, ilike, count } from "drizzle-orm";
 import { validateBookingDates, validateOccupancy, checkRoomConflict, validateReinstateCheckedOut, validateRoomMove } from "../lib/validation";
 import { calculateFolioBalance } from "@pms/domain";
@@ -12,7 +12,7 @@ async function getBusinessDate(db: any, propertyId: string): Promise<string> {
     .where(and(eq(businessDates.propertyId, propertyId), eq(businessDates.status, "open")))
     .limit(1);
   if (!bizDate) {
-    throw { statusCode: 500, code: "NO_OPEN_BUSINESS_DATE", message: "Открытая бизнес-дата не найдена. Выполните ночной аудит." };
+    throw { statusCode: 500, code: "NO_OPEN_BUSINESS_DATE", message: "Open business date not found. Run night audit." };
   }
   return bizDate.date;
 }
@@ -67,8 +67,8 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       const pattern = `%${search.trim()}%`;
       conditions.push(
         or(
-          ilike(guests.firstName, pattern),
-          ilike(guests.lastName, pattern),
+          ilike(profiles.firstName, pattern),
+          ilike(profiles.lastName, pattern),
           ilike(bookings.confirmationNumber, pattern),
         )!,
       );
@@ -79,7 +79,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
     const [totalResult] = await app.db
       .select({ count: count() })
       .from(bookings)
-      .innerJoin(guests, eq(bookings.guestId, guests.id))
+      .innerJoin(profiles, eq(bookings.guestProfileId, profiles.id))
       .where(whereCondition);
 
     const data = await app.db
@@ -92,9 +92,9 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         adults: bookings.adults,
         children: bookings.children,
         guest: {
-          id: guests.id,
-          firstName: guests.firstName,
-          lastName: guests.lastName,
+          id: profiles.id,
+          firstName: profiles.firstName,
+          lastName: profiles.lastName,
         },
         room: {
           id: rooms.id,
@@ -107,7 +107,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         },
       })
       .from(bookings)
-      .innerJoin(guests, eq(bookings.guestId, guests.id))
+      .innerJoin(profiles, eq(bookings.guestProfileId, profiles.id))
       .innerJoin(roomTypes, eq(bookings.roomTypeId, roomTypes.id))
       .leftJoin(rooms, eq(bookings.roomId, rooms.id))
       .where(whereCondition)
@@ -136,15 +136,18 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           paymentMethod: bookings.paymentMethod,
           actualCheckIn: bookings.actualCheckIn,
           actualCheckOut: bookings.actualCheckOut,
+          companyProfileId: bookings.companyProfileId,
+          agentProfileId: bookings.agentProfileId,
+          sourceProfileId: bookings.sourceProfileId,
           notes: bookings.notes,
           createdAt: bookings.createdAt,
           updatedAt: bookings.updatedAt,
           guest: {
-            id: guests.id,
-            firstName: guests.firstName,
-            lastName: guests.lastName,
-            email: guests.email,
-            phone: guests.phone,
+            id: profiles.id,
+            firstName: profiles.firstName,
+            lastName: profiles.lastName,
+            email: profiles.email,
+            phone: profiles.phone,
           },
           room: {
             id: rooms.id,
@@ -162,13 +165,13 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           },
         })
         .from(bookings)
-        .innerJoin(guests, eq(bookings.guestId, guests.id))
+        .innerJoin(profiles, eq(bookings.guestProfileId, profiles.id))
         .innerJoin(roomTypes, eq(bookings.roomTypeId, roomTypes.id))
         .leftJoin(rooms, eq(bookings.roomId, rooms.id))
         .leftJoin(ratePlans, eq(bookings.ratePlanId, ratePlans.id))
         .where(eq(bookings.id, request.params.id));
 
-      if (!booking) return reply.status(404).send({ error: "Бронирование не найдено" });
+      if (!booking) return reply.status(404).send({ error: "Booking not found" });
       return booking;
     },
   );
@@ -177,7 +180,10 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
   app.post<{
     Body: {
       propertyId: string;
-      guestId: string;
+      guestProfileId: string;
+      companyProfileId?: string;
+      agentProfileId?: string;
+      sourceProfileId?: string;
       roomId?: string;
       roomTypeId: string;
       ratePlanId?: string;
@@ -195,22 +201,22 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
     };
   }>("/api/bookings", async (request, reply) => {
     // Проверка существования гостя
-    const [guest] = await app.db.select({ id: guests.id }).from(guests).where(eq(guests.id, request.body.guestId));
-    if (!guest) {
-      return reply.status(400).send({ error: "Гость не найден.", code: "GUEST_NOT_FOUND" });
+    const [guestProfile] = await app.db.select({ id: profiles.id }).from(profiles).where(eq(profiles.id, request.body.guestProfileId));
+    if (!guestProfile) {
+      return reply.status(400).send({ error: "Guest profile not found.", code: "GUEST_NOT_FOUND" });
     }
 
     // Проверка существования типа комнаты
     const [rt] = await app.db.select().from(roomTypes).where(eq(roomTypes.id, request.body.roomTypeId));
     if (!rt) {
-      return reply.status(400).send({ error: "Тип комнаты не найден.", code: "ROOM_TYPE_NOT_FOUND" });
+      return reply.status(400).send({ error: "Room type not found.", code: "ROOM_TYPE_NOT_FOUND" });
     }
 
     // Проверка существования тарифного плана
     if (request.body.ratePlanId) {
       const [rp] = await app.db.select({ id: ratePlans.id }).from(ratePlans).where(eq(ratePlans.id, request.body.ratePlanId));
       if (!rp) {
-        return reply.status(400).send({ error: "Тарифный план не найден.", code: "RATE_PLAN_NOT_FOUND" });
+        return reply.status(400).send({ error: "Rate plan not found.", code: "RATE_PLAN_NOT_FOUND" });
       }
     }
 
@@ -224,8 +230,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
     const createBizDate = await getBusinessDate(app.db, request.body.propertyId);
     if (request.body.checkInDate < createBizDate) {
       return reply.status(400).send({
-        error: `Дата заезда (${request.body.checkInDate}) не может быть раньше текущей бизнес-даты (${createBizDate}).`,
-        code: "PAST_CHECKIN_DATE",
+        error: `Check-in date (${request.body.checkInDate}) cannot be before current business date (${createBizDate}).`, code: "PAST_CHECKIN_DATE",
       });
     }
 
@@ -249,15 +254,14 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
     if (request.body.roomId) {
       const [assignedRoom] = await app.db.select().from(rooms).where(eq(rooms.id, request.body.roomId));
       if (!assignedRoom) {
-        return reply.status(400).send({ error: "Указанная комната не найдена.", code: "ROOM_NOT_FOUND" });
+        return reply.status(400).send({ error: "Specified room not found.", code: "ROOM_NOT_FOUND" });
       }
       if (assignedRoom.roomTypeId !== request.body.roomTypeId) {
-        return reply.status(400).send({ error: "Тип комнаты не совпадает с типом в бронировании.", code: "ROOM_TYPE_MISMATCH" });
+        return reply.status(400).send({ error: "Room type does not match booking type.", code: "ROOM_TYPE_MISMATCH" });
       }
       if (assignedRoom.housekeepingStatus === "out_of_order" || assignedRoom.housekeepingStatus === "out_of_service") {
         return reply.status(400).send({
-          error: `Комната ${assignedRoom.roomNumber} недоступна (${assignedRoom.housekeepingStatus === "out_of_order" ? "не в эксплуатации" : "временно недоступна"}).`,
-          code: "ROOM_UNAVAILABLE",
+          error: `Room ${assignedRoom.roomNumber} is unavailable (${assignedRoom.housekeepingStatus === "out_of_order" ? "out of order" : "out of service"}).`, code: "ROOM_UNAVAILABLE",
         });
       }
     }
@@ -301,7 +305,10 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         .insert(bookings)
         .values({
           propertyId: request.body.propertyId,
-          guestId: request.body.guestId,
+          guestProfileId: request.body.guestProfileId,
+          companyProfileId: request.body.companyProfileId || null,
+          agentProfileId: request.body.agentProfileId || null,
+          sourceProfileId: request.body.sourceProfileId || null,
           roomId: request.body.roomId || null,
           roomTypeId: request.body.roomTypeId,
           ratePlanId: request.body.ratePlanId || null,
@@ -321,6 +328,36 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         })
         .returning();
 
+      // Create Folio Window 1 (Guest)
+      const [guestProfile] = await tx
+        .select({ name: profiles.name })
+        .from(profiles)
+        .where(eq(profiles.id, request.body.guestProfileId));
+
+      await tx.insert(folioWindows).values({
+        bookingId: created.id,
+        windowNumber: 1,
+        label: guestProfile?.name || "Guest",
+        profileId: request.body.guestProfileId,
+      });
+
+      // Create Folio Window 2 (Company) if exists
+      if (request.body.companyProfileId) {
+        const [companyProfile] = await tx
+          .select({ name: profiles.name })
+          .from(profiles)
+          .where(eq(profiles.id, request.body.companyProfileId));
+
+        if (companyProfile) {
+          await tx.insert(folioWindows).values({
+            bookingId: created.id,
+            windowNumber: 2,
+            label: companyProfile.name,
+            profileId: request.body.companyProfileId,
+          });
+        }
+      }
+
       return created;
     });
 
@@ -331,7 +368,10 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
   app.put<{
     Params: { id: string };
     Body: {
-      guestId?: string;
+      guestProfileId?: string;
+      companyProfileId?: string;
+      agentProfileId?: string;
+      sourceProfileId?: string;
       roomId?: string;
       roomTypeId?: string;
       ratePlanId?: string;
@@ -350,14 +390,13 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/bookings/:id", async (request, reply) => {
     // Загрузить текущее бронирование для merge с обновляемыми полями
     const [existing] = await app.db.select().from(bookings).where(eq(bookings.id, request.params.id));
-    if (!existing) return reply.status(404).send({ error: "Бронирование не найдено" });
+    if (!existing) return reply.status(404).send({ error: "Booking not found" });
 
     // У заселённых броней можно только продлить выезд (checkOutDate), дата заезда заблокирована
     if (existing.status === "checked_in") {
       if (request.body.checkInDate) {
         return reply.status(400).send({
-          error: `Нельзя изменить дату заезда: гость уже заселён. Можно только изменить дату выезда для продления проживания.`,
-          code: "DATES_LOCKED",
+          error: `Cannot change check-in date: guest is already checked in. You can only change the check-out date to extend the stay.`, code: "DATES_LOCKED",
         });
       }
       // Нельзя продлить на дату в прошлом (checkOut = bizDate разрешено — due out today)
@@ -365,8 +404,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         const bizDateExtend = await getBusinessDate(app.db, existing.propertyId);
         if (request.body.checkOutDate < bizDateExtend) {
           return reply.status(400).send({
-            error: `Нельзя установить дату выезда (${request.body.checkOutDate}): она не может быть раньше текущей бизнес-даты (${bizDateExtend}).`,
-            code: "DATES_EXPIRED",
+            error: `Cannot set check-out date to (${request.body.checkOutDate}): it cannot be before current business date (${bizDateExtend}).`, code: "DATES_EXPIRED",
           });
         }
       }
@@ -374,8 +412,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
     // У выехавших броней даты не меняются совсем
     if (existing.status === "checked_out" && (request.body.checkInDate || request.body.checkOutDate)) {
       return reply.status(400).send({
-        error: `Нельзя изменить даты бронирования со статусом "checked_out". Проживание завершено.`,
-        code: "DATES_LOCKED",
+        error: `Cannot change dates for booking with status "checked_out". Stay is completed.`, code: "DATES_LOCKED",
       });
     }
 
@@ -420,15 +457,14 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
 
       if (!booking) {
         return reply.status(404).send({
-          error: "Бронирование не найдено",
+          error: "Booking not found",
           code: "BOOKING_NOT_FOUND"
         });
       }
 
       if (booking.status !== "confirmed") {
         return reply.status(400).send({
-          error: `Нельзя заселить: статус бронирования «${booking.status}». Заселить можно только подтверждённые брони.`,
-          code: "INVALID_STATUS",
+          error: `Cannot check in: booking status is "${booking.status}". Only confirmed bookings can be checked in.`, code: "INVALID_STATUS",
           currentStatus: booking.status
         });
       }
@@ -437,8 +473,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       const bizDate = await getBusinessDate(app.db, booking.propertyId);
       if (booking.checkInDate > bizDate) {
         return reply.status(400).send({
-          error: `Нельзя заселить: дата заезда (${booking.checkInDate}) ещё не наступила. Текущая бизнес-дата: ${bizDate}.`,
-          code: "EARLY_CHECKIN",
+          error: `Cannot check in: arrival date (${booking.checkInDate}) has not been reached. Current business date: ${bizDate}.`, code: "EARLY_CHECKIN",
           checkInDate: booking.checkInDate,
           businessDate: bizDate,
         });
@@ -448,8 +483,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       const roomId = request.body?.roomId || booking.roomId;
       if (!roomId) {
         return reply.status(400).send({
-          error: "Комнату необходимо назначить перед заездом. Пожалуйста, назначьте комнату.",
-          code: "NO_ROOM_ASSIGNED"
+          error: "A room must be assigned before check-in. Please assign a room.", code: "NO_ROOM_ASSIGNED"
         });
       }
 
@@ -465,21 +499,21 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           .where(eq(rooms.id, roomId));
 
         if (!room) {
-          throw Object.assign(new Error("Выбранная комната не найдена в системе"), {
+          throw Object.assign(new Error("Selected room not found in the system"), {
             statusCode: 400, code: "ROOM_NOT_FOUND"
           });
         }
 
         // Check room type matches
         if (room.roomTypeId !== booking.roomTypeId) {
-          throw Object.assign(new Error("Несоответствие типа комнаты: выбранная комната отличается от забронированного типа. Пожалуйста, выберите комнату нужного типа."), {
+          throw Object.assign(new Error("Room type mismatch: selected room differs from booked type. Please choose a room of the correct type."), {
             statusCode: 400, code: "ROOM_TYPE_MISMATCH"
           });
         }
 
         // Check room is vacant
         if (room.occupancyStatus !== "vacant") {
-          throw Object.assign(new Error(`Комната ${room.roomNumber} занята. Пожалуйста, выберите свободную комнату.`), {
+          throw Object.assign(new Error(`Room ${room.roomNumber} is occupied. Please choose a vacant room.`), {
             statusCode: 400, code: "ROOM_OCCUPIED", roomNumber: room.roomNumber
           });
         }
@@ -489,7 +523,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           room.housekeepingStatus !== "clean" &&
           room.housekeepingStatus !== "inspected"
         ) {
-          throw Object.assign(new Error(`Комната ${room.roomNumber} не готова к заселению (статус уборки: ${room.housekeepingStatus}). Дождитесь уборки или выберите другую комнату.`), {
+          throw Object.assign(new Error(`Room ${room.roomNumber} is not ready for check-in (status: ${room.housekeepingStatus}). Wait for housekeeping or choose another room.`), {
             statusCode: 400, code: "ROOM_NOT_READY", roomNumber: room.roomNumber,
             housekeepingStatus: room.housekeepingStatus
           });
@@ -509,7 +543,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           .limit(1);
 
         if (conflictingBookings.length > 0) {
-          throw Object.assign(new Error(`В комнате ${room.roomNumber} уже проживает гость. Предыдущий гость должен выехать.`), {
+          throw Object.assign(new Error(`Room ${room.roomNumber} already has a guest. Previous guest must check out.`), {
             statusCode: 400, code: "ROOM_HAS_GUEST", roomNumber: room.roomNumber
           });
         }
@@ -561,15 +595,14 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
 
       if (!booking) {
         return reply.status(404).send({
-          error: "Бронирование не найдено",
+          error: "Booking not found",
           code: "BOOKING_NOT_FOUND"
         });
       }
 
       if (booking.status !== "checked_in") {
         return reply.status(400).send({
-          error: `Нельзя выселить: статус бронирования «${booking.status}». Выселить можно только заселённые брони.`,
-          code: "INVALID_STATUS"
+          error: `Cannot check out: booking status is "${booking.status}". Only checked-in bookings can be checked out.`, code: "INVALID_STATUS"
         });
       }
 
@@ -579,8 +612,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
 
       if (checkOutDate > bizDateOut && !request.body?.force) {
         return reply.status(400).send({
-          error: `Ранний выезд: дата выезда по брони ${checkOutDate}, текущая бизнес-дата ${bizDateOut}. Используйте force=true для досрочного выезда.`,
-          code: "EARLY_CHECKOUT",
+          error: `Early checkout: booking departure date ${checkOutDate}, current business date ${bizDateOut}. Use force=true for early checkout.`, code: "EARLY_CHECKOUT",
           checkOutDate,
           businessDate: bizDateOut,
         });
@@ -589,8 +621,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       // Поздний выезд
       if (checkOutDate < bizDateOut && !request.body?.force) {
         return reply.status(400).send({
-          error: `Поздний выезд: дата выезда была ${checkOutDate}, текущая бизнес-дата ${bizDateOut}. Возможно, нужно продлить бронь. Используйте force=true для подтверждения.`,
-          code: "LATE_CHECKOUT",
+          error: `Late checkout: departure date was ${checkOutDate}, current business date ${bizDateOut}. Booking may need extension. Use force=true to confirm.`, code: "LATE_CHECKOUT",
           checkOutDate,
           businessDate: bizDateOut,
         });
@@ -605,8 +636,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       const balance = calculateFolioBalance(folioTxs);
       if (balance > 0) {
         return reply.status(400).send({
-          error: `Нельзя выехать: у гостя открытый баланс ${balance.toFixed(2)}. Примите оплату перед выездом.`,
-          code: "UNPAID_BALANCE",
+          error: `Cannot check out: guest has open balance of ${balance.toFixed(2)}. Accept payment before checkout.`, code: "UNPAID_BALANCE",
           balance,
         });
       }
@@ -651,15 +681,14 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
 
       if (!booking) {
         return reply.status(404).send({
-          error: "Бронирование не найдено",
+          error: "Booking not found",
           code: "BOOKING_NOT_FOUND"
         });
       }
 
       if (booking.status !== "checked_in") {
         return reply.status(400).send({
-          error: `Нельзя отменить заезд: статус бронирования «${booking.status}». Отменить заезд можно только для заселённых броней.`,
-          code: "INVALID_STATUS"
+          error: `Cannot cancel check-in: booking status is "${booking.status}". Only checked-in bookings can be canceled.`, code: "INVALID_STATUS"
         });
       }
 
@@ -667,8 +696,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       const bizDateCancel = await getBusinessDate(app.db, booking.propertyId);
       if (booking.checkInDate !== bizDateCancel) {
         return reply.status(400).send({
-          error: `Нельзя отменить заезд: гость уже проживает (заехал ${booking.checkInDate}, текущая бизнес-дата ${bizDateCancel}). Используйте «Check Out».`,
-          code: "CANCEL_CHECKIN_TOO_LATE",
+          error: `Cannot cancel check-in: guest is already staying (arrived ${booking.checkInDate}, current business date ${bizDateCancel}). Use "Check Out".`, code: "CANCEL_CHECKIN_TOO_LATE",
           checkInDate: booking.checkInDate,
           businessDate: bizDateCancel,
         });
@@ -714,7 +742,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
 
       if (!booking) {
         return reply.status(404).send({
-          error: "Бронирование не найдено",
+          error: "Booking not found",
           code: "BOOKING_NOT_FOUND"
         });
       }
@@ -722,8 +750,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       const allowedStatuses = ["cancelled", "no_show", "checked_out"];
       if (!allowedStatuses.includes(booking.status)) {
         return reply.status(400).send({
-          error: `Нельзя восстановить: статус бронирования «${booking.status}». Восстановить можно только отменённые, незаехавшие или выехавшие брони.`,
-          code: "INVALID_STATUS"
+          error: `Cannot reinstate: booking status is "${booking.status}". Only cancelled, no-show or checked-out bookings can be reinstated.`, code: "INVALID_STATUS"
         });
       }
 
@@ -732,14 +759,12 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         const bizDateReinstate = await getBusinessDate(app.db, booking.propertyId);
         if (booking.checkOutDate <= bizDateReinstate) {
           return reply.status(400).send({
-            error: `Нельзя восстановить: дата выезда (${booking.checkOutDate}) уже прошла (бизнес-дата: ${bizDateReinstate}).`,
-            code: "DATES_EXPIRED",
+            error: `Cannot reinstate: check-out date (${booking.checkOutDate}) has already passed (business date: ${bizDateReinstate}).`, code: "DATES_EXPIRED",
           });
         }
         if (booking.checkInDate < bizDateReinstate) {
           return reply.status(400).send({
-            error: `Нельзя восстановить: дата заезда (${booking.checkInDate}) уже прошла (бизнес-дата: ${bizDateReinstate}). Создайте новое бронирование с актуальными датами.`,
-            code: "DATES_EXPIRED",
+            error: `Cannot reinstate: check-in date (${booking.checkInDate}) has already passed (business date: ${bizDateReinstate}). Create a new booking with valid dates.`, code: "DATES_EXPIRED",
           });
         }
       }
@@ -751,8 +776,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         const bizDateNoShow = await getBusinessDate(app.db, booking.propertyId);
         if (booking.checkOutDate <= bizDateNoShow) {
           return reply.status(400).send({
-            error: `Нельзя восстановить: дата выезда (${booking.checkOutDate}) уже прошла (бизнес-дата: ${bizDateNoShow}).`,
-            code: "DATES_EXPIRED",
+            error: `Cannot reinstate: check-out date (${booking.checkOutDate}) has already passed (business date: ${bizDateNoShow}).`, code: "DATES_EXPIRED",
           });
         }
         noShowNewCheckInDate = bizDateNoShow;
@@ -761,8 +785,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           const conflict = await checkRoomConflict(app.db, booking.roomId, bizDateNoShow, booking.checkOutDate, booking.id);
           if (conflict) {
             return reply.status(400).send({
-              error: `Нельзя восстановить: ${conflict}`,
-              code: "ROOM_CONFLICT",
+              error: `Cannot reinstate: ${conflict}`, code: "ROOM_CONFLICT",
             });
           }
         }
@@ -782,8 +805,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         const conflict = await checkRoomConflict(app.db, booking.roomId, booking.checkInDate, booking.checkOutDate, booking.id);
         if (conflict) {
           return reply.status(400).send({
-            error: `Нельзя восстановить: ${conflict}`,
-            code: "ROOM_CONFLICT",
+            error: `Cannot reinstate: ${conflict}`, code: "ROOM_CONFLICT",
           });
         }
       }
@@ -827,7 +849,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
             .where(and(eq(rooms.id, booking.roomId), eq(rooms.propertyId, booking.propertyId)));
 
           if (!room || room.occupancyStatus !== "vacant") {
-            throw Object.assign(new Error("Нельзя восстановить: комната больше недоступна. Назначьте другую комнату."), {
+            throw Object.assign(new Error("Cannot reinstate: room is no longer available. Assign a different room."), {
               statusCode: 400, code: "ROOM_NOT_AVAILABLE"
             });
           }
@@ -868,7 +890,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       const { newRoomId } = request.body || {};
 
       if (!newRoomId) {
-        return reply.status(400).send({ error: "newRoomId обязателен", code: "MISSING_ROOM_ID" });
+        return reply.status(400).send({ error: "newRoomId is required", code: "MISSING_ROOM_ID" });
       }
 
       const [booking] = await app.db
@@ -877,7 +899,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         .where(eq(bookings.id, request.params.id));
 
       if (!booking) {
-        return reply.status(404).send({ error: "Бронирование не найдено", code: "BOOKING_NOT_FOUND" });
+        return reply.status(404).send({ error: "Booking not found", code: "BOOKING_NOT_FOUND" });
       }
 
       const [newRoom] = await app.db
@@ -886,7 +908,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         .where(and(eq(rooms.id, newRoomId), eq(rooms.propertyId, booking.propertyId)));
 
       if (!newRoom) {
-        return reply.status(404).send({ error: "Комната не найдена", code: "ROOM_NOT_FOUND" });
+        return reply.status(404).send({ error: "Room not found", code: "ROOM_NOT_FOUND" });
       }
 
       const validationError = validateRoomMove(booking, newRoom);
@@ -908,12 +930,12 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
           .where(eq(rooms.id, newRoomId));
 
         if (!lockedNew || lockedNew.occupancyStatus !== "vacant") {
-          throw Object.assign(new Error("Комната уже занята. Выберите другую комнату."), {
+          throw Object.assign(new Error("Room is already occupied. Choose a different room."), {
             statusCode: 409, code: "ROOM_NOT_AVAILABLE",
           });
         }
         if (lockedNew.housekeepingStatus !== "clean" && lockedNew.housekeepingStatus !== "inspected") {
-          throw Object.assign(new Error(`Комната не готова к заселению (статус уборки: ${lockedNew.housekeepingStatus}).`), {
+          throw Object.assign(new Error(`Room is not ready for check-in (housekeeping status: ${lockedNew.housekeepingStatus}).`), {
             statusCode: 409, code: "ROOM_NOT_READY",
           });
         }
@@ -962,7 +984,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
 
       if (!booking) {
         return reply.status(404).send({
-          error: "Бронирование не найдено",
+          error: "Booking not found",
           code: "BOOKING_NOT_FOUND"
         });
       }
@@ -974,8 +996,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         .where(eq(folioTransactions.bookingId, booking.id));
       if (txCount.n > 0) {
         return reply.status(400).send({
-          error: `Нельзя отменить бронирование: в фолио ${txCount.n} транзакций. Гость уже проживал или оплачивал услуги.`,
-          code: "HAS_FOLIO_TRANSACTIONS",
+          error: `Cannot cancel booking: folio has ${txCount.n} transactions. Guest has already stayed or paid.`, code: "HAS_FOLIO_TRANSACTIONS",
         });
       }
 
@@ -983,16 +1004,15 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
       if (!allowedStatuses.includes(booking.status)) {
         let suggestion = "";
         if (booking.status === "checked_in") {
-          suggestion = " Гость должен сначала выехать, или используйте «Отменить заезд» для отмены заселения.";
+          suggestion = " Guest must check out first, or use cancel check-in.";
         } else if (booking.status === "checked_out") {
-          suggestion = " Проживание уже завершено.";
+          suggestion = " Stay is already completed.";
         } else if (booking.status === "cancelled") {
-          suggestion = " Бронирование уже отменено.";
+          suggestion = " Booking is already cancelled.";
         }
 
         return reply.status(400).send({
-          error: `Нельзя отменить: статус бронирования «${booking.status}».${suggestion}`,
-          code: "INVALID_STATUS",
+          error: `Cannot cancel: booking status is "${booking.status}".${suggestion}`, code: "INVALID_STATUS",
           currentStatus: booking.status
         });
       }

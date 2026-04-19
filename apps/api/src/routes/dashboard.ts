@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { bookings, guests, rooms, roomTypes, businessDates } from "@pms/db";
+import { bookings, profiles, rooms, roomTypes, businessDates } from "@pms/db";
 import { eq, and, count } from "drizzle-orm";
 import { isValidUuid } from "../lib/validation";
 
@@ -17,7 +17,7 @@ async function getBusinessDate(
       ),
     );
   if (!bizDate) {
-    throw { statusCode: 500, code: "NO_OPEN_BUSINESS_DATE", message: "Открытая бизнес-дата не найдена. Выполните ночной аудит." };
+    throw { statusCode: 500, code: "NO_OPEN_BUSINESS_DATE", message: "Open business date not found. Run night audit." };
   }
   return bizDate.date;
 }
@@ -48,9 +48,9 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         adults: bookings.adults,
         children: bookings.children,
         guest: {
-          id: guests.id,
-          firstName: guests.firstName,
-          lastName: guests.lastName,
+          id: profiles.id,
+          firstName: profiles.firstName,
+          lastName: profiles.lastName,
         },
         roomType: {
           id: roomTypes.id,
@@ -63,7 +63,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         },
       })
       .from(bookings)
-      .innerJoin(guests, eq(bookings.guestId, guests.id))
+      .innerJoin(profiles, eq(bookings.guestProfileId, profiles.id))
       .innerJoin(roomTypes, eq(bookings.roomTypeId, roomTypes.id))
       .leftJoin(rooms, eq(bookings.roomId, rooms.id))
       .where(
@@ -97,9 +97,9 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         confirmationNumber: bookings.confirmationNumber,
         checkOutDate: bookings.checkOutDate,
         guest: {
-          id: guests.id,
-          firstName: guests.firstName,
-          lastName: guests.lastName,
+          id: profiles.id,
+          firstName: profiles.firstName,
+          lastName: profiles.lastName,
         },
         room: {
           id: rooms.id,
@@ -112,7 +112,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         },
       })
       .from(bookings)
-      .innerJoin(guests, eq(bookings.guestId, guests.id))
+      .innerJoin(profiles, eq(bookings.guestProfileId, profiles.id))
       .innerJoin(roomTypes, eq(bookings.roomTypeId, roomTypes.id))
       .leftJoin(rooms, eq(bookings.roomId, rooms.id))
       .where(
@@ -144,9 +144,9 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         confirmationNumber: bookings.confirmationNumber,
         checkOutDate: bookings.checkOutDate,
         guest: {
-          id: guests.id,
-          firstName: guests.firstName,
-          lastName: guests.lastName,
+          id: profiles.id,
+          firstName: profiles.firstName,
+          lastName: profiles.lastName,
         },
         room: {
           id: rooms.id,
@@ -159,7 +159,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         },
       })
       .from(bookings)
-      .innerJoin(guests, eq(bookings.guestId, guests.id))
+      .innerJoin(profiles, eq(bookings.guestProfileId, profiles.id))
       .innerJoin(roomTypes, eq(bookings.roomTypeId, roomTypes.id))
       .leftJoin(rooms, eq(bookings.roomId, rooms.id))
       .where(
