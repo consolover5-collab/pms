@@ -17,6 +17,9 @@ import { transactionCodesRoutes } from "./routes/transaction-codes";
 import { folioRoutes } from "./routes/folio";
 import { tapeChartRoutes } from "./routes/tape-chart";
 import { authRoutes } from "./routes/auth";
+import { housekeepingRoutes } from "./routes/housekeeping";
+import { cashierRoutes } from "./routes/cashier";
+import { packagesRoutes } from "./routes/packages";
 
 export async function buildApp() {
   const app = Fastify({ logger: true });
@@ -43,6 +46,9 @@ export async function buildApp() {
   await app.register(folioRoutes);
   await app.register(tapeChartRoutes);
   await app.register(authRoutes);
+  await app.register(housekeepingRoutes);
+  await app.register(cashierRoutes);
+  await app.register(packagesRoutes);
 
   return app;
 }
