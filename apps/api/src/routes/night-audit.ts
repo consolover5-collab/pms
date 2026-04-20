@@ -19,10 +19,10 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/night-audit/preview", async (request, reply) => {
     const propertyId = (request.body as { propertyId?: string })?.propertyId;
     if (!propertyId) {
-      return reply.status(400).send({ error: "propertyId is required" });
+      return reply.status(400).send({ error: "propertyId is required", code: "MISSING_PROPERTY_ID" });
     }
     if (!isValidUuid(propertyId)) {
-      return reply.status(400).send({ error: "Invalid propertyId format" });
+      return reply.status(400).send({ error: "Invalid propertyId format", code: "INVALID_PROPERTY_ID" });
     }
 
     // Get open business date
@@ -37,7 +37,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
       );
 
     if (!bizDate) {
-      return reply.status(404).send({ error: "No open business date" });
+      return reply.status(404).send({ error: "No open business date", code: "NO_OPEN_BUSINESS_DATE" });
     }
 
     // Overdue due outs: checked_in with checkOut < bizDate (блокирующие — аудит нельзя запустить)
@@ -172,10 +172,10 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/night-audit/run", async (request, reply) => {
     const { propertyId, noShowDecisions } = request.body;
     if (!propertyId) {
-      return reply.status(400).send({ error: "propertyId is required" });
+      return reply.status(400).send({ error: "propertyId is required", code: "MISSING_PROPERTY_ID" });
     }
     if (!isValidUuid(propertyId)) {
-      return reply.status(400).send({ error: "Invalid propertyId format" });
+      return reply.status(400).send({ error: "Invalid propertyId format", code: "INVALID_PROPERTY_ID" });
     }
 
     // Get open business date
@@ -190,7 +190,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
       );
 
     if (!bizDate) {
-      return reply.status(404).send({ error: "No open business date" });
+      return reply.status(404).send({ error: "No open business date", code: "NO_OPEN_BUSINESS_DATE" });
     }
 
     // Get property for tax rate
@@ -213,13 +213,13 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
     if (!roomCode) {
       return reply
         .status(400)
-        .send({ error: "ROOM transaction code not found. Run seed first." });
+        .send({ error: "ROOM transaction code not found. Run seed first.", code: "MISSING_ROOM_CODE" });
     }
 
     if (taxRate > 0 && !roomTaxCode) {
       return reply
         .status(400)
-        .send({ error: "ROOM_TAX transaction code not found but tax rate is set. Add ROOM_TAX code or set tax rate to 0." });
+        .send({ error: "ROOM_TAX transaction code not found but tax rate is set. Add ROOM_TAX code or set tax rate to 0.", code: "MISSING_TAX_CODE" });
     }
 
     // B-01: Блокировка при наличии просроченных due outs
@@ -527,7 +527,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
       if (err.message === "ALREADY_RUN") {
         return reply
           .status(409)
-          .send({ error: "Night Audit already run for this business date" });
+          .send({ error: "Night Audit already run for this business date", code: "AUDIT_ALREADY_RUN" });
       }
       throw err;
     }

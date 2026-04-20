@@ -27,7 +27,7 @@ export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
         .from(ratePlans)
         .where(eq(ratePlans.id, request.params.id));
 
-      if (!ratePlan) return reply.status(404).send({ error: "Not found" });
+      if (!ratePlan) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
       return ratePlan;
     }
   );
@@ -109,7 +109,7 @@ export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(ratePlans.id, request.params.id))
       .returning();
 
-    if (!updated) return reply.status(404).send({ error: "Not found" });
+    if (!updated) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
     return updated;
   });
 
@@ -195,7 +195,7 @@ export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
         .where(and(eq(ratePlans.id, request.params.id), eq(ratePlans.propertyId, propertyId)))
         .returning();
 
-      if (!deleted) return reply.status(404).send({ error: "Not found" });
+      if (!deleted) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
       return { success: true };
     }
   );

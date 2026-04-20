@@ -17,7 +17,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/bookings/:bookingId/folio", async (request, reply) => {
     const { bookingId } = request.params;
     if (!isValidUuid(bookingId)) {
-      return reply.status(400).send({ error: "Invalid bookingId format" });
+      return reply.status(400).send({ error: "Invalid bookingId format", code: "INVALID_BOOKING_ID" });
     }
 
     // Verify booking exists
@@ -27,7 +27,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(bookings.id, bookingId));
 
     if (!booking) {
-      return reply.status(404).send({ error: "Booking not found" });
+      return reply.status(404).send({ error: "Booking not found", code: "BOOKING_NOT_FOUND" });
     }
 
     const transactions = await app.db
@@ -119,17 +119,17 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/bookings/:bookingId/folio/post", async (request, reply) => {
     const { bookingId } = request.params;
     if (!isValidUuid(bookingId)) {
-      return reply.status(400).send({ error: "Invalid bookingId format" });
+      return reply.status(400).send({ error: "Invalid bookingId format", code: "INVALID_BOOKING_ID" });
     }
     const { transactionCodeId, amount, description } = request.body;
 
     if (!transactionCodeId || !amount || amount <= 0) {
       return reply
         .status(400)
-        .send({ error: "transactionCodeId and positive amount are required" });
+        .send({ error: "transactionCodeId and positive amount are required", code: "MISSING_FIELDS" });
     }
     if (!isValidUuid(transactionCodeId)) {
-      return reply.status(400).send({ error: "Invalid transactionCodeId format" });
+      return reply.status(400).send({ error: "Invalid transactionCodeId format", code: "INVALID_TRANSACTION_CODE_ID" });
     }
 
     // Verify booking
@@ -139,7 +139,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(bookings.id, bookingId));
 
     if (!booking) {
-      return reply.status(404).send({ error: "Booking not found" });
+      return reply.status(404).send({ error: "Booking not found", code: "BOOKING_NOT_FOUND" });
     }
 
     const allowedFolioStatuses = ["confirmed", "checked_in"];
@@ -156,13 +156,13 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(transactionCodes.id, transactionCodeId));
 
     if (!code) {
-      return reply.status(404).send({ error: "Transaction code not found" });
+      return reply.status(404).send({ error: "Transaction code not found", code: "TRANSACTION_CODE_NOT_FOUND" });
     }
 
     if (!code.isManualPostAllowed) {
       return reply
         .status(400)
-        .send({ error: "This transaction code is system-only" });
+        .send({ error: "This transaction code is system-only", code: "SYSTEM_ONLY_CODE" });
     }
 
     // Get open business date
@@ -179,7 +179,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
     if (!bizDate) {
       return reply
         .status(400)
-        .send({ error: "No open business date" });
+        .send({ error: "No open business date", code: "NO_OPEN_BUSINESS_DATE" });
     }
 
     const isPayment = code.transactionType === "payment";
@@ -209,17 +209,17 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/bookings/:bookingId/folio/payment", async (request, reply) => {
     const { bookingId } = request.params;
     if (!isValidUuid(bookingId)) {
-      return reply.status(400).send({ error: "Invalid bookingId format" });
+      return reply.status(400).send({ error: "Invalid bookingId format", code: "INVALID_BOOKING_ID" });
     }
     const { transactionCodeId, amount } = request.body;
 
     if (!transactionCodeId || !amount || amount <= 0) {
       return reply
         .status(400)
-        .send({ error: "transactionCodeId and positive amount are required" });
+        .send({ error: "transactionCodeId and positive amount are required", code: "MISSING_FIELDS" });
     }
     if (!isValidUuid(transactionCodeId)) {
-      return reply.status(400).send({ error: "Invalid transactionCodeId format" });
+      return reply.status(400).send({ error: "Invalid transactionCodeId format", code: "INVALID_TRANSACTION_CODE_ID" });
     }
 
     const [booking] = await app.db
@@ -228,7 +228,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(bookings.id, bookingId));
 
     if (!booking) {
-      return reply.status(404).send({ error: "Booking not found" });
+      return reply.status(404).send({ error: "Booking not found", code: "BOOKING_NOT_FOUND" });
     }
 
     const allowedPaymentStatuses = ["confirmed", "checked_in", "checked_out"];
@@ -246,7 +246,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
     if (!code || code.transactionType !== "payment") {
       return reply
         .status(400)
-        .send({ error: "Invalid payment transaction code" });
+        .send({ error: "Invalid payment transaction code", code: "INVALID_PAYMENT_CODE" });
     }
 
     const [bizDate] = await app.db
@@ -260,7 +260,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
       );
 
     if (!bizDate) {
-      return reply.status(400).send({ error: "No open business date" });
+      return reply.status(400).send({ error: "No open business date", code: "NO_OPEN_BUSINESS_DATE" });
     }
 
     const [created] = await app.db
@@ -288,17 +288,17 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/bookings/:bookingId/folio/adjust", async (request, reply) => {
     const { bookingId } = request.params;
     if (!isValidUuid(bookingId)) {
-      return reply.status(400).send({ error: "Invalid bookingId format" });
+      return reply.status(400).send({ error: "Invalid bookingId format", code: "INVALID_BOOKING_ID" });
     }
     const { transactionId, reason } = request.body;
 
     if (!transactionId || !reason) {
       return reply
         .status(400)
-        .send({ error: "transactionId and reason are required" });
+        .send({ error: "transactionId and reason are required", code: "MISSING_FIELDS" });
     }
     if (!isValidUuid(transactionId)) {
-      return reply.status(400).send({ error: "Invalid transactionId format" });
+      return reply.status(400).send({ error: "Invalid transactionId format", code: "INVALID_TRANSACTION_ID" });
     }
 
     // Get original transaction
@@ -313,7 +313,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
       );
 
     if (!original) {
-      return reply.status(404).send({ error: "Transaction not found" });
+      return reply.status(404).send({ error: "Transaction not found", code: "TRANSACTION_NOT_FOUND" });
     }
 
     // Prevent adjusting an adjustment (double reversal)
@@ -332,7 +332,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
     if (!code?.adjustmentCodeId) {
       return reply
         .status(400)
-        .send({ error: "This transaction type cannot be adjusted" });
+        .send({ error: "This transaction type cannot be adjusted", code: "NOT_ADJUSTABLE" });
     }
 
     // Check if already adjusted
@@ -345,7 +345,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
     if (existingAdjustment) {
       return reply
         .status(409)
-        .send({ error: "This transaction has already been adjusted" });
+        .send({ error: "This transaction has already been adjusted", code: "ALREADY_ADJUSTED" });
     }
 
     // Get open business date
@@ -360,7 +360,7 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
       );
 
     if (!bizDate) {
-      return reply.status(400).send({ error: "No open business date" });
+      return reply.status(400).send({ error: "No open business date", code: "NO_OPEN_BUSINESS_DATE" });
     }
 
     // Create counter-entry: mirror debit/credit

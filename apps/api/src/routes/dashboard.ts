@@ -30,10 +30,10 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/dashboard/arrivals", async (request, reply) => {
     const { propertyId } = request.query;
     if (!propertyId) {
-      return reply.status(400).send({ error: "propertyId is required" });
+      return reply.status(400).send({ error: "propertyId is required", code: "MISSING_PROPERTY_ID" });
     }
     if (!isValidUuid(propertyId)) {
-      return reply.status(400).send({ error: "Invalid propertyId format" });
+      return reply.status(400).send({ error: "Invalid propertyId format", code: "INVALID_PROPERTY_ID" });
     }
 
     const today = await getBusinessDate(app.db, propertyId);
@@ -83,10 +83,10 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/dashboard/departures", async (request, reply) => {
     const { propertyId } = request.query;
     if (!propertyId) {
-      return reply.status(400).send({ error: "propertyId is required" });
+      return reply.status(400).send({ error: "propertyId is required", code: "MISSING_PROPERTY_ID" });
     }
     if (!isValidUuid(propertyId)) {
-      return reply.status(400).send({ error: "Invalid propertyId format" });
+      return reply.status(400).send({ error: "Invalid propertyId format", code: "INVALID_PROPERTY_ID" });
     }
 
     const today = await getBusinessDate(app.db, propertyId);
@@ -132,10 +132,10 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/dashboard/in-house", async (request, reply) => {
     const { propertyId } = request.query;
     if (!propertyId) {
-      return reply.status(400).send({ error: "propertyId is required" });
+      return reply.status(400).send({ error: "propertyId is required", code: "MISSING_PROPERTY_ID" });
     }
     if (!isValidUuid(propertyId)) {
-      return reply.status(400).send({ error: "Invalid propertyId format" });
+      return reply.status(400).send({ error: "Invalid propertyId format", code: "INVALID_PROPERTY_ID" });
     }
 
     const result = await app.db
@@ -179,10 +179,10 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/dashboard/summary", async (request, reply) => {
     const { propertyId } = request.query;
     if (!propertyId) {
-      return reply.status(400).send({ error: "propertyId is required" });
+      return reply.status(400).send({ error: "propertyId is required", code: "MISSING_PROPERTY_ID" });
     }
     if (!isValidUuid(propertyId)) {
-      return reply.status(400).send({ error: "Invalid propertyId format" });
+      return reply.status(400).send({ error: "Invalid propertyId format", code: "INVALID_PROPERTY_ID" });
     }
 
     const today = await getBusinessDate(app.db, propertyId);

@@ -11,18 +11,18 @@ export const tapeChartRoutes: FastifyPluginAsync = async (app) => {
 
     // Validation
     if (!propertyId) {
-      return reply.status(400).send({ error: "propertyId is required" });
+      return reply.status(400).send({ error: "propertyId is required", code: "MISSING_PROPERTY_ID" });
     }
     if (!isValidUuid(propertyId)) {
-      return reply.status(400).send({ error: "Invalid propertyId format" });
+      return reply.status(400).send({ error: "Invalid propertyId format", code: "INVALID_PROPERTY_ID" });
     }
     if (!from || !to) {
       return reply
         .status(400)
-        .send({ error: "from and to date parameters are required" });
+        .send({ error: "from and to date parameters are required", code: "MISSING_DATE_RANGE" });
     }
     if (from >= to) {
-      return reply.status(400).send({ error: "from must be before to" });
+      return reply.status(400).send({ error: "from must be before to", code: "INVALID_DATE_RANGE" });
     }
 
     // Query rooms with roomType join, sorted by sortOrder + roomNumber

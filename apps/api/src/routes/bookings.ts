@@ -171,7 +171,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         .leftJoin(ratePlans, eq(bookings.ratePlanId, ratePlans.id))
         .where(eq(bookings.id, request.params.id));
 
-      if (!booking) return reply.status(404).send({ error: "Booking not found" });
+      if (!booking) return reply.status(404).send({ error: "Booking not found", code: "BOOKING_NOT_FOUND" });
       return booking;
     },
   );
@@ -390,7 +390,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/bookings/:id", async (request, reply) => {
     // Загрузить текущее бронирование для merge с обновляемыми полями
     const [existing] = await app.db.select().from(bookings).where(eq(bookings.id, request.params.id));
-    if (!existing) return reply.status(404).send({ error: "Booking not found" });
+    if (!existing) return reply.status(404).send({ error: "Booking not found", code: "BOOKING_NOT_FOUND" });
 
     // У заселённых броней можно только продлить выезд (checkOutDate), дата заезда заблокирована
     if (existing.status === "checked_in") {

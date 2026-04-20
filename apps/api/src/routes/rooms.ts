@@ -20,11 +20,11 @@ async function validateRoomStatusUpdate(
   reply: FastifyReply,
 ): Promise<boolean> {
   if (housekeepingStatus && !validHkStatuses.includes(housekeepingStatus)) {
-    reply.status(400).send({ error: "Invalid housekeeping status" });
+    reply.status(400).send({ error: "Invalid housekeeping status", code: "INVALID_HK_STATUS" });
     return false;
   }
   if (occupancyStatus && !validOccStatuses.includes(occupancyStatus)) {
-    reply.status(400).send({ error: "Invalid occupancy status" });
+    reply.status(400).send({ error: "Invalid occupancy status", code: "INVALID_OCC_STATUS" });
     return false;
   }
 
@@ -127,7 +127,7 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
         .innerJoin(roomTypes, eq(rooms.roomTypeId, roomTypes.id))
         .where(eq(rooms.id, request.params.id));
 
-      if (!room) return reply.status(404).send({ error: "Not found" });
+      if (!room) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
       return room;
     }
   );
@@ -222,7 +222,7 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(rooms.id, request.params.id))
       .returning();
 
-    if (!updated) return reply.status(404).send({ error: "Not found" });
+    if (!updated) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
     return updated;
   });
 
@@ -310,7 +310,7 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(rooms.id, request.params.id))
       .returning();
 
-    if (!updated) return reply.status(404).send({ error: "Not found" });
+    if (!updated) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
     return updated;
   });
 
@@ -320,7 +320,7 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
     Body: { roomTypeId?: string; roomNumber?: string; floor?: number | null };
   }>("/api/rooms/:id", async (request, reply) => {
     const [room] = await app.db.select().from(rooms).where(eq(rooms.id, request.params.id));
-    if (!room) return reply.status(404).send({ error: "Not found" });
+    if (!room) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
 
     if (room.occupancyStatus === "occupied") {
       return reply.status(400).send({
@@ -366,7 +366,7 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
         .where(eq(rooms.id, request.params.id))
         .returning();
 
-      if (!deleted) return reply.status(404).send({ error: "Not found" });
+      if (!deleted) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
       return { success: true };
     }
   );

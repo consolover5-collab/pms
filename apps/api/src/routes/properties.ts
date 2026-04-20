@@ -14,7 +14,7 @@ export const propertiesRoutes: FastifyPluginAsync = async (app) => {
         .select()
         .from(properties)
         .where(eq(properties.id, request.params.id));
-      if (!property) return reply.status(404).send({ error: "Not found" });
+      if (!property) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
       return property;
     },
   );
@@ -55,7 +55,7 @@ export const propertiesRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(properties.id, request.params.id))
       .returning();
 
-    if (!updated) return reply.status(404).send({ error: "Not found" });
+    if (!updated) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
     return updated;
   });
 };

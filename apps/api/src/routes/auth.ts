@@ -17,7 +17,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (!username || !password) {
       return reply
         .status(400)
-        .send({ error: "Username and password are required" });
+        .send({ error: "Username and password are required", code: "MISSING_CREDENTIALS" });
     }
 
     // Find user
@@ -29,7 +29,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (!user) {
       return reply
         .status(401)
-        .send({ error: "Invalid username or password" });
+        .send({ error: "Invalid username or password", code: "INVALID_CREDENTIALS" });
     }
 
     // Verify password
@@ -37,7 +37,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (!valid) {
       return reply
         .status(401)
-        .send({ error: "Invalid username or password" });
+        .send({ error: "Invalid username or password", code: "INVALID_CREDENTIALS" });
     }
 
     // Create session
@@ -75,7 +75,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.get("/api/auth/me", async (request, reply) => {
     const token = request.cookies[SESSION_COOKIE];
     if (!token) {
-      return reply.status(401).send({ error: "Not authenticated" });
+      return reply.status(401).send({ error: "Not authenticated", code: "NOT_AUTHENTICATED" });
     }
 
     const [session] = await app.db
@@ -87,7 +87,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
     if (!session) {
       reply.clearCookie(SESSION_COOKIE, { path: "/" });
-      return reply.status(401).send({ error: "Session expired" });
+      return reply.status(401).send({ error: "Session expired", code: "SESSION_EXPIRED" });
     }
 
     const [user] = await app.db
@@ -100,7 +100,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       .where(and(eq(users.id, session.userId), eq(users.isActive, true)));
 
     if (!user) {
-      return reply.status(401).send({ error: "User not found" });
+      return reply.status(401).send({ error: "User not found", code: "USER_NOT_FOUND" });
     }
 
     return user;

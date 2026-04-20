@@ -65,7 +65,7 @@ export const profilesRoutes: FastifyPluginAsync = async (app) => {
         .select()
         .from(profiles)
         .where(eq(profiles.id, request.params.id));
-      if (!profile) return reply.status(404).send({ error: "Not found" });
+      if (!profile) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
       return profile;
     },
   );
@@ -202,7 +202,7 @@ export const profilesRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(profiles.id, request.params.id))
       .returning();
 
-    if (!updated) return reply.status(404).send({ error: "Not found" });
+    if (!updated) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
     return updated;
   });
 
@@ -217,7 +217,7 @@ export const profilesRoutes: FastifyPluginAsync = async (app) => {
       .select({ id: profiles.id })
       .from(profiles)
       .where(eq(profiles.id, request.params.id));
-    if (!existing) return reply.status(404).send({ error: "Not found" });
+    if (!existing) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
 
     const bookingCount = await app.db
       .select({ count: sql<number>`count(*)` })

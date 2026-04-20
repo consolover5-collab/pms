@@ -35,7 +35,7 @@ export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
         .from(roomTypes)
         .where(eq(roomTypes.id, request.params.id));
 
-      if (!roomType) return reply.status(404).send({ error: "Not found" });
+      if (!roomType) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
       return roomType;
     }
   );
@@ -86,7 +86,7 @@ export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(roomTypes.id, request.params.id))
       .returning();
 
-    if (!updated) return reply.status(404).send({ error: "Not found" });
+    if (!updated) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
     return updated;
   });
 
@@ -130,7 +130,7 @@ export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
         .where(and(eq(roomTypes.id, request.params.id), eq(roomTypes.propertyId, propertyId)))
         .returning();
 
-      if (!deleted) return reply.status(404).send({ error: "Not found" });
+      if (!deleted) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
       return { success: true };
     }
   );
