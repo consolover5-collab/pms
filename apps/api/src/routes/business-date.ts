@@ -10,10 +10,10 @@ export const businessDateRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/business-date", async (request, reply) => {
     const { propertyId } = request.query;
     if (!propertyId) {
-      return reply.status(400).send({ error: "propertyId is required" });
+      return reply.status(400).send({ error: "propertyId is required", code: "MISSING_PROPERTY_ID" });
     }
     if (!isValidUuid(propertyId)) {
-      return reply.status(400).send({ error: "Invalid propertyId format" });
+      return reply.status(400).send({ error: "Invalid propertyId format", code: "INVALID_PROPERTY_ID" });
     }
 
     const [current] = await app.db
@@ -34,7 +34,7 @@ export const businessDateRoutes: FastifyPluginAsync = async (app) => {
     if (!current) {
       return reply
         .status(404)
-        .send({ error: "No open business date found" });
+        .send({ error: "No open business date found", code: "NO_OPEN_BUSINESS_DATE" });
     }
 
     return current;
@@ -48,10 +48,10 @@ export const businessDateRoutes: FastifyPluginAsync = async (app) => {
     if (!propertyId || !date) {
       return reply
         .status(400)
-        .send({ error: "propertyId and date are required" });
+        .send({ error: "propertyId and date are required", code: "MISSING_FIELDS" });
     }
     if (!isValidUuid(propertyId)) {
-      return reply.status(400).send({ error: "Invalid propertyId format" });
+      return reply.status(400).send({ error: "Invalid propertyId format", code: "INVALID_PROPERTY_ID" });
     }
 
     // Validate date format: YYYY-MM-DD
@@ -88,7 +88,7 @@ export const businessDateRoutes: FastifyPluginAsync = async (app) => {
     if (existing) {
       return reply
         .status(409)
-        .send({ error: "Business date already initialized" });
+        .send({ error: "Business date already initialized", code: "ALREADY_INITIALIZED" });
     }
 
     const [created] = await app.db

@@ -15,10 +15,14 @@ export function GuestForm({ propertyId }: { propertyId: string }) {
     setError(null);
 
     const form = new FormData(e.currentTarget);
+    const firstName = String(form.get("firstName") || "").trim();
+    const lastName = String(form.get("lastName") || "").trim();
     const body: Record<string, unknown> = {
       propertyId,
-      firstName: form.get("firstName"),
-      lastName: form.get("lastName"),
+      type: "individual",
+      firstName,
+      lastName,
+      name: `${firstName} ${lastName}`,
     };
 
     // Optional fields — only include if non-empty
@@ -30,7 +34,7 @@ export function GuestForm({ propertyId }: { propertyId: string }) {
     if (vip && String(vip).trim()) body.vipStatus = String(vip).trim();
 
     try {
-      const res = await fetch(`/api/guests`, {
+      const res = await fetch(`/api/profiles`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -99,7 +103,7 @@ export function GuestForm({ propertyId }: { propertyId: string }) {
         <div>
           <label className="block text-xs text-gray-500 mb-1">VIP Status</label>
           <select name="vipStatus" className="w-full px-3 py-2 border rounded">
-            <option value="">Нет</option>
+            <option value="">None</option>
             <option value="VIP1">VIP 1</option>
             <option value="VIP2">VIP 2</option>
             <option value="VIP3">VIP 3</option>

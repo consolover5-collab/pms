@@ -2,6 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
+import Link from "next/link";
 
 const CHARGE_GROUP_CODES = [
   "room_charge", "tax", "minibar", "restaurant",
@@ -31,6 +34,7 @@ export function TransactionCodeForm({
   isEdit?: boolean;
 }) {
   const router = useRouter();
+  const { dict } = useLocale();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,12 +70,12 @@ export function TransactionCodeForm({
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Ошибка сохранения");
+        throw new Error(data.error || t(dict, "txCodes.form.saveError"));
       }
       router.replace("/configuration/transaction-codes");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка сохранения");
+      setError(err instanceof Error ? err.message : t(dict, "txCodes.form.saveError"));
     } finally {
       setLoading(false);
     }
@@ -83,7 +87,7 @@ export function TransactionCodeForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Код *</label>
+          <label className="block text-sm font-medium mb-1">{t(dict, "txCodes.form.labelCode")}</label>
           <input
             type="text"
             value={form.code}
@@ -95,7 +99,7 @@ export function TransactionCodeForm({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Порядок сортировки</label>
+          <label className="block text-sm font-medium mb-1">{t(dict, "txCodes.form.labelSortOrder")}</label>
           <input
             type="number"
             value={form.sortOrder}
@@ -107,31 +111,31 @@ export function TransactionCodeForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1">Описание *</label>
+        <label className="block text-sm font-medium mb-1">{t(dict, "txCodes.form.labelDescription")}</label>
         <input
           type="text"
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
           required
           className="w-full border rounded px-3 py-2"
-          placeholder="Проживание"
+          placeholder={t(dict, "txCodes.form.placeholderDesc")}
         />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Тип *</label>
+          <label className="block text-sm font-medium mb-1">{t(dict, "txCodes.form.labelType")}</label>
           <select
             value={form.transactionType}
             onChange={(e) => handleTypeChange(e.target.value)}
             className="w-full border rounded px-3 py-2"
           >
-            <option value="charge">Начисление (charge)</option>
-            <option value="payment">Оплата (payment)</option>
+            <option value="charge">{t(dict, "txCodes.form.typeCharge")} (charge)</option>
+            <option value="payment">{t(dict, "txCodes.form.typePayment")} (payment)</option>
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Группа *</label>
+          <label className="block text-sm font-medium mb-1">{t(dict, "txCodes.form.labelGroup")}</label>
           <select
             value={form.groupCode}
             onChange={(e) => setForm({ ...form, groupCode: e.target.value })}
@@ -152,7 +156,7 @@ export function TransactionCodeForm({
             onChange={(e) => setForm({ ...form, isManualPostAllowed: e.target.checked })}
             className="rounded"
           />
-          Разрешить ручное начисление
+          {t(dict, "txCodes.form.allowManual")}
         </label>
         {isEdit && (
           <label className="flex items-center gap-2 text-sm">
@@ -162,7 +166,7 @@ export function TransactionCodeForm({
               onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
               className="rounded"
             />
-            Активен
+            {t(dict, "txCodes.form.isActive")}
           </label>
         )}
       </div>
@@ -173,14 +177,14 @@ export function TransactionCodeForm({
           disabled={loading}
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
         >
-          {loading ? "Сохранение..." : isEdit ? "Обновить" : "Создать"}
+          {loading ? t(dict, "txCodes.form.saving") : isEdit ? t(dict, "txCodes.form.update") : t(dict, "txCodes.form.create")}
         </button>
-        <a
+        <Link
           href="/configuration/transaction-codes"
           className="px-4 py-2 border rounded hover:bg-gray-50"
         >
-          Отмена
-        </a>
+          {t(dict, "txCodes.form.cancel")}
+        </Link>
       </div>
     </form>
   );

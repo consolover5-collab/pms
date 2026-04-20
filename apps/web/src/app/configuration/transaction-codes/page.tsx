@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/api";
 import { BackButton } from "@/components/back-button";
 import Link from "next/link";
+import { getLocale, getDict, t } from "@/lib/i18n";
 
 type TransactionCode = {
   id: string;
@@ -14,6 +15,9 @@ type TransactionCode = {
 };
 
 export default async function TransactionCodesPage() {
+  const locale = await getLocale();
+  const dict = getDict(locale);
+
   const properties = await apiFetch<{ id: string }[]>("/api/properties");
   const propertyId = properties[0]?.id;
   const allCodes = propertyId
@@ -33,40 +37,40 @@ export default async function TransactionCodesPage() {
             fallbackHref="/configuration"
             label="Back to Configuration"
           />
-          <h1 className="text-2xl font-bold mt-2">Коды транзакций</h1>
+          <h1 className="text-2xl font-bold mt-2">{t(dict, "txCodes.title")}</h1>
         </div>
         <Link
           href="/configuration/transaction-codes/new"
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
         >
-          + Новый код
+          {t(dict, "txCodes.newCode")}
         </Link>
       </div>
 
       {allCodes.length === 0 ? (
-        <p className="text-gray-500">Коды транзакций не настроены.</p>
+        <p className="text-gray-500">{t(dict, "txCodes.empty")}</p>
       ) : (
         <div className="space-y-8">
           {/* Charges */}
           <section>
             <h2 className="text-lg font-semibold mb-3 text-blue-700">
-              Начисления ({chargeCodes.length})
+              {t(dict, "txCodes.charges", { count: chargeCodes.length })}
             </h2>
             <div className="border rounded overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-blue-50">
                   <tr>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      Код
+                      {t(dict, "txCodes.colCode")}
                     </th>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      Название
+                      {t(dict, "txCodes.colName")}
                     </th>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      Группа
+                      {t(dict, "txCodes.colGroup")}
                     </th>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      Тип
+                      {t(dict, "txCodes.colType")}
                     </th>
                     <th className="px-4 py-2"></th>
                   </tr>
@@ -91,7 +95,7 @@ export default async function TransactionCodesPage() {
                           href={`/configuration/transaction-codes/${c.id}/edit`}
                           className="text-xs text-blue-600 hover:underline"
                         >
-                          Изменить
+                          {t(dict, "txCodes.edit")}
                         </Link>
                       </td>
                     </tr>
@@ -104,23 +108,23 @@ export default async function TransactionCodesPage() {
           {/* Payments */}
           <section>
             <h2 className="text-lg font-semibold mb-3 text-green-700">
-              Оплаты ({paymentCodes.length})
+              {t(dict, "txCodes.payments", { count: paymentCodes.length })}
             </h2>
             <div className="border rounded overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-green-50">
                   <tr>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      Код
+                      {t(dict, "txCodes.colCode")}
                     </th>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      Название
+                      {t(dict, "txCodes.colName")}
                     </th>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      Группа
+                      {t(dict, "txCodes.colGroup")}
                     </th>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      Тип
+                      {t(dict, "txCodes.colType")}
                     </th>
                     <th className="px-4 py-2"></th>
                   </tr>
@@ -145,7 +149,7 @@ export default async function TransactionCodesPage() {
                           href={`/configuration/transaction-codes/${c.id}/edit`}
                           className="text-xs text-green-600 hover:underline"
                         >
-                          Изменить
+                          {t(dict, "txCodes.edit")}
                         </Link>
                       </td>
                     </tr>

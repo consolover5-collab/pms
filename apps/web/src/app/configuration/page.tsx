@@ -1,40 +1,56 @@
 import Link from "next/link";
 import { BackButton } from "@/components/back-button";
+import { getLocale, getDict, t } from "@/lib/i18n";
 
-const configSections = [
-  {
-    title: "Room Types",
-    href: "/configuration/room-types",
-    description: "Manage room categories, occupancy limits, and base rates",
-    icon: "bed",
-  },
-  {
-    title: "Rate Plans",
-    href: "/configuration/rate-plans",
-    description: "Configure rate codes and pricing strategies",
-    icon: "currency",
-  },
-  {
-    title: "Property Settings",
-    href: "/configuration/property",
-    description: "Hotel details, check-in/out times, currency",
-    icon: "building",
-  },
-  {
-    title: "Transaction Codes",
-    href: "/configuration/transaction-codes",
-    description: "View charge and payment codes for folio postings",
-    icon: "receipt",
-  },
-  {
-    title: "Коды гарантии",
-    href: "/configuration/guarantee-codes",
-    description: "Типы гарантий бронирования и обработка no-show",
-    icon: "shield",
-  },
-];
+export default async function ConfigurationPage() {
+  const locale = await getLocale();
+  const dict = getDict(locale);
 
-export default function ConfigurationPage() {
+  const configSections = [
+    {
+      title: "Room Types",
+      href: "/configuration/room-types",
+      description: "Manage room categories, occupancy limits, and base rates",
+      icon: "bed",
+    },
+    {
+      title: "Rate Plans",
+      href: "/configuration/rate-plans",
+      description: "Configure rate codes and pricing strategies",
+      icon: "currency",
+    },
+    {
+      title: "Packages",
+      href: "/configuration/packages",
+      description: "Manage service packages (breakfast, parking, etc.)",
+      icon: "gift",
+    },
+    {
+      title: "Profiles",
+      href: "/configuration/profiles",
+      description: "Manage guests, companies, travel agents, and booking sources",
+      icon: "users",
+    },
+    {
+      title: "Property Settings",
+      href: "/configuration/property",
+      description: "Hotel details, check-in/out times, currency",
+      icon: "building",
+    },
+    {
+      title: "Transaction Codes",
+      href: "/configuration/transaction-codes",
+      description: "View charge and payment codes for folio postings",
+      icon: "receipt",
+    },
+    {
+      title: t(dict, "guaranteeCodes.title"),
+      href: "/configuration/guarantee-codes",
+      description: t(dict, "config.guaranteeCodesDesc"),
+      icon: "shield",
+    },
+  ];
+
   return (
     <main className="p-8 max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-2">Configuration</h1>

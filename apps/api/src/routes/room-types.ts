@@ -35,7 +35,7 @@ export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
         .from(roomTypes)
         .where(eq(roomTypes.id, request.params.id));
 
-      if (!roomType) return reply.status(404).send({ error: "Not found" });
+      if (!roomType) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
       return roomType;
     }
   );
@@ -86,7 +86,7 @@ export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(roomTypes.id, request.params.id))
       .returning();
 
-    if (!updated) return reply.status(404).send({ error: "Not found" });
+    if (!updated) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
     return updated;
   });
 
@@ -95,7 +95,7 @@ export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
     "/api/room-types/:id",
     async (request, reply) => {
       const { propertyId } = request.query;
-      if (!propertyId) return reply.status(400).send({ error: "propertyId обязателен" });
+      if (!propertyId) return reply.status(400).send({ error: "propertyId is required", code: "MISSING_PROPERTY_ID" });
       // Проверить наличие комнат этого типа
       const roomCount = await app.db
         .select({ count: sql<number>`count(*)` })
@@ -120,8 +120,7 @@ export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
       const bookingCountNum = Number(bookingCount[0].count);
       if (bookingCountNum > 0) {
         return reply.status(400).send({
-          error: `Нельзя удалить: ${bookingCountNum} бронирований ссылаются на этот тип комнаты (Бронирования, Фолио)`,
-          code: "HAS_BOOKINGS",
+          error: `Cannot delete: ${bookingCountNum} bookings refer to this room type.`, code: "HAS_BOOKINGS",
           count: bookingCountNum,
         });
       }
@@ -131,7 +130,7 @@ export const roomTypesRoutes: FastifyPluginAsync = async (app) => {
         .where(and(eq(roomTypes.id, request.params.id), eq(roomTypes.propertyId, propertyId)))
         .returning();
 
-      if (!deleted) return reply.status(404).send({ error: "Not found" });
+      if (!deleted) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
       return { success: true };
     }
   );

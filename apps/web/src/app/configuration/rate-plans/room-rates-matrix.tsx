@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
 
 type RoomType = { id: string; name: string; code: string };
 type RoomRate = {
@@ -20,6 +22,7 @@ export function RoomRatesMatrix({
   roomTypes: RoomType[];
   roomRates: RoomRate[];
 }) {
+  const { dict } = useLocale();
   const [rates, setRates] = useState<Record<string, string>>(() => {
     const map: Record<string, string> = {};
     for (const r of initialRates) {
@@ -69,7 +72,7 @@ export function RoomRatesMatrix({
   if (roomTypes.length === 0) {
     return (
       <p className="text-sm text-gray-500">
-        Нет типов комнат. Добавьте типы комнат в разделе{" "}
+        {t(dict, "roomRates.noTypes")}{" "}
         <a href="/configuration/room-types" className="text-blue-600 hover:underline">
           Room Types
         </a>
@@ -83,8 +86,8 @@ export function RoomRatesMatrix({
       <table className="w-full text-sm">
         <thead className="bg-gray-50">
           <tr>
-            <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">Тип комнаты</th>
-            <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">Цена / ночь</th>
+            <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">{t(dict, "roomRates.colRoomType")}</th>
+            <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">{t(dict, "roomRates.colPrice")}</th>
             <th className="px-4 py-2"></th>
           </tr>
         </thead>
@@ -115,14 +118,14 @@ export function RoomRatesMatrix({
                 </td>
                 <td className="px-4 py-2 text-right space-x-2 whitespace-nowrap">
                   {isSaved ? (
-                    <span className="text-xs text-green-600">✓ Сохранено</span>
+                    <span className="text-xs text-green-600">✓ {t(dict, "roomRates.saved")}</span>
                   ) : (
                     <button
                       onClick={() => handleSave(rt.id)}
                       disabled={isSaving || !rates[rt.id]}
                       className="text-xs text-blue-600 hover:underline disabled:opacity-40"
                     >
-                      {isSaving ? "..." : "Сохранить"}
+                      {isSaving ? "..." : t(dict, "roomRates.save")}
                     </button>
                   )}
                   {hasRate && !isSaved && (
@@ -131,7 +134,7 @@ export function RoomRatesMatrix({
                       disabled={isSaving}
                       className="text-xs text-red-500 hover:underline disabled:opacity-40"
                     >
-                      Удалить
+                      {t(dict, "common.delete")}
                     </button>
                   )}
                 </td>
@@ -141,7 +144,7 @@ export function RoomRatesMatrix({
         </tbody>
       </table>
       <p className="px-4 py-2 text-xs text-gray-400 bg-gray-50">
-        Enter или кнопка «Сохранить» — сохранить цену для типа комнаты
+        {t(dict, "roomRates.hint")}
       </p>
     </div>
   );

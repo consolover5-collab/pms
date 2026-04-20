@@ -14,6 +14,8 @@ import {
 import { sql } from "drizzle-orm";
 import { properties } from "./properties";
 import { bookings } from "./bookings";
+import { profiles } from "./profiles";
+import { users } from "./users";
 
 // Story 7-1: Business dates — one open date per property
 export const businessDates = pgTable(
@@ -69,6 +71,47 @@ export const transactionCodes = pgTable(
   ],
 );
 
+// Кассирские смены
+export const cashierSessions = pgTable("cashier_sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  propertyId: uuid("property_id")
+    .notNull()
+    .references(() => properties.id, { onDelete: "restrict" }),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "restrict" }),
+  cashierNumber: integer("cashier_number").notNull(),
+  openedAt: timestamp("opened_at").notNull().defaultNow(),
+  closedAt: timestamp("closed_at"),
+  openingBalance: decimal("opening_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  closingBalance: decimal("closing_balance", { precision: 10, scale: 2 }),
+  /** Valid values: open, closed */
+  status: varchar("status", { length: 10 }).notNull().default("open"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("cashier_sessions_one_open_per_number")
+    .on(table.propertyId, table.cashierNumber)
+    .where(sql`status = 'open'`),
+  index("cashier_sessions_user_id_idx").on(table.userId),
+]);
+
+// Окна биллинга — разделение счёта (1-8 окон на бронирование)
+export const folioWindows = pgTable("folio_windows", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bookingId: uuid("booking_id")
+    .notNull()
+    .references(() => bookings.id, { onDelete: "restrict" }),
+  windowNumber: integer("window_number").notNull(),
+  label: varchar("label", { length: 100 }).notNull(),
+  profileId: uuid("profile_id")
+    .notNull()
+    .references(() => profiles.id, { onDelete: "restrict" }),
+  paymentMethod: varchar("payment_method", { length: 50 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  unique("folio_windows_booking_window").on(table.bookingId, table.windowNumber),
+  index("folio_windows_booking_id_idx").on(table.bookingId),
+]);
+
 // Story 7-3: Folio transactions — append-only debit/credit ledger
 export const folioTransactions = pgTable("folio_transactions", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -78,6 +121,10 @@ export const folioTransactions = pgTable("folio_transactions", {
   bookingId: uuid("booking_id")
     .notNull()
     .references(() => bookings.id, { onDelete: "restrict" }),
+  folioWindowId: uuid("folio_window_id")
+    .references(() => folioWindows.id, { onDelete: "restrict" }),
+  cashierSessionId: uuid("cashier_session_id")
+    .references(() => cashierSessions.id, { onDelete: "restrict" }),
   businessDateId: uuid("business_date_id")
     .notNull()
     .references(() => businessDates.id, { onDelete: "restrict" }),

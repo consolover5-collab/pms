@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
 
 type RatePlan = {
   id?: string;
@@ -24,6 +25,7 @@ export function RatePlanForm({
   isEdit?: boolean;
 }) {
   const router = useRouter();
+  const { dict } = useLocale();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -138,8 +140,7 @@ export function RatePlanForm({
             className="rounded"
           />
           <span className="font-medium">Base Rate</span>
-          <span className="text-gray-500">(выбирается по умолчанию при создании брони)</span>
-        </label>
+          <span className="text-gray-500">{t(dict, "ratePlan.defaultHint")}</span>        </label>
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"

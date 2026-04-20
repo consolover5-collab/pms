@@ -387,8 +387,8 @@ describe("POST /api/bookings — guaranteeCode, marketCode, channel (P-01, P-02)
     const rt = rtList[0];
     if (!rt) return;
 
-    // Find a guest
-    const { data: gAll } = await api<any>(`/api/guests?propertyId=${PROP}&limit=5`);
+    // Find a guest profile
+    const { data: gAll } = await api<any>(`/api/profiles?propertyId=${PROP}&type=individual&limit=5`);
     const gList: any[] = Array.isArray(gAll) ? gAll : (gAll.data ?? []);
     const guest = gList[0];
     if (!guest) return;
@@ -398,7 +398,7 @@ describe("POST /api/bookings — guaranteeCode, marketCode, channel (P-01, P-02)
       method: "POST",
       payload: {
         propertyId: PROP,
-        guestId: guest.id,
+        guestProfileId: guest.id,
         roomTypeId: rt.id,
         checkInDate: "2099-07-01",
         checkOutDate: "2099-07-05",

@@ -2,33 +2,15 @@
   "version": "7",
   "dialect": "postgresql",
   "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1770679692489,
-      "tag": "0000_legal_thor",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1770841122822,
-      "tag": "0001_public_wrecking_crew",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1770877016187,
-      "tag": "0002_curious_agent_brand",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1771948800000,
-      "tag": "0003_folio_tx_night_audit_unique",
-      "breakpoints": true
-    }
+    { "idx": 0, "version": "7", "when": 1770679692489, "tag": "0000_legal_thor", "breakpoints": true },
+    { "idx": 1, "version": "7", "when": 1770841122822, "tag": "0001_public_wrecking_crew", "breakpoints": true },
+    { "idx": 2, "version": "7", "when": 1770877016187, "tag": "0002_curious_agent_brand", "breakpoints": true },
+    { "idx": 3, "version": "7", "when": 1771948800000, "tag": "0003_folio_tx_night_audit_unique", "breakpoints": true },
+    { "idx": 4, "version": "7", "when": 1772000000000, "tag": "0004_drop_folio_window", "breakpoints": true },
+    { "idx": 5, "version": "7", "when": 1775823000000, "tag": "0005_opera_alignment", "breakpoints": true },
+    { "idx": 6, "version": "7", "when": 1775823617693, "tag": "0006_schema_update", "breakpoints": true },
+    { "idx": 7, "version": "7", "when": 1744387200000, "tag": "0007_unified_profiles", "breakpoints": true },
+    { "idx": 8, "version": "7", "when": 1775974000000, "tag": "0008_folio_profile_id", "breakpoints": true },
+    { "idx": 9, "version": "7", "when": 1777000000000, "tag": "0009_baseline_align", "breakpoints": true }
   ]
 }

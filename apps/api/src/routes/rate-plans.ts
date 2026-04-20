@@ -27,7 +27,7 @@ export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
         .from(ratePlans)
         .where(eq(ratePlans.id, request.params.id));
 
-      if (!ratePlan) return reply.status(404).send({ error: "Not found" });
+      if (!ratePlan) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
       return ratePlan;
     }
   );
@@ -109,7 +109,7 @@ export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(ratePlans.id, request.params.id))
       .returning();
 
-    if (!updated) return reply.status(404).send({ error: "Not found" });
+    if (!updated) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
     return updated;
   });
 
@@ -140,7 +140,7 @@ export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/rate-plans/:id/room-rates", async (request, reply) => {
     const { roomTypeId, amount } = request.body;
     if (!roomTypeId || !amount) {
-      return reply.status(400).send({ error: "roomTypeId и amount обязательны" });
+      return reply.status(400).send({ error: "roomTypeId and amount are required", code: "MISSING_FIELDS" });
     }
     const [rate] = await app.db
       .insert(ratePlanRoomRates)
@@ -174,7 +174,7 @@ export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
     "/api/rate-plans/:id",
     async (request, reply) => {
       const { propertyId } = request.query;
-      if (!propertyId) return reply.status(400).send({ error: "propertyId обязателен" });
+      if (!propertyId) return reply.status(400).send({ error: "propertyId is required", code: "MISSING_PROPERTY_ID" });
 
       // Проверить наличие ЛЮБЫХ бронирований (включая историю)
       const bookingCount = await app.db
@@ -185,8 +185,7 @@ export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
       const bookingCountNum = Number(bookingCount[0].count);
       if (bookingCountNum > 0) {
         return reply.status(400).send({
-          error: `Нельзя удалить: ${bookingCountNum} бронирований ссылаются на этот тарифный план (Бронирования, Фолио)`,
-          code: "HAS_BOOKINGS",
+          error: `Cannot delete: ${bookingCountNum} bookings refer to this rate plan.`, code: "HAS_BOOKINGS",
           count: bookingCountNum,
         });
       }
@@ -196,7 +195,7 @@ export const ratePlansRoutes: FastifyPluginAsync = async (app) => {
         .where(and(eq(ratePlans.id, request.params.id), eq(ratePlans.propertyId, propertyId)))
         .returning();
 
-      if (!deleted) return reply.status(404).send({ error: "Not found" });
+      if (!deleted) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
       return { success: true };
     }
   );

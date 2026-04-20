@@ -2,6 +2,8 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
 
 function getDefaultDateFrom(): string {
   const d = new Date();
@@ -16,6 +18,7 @@ function getDefaultDateTo(): string {
 }
 
 export function DateFilter() {
+  const { dict } = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [dateFrom, setDateFrom] = useState(
@@ -86,7 +89,7 @@ export function DateFilter() {
 
   return (
     <div className="flex flex-wrap items-center gap-2 mb-4 text-sm">
-      <span className="text-gray-500">Даты:</span>
+      <span className="text-gray-500">{t(dict, "dateFilter.label")}</span>
       <input
         type="date"
         value={dateFrom}
@@ -105,18 +108,18 @@ export function DateFilter() {
         onClick={applyFilter}
         className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
       >
-        Применить
+        {t(dict, "dateFilter.apply")}
       </button>
       {/* Quick presets */}
       <div className="flex gap-1 ml-2">
         <button onClick={setToday} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200">
-          Сегодня
+          {t(dict, "dateFilter.today")}
         </button>
         <button onClick={setThisWeek} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200">
-          Неделя
+          {t(dict, "dateFilter.week")}
         </button>
         <button onClick={setThisMonth} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200">
-          Месяц
+          {t(dict, "dateFilter.month")}
         </button>
       </div>
       {hasFilter && (
@@ -124,7 +127,7 @@ export function DateFilter() {
           onClick={clearFilter}
           className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
         >
-          Сбросить
+          {t(dict, "dateFilter.reset")}
         </button>
       )}
     </div>

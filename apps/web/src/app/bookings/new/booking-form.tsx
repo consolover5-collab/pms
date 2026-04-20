@@ -7,11 +7,12 @@ import { formatCurrency } from "@/lib/format";
 import { ErrorDisplay, type ApiErrorDetail } from "@/components/error-display";
 
 
-type Guest = { id: string; firstName: string; lastName: string };
+type Guest = { id: string; firstName: string; lastName: string; name: string };
 type RoomType = { id: string; name: string; code: string };
 type Room = { id: string; roomNumber: string; roomTypeId: string; occupancyStatus: string; housekeepingStatus: string };
 type RatePlan = { id: string; name: string; code: string; baseRate: string | null; isDefault: boolean };
 type RoomRate = { ratePlanId: string; roomTypeId: string; amount: string };
+type Profile = { id: string; name: string };
 
 export function BookingForm({ propertyId }: { propertyId: string }) {
   const router = useRouter();
@@ -23,12 +24,18 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [ratePlans, setRatePlans] = useState<RatePlan[]>([]);
   const [roomRates, setRoomRates] = useState<RoomRate[]>([]);
+  const [companies, setCompanies] = useState<Profile[]>([]);
+  const [agents, setAgents] = useState<Profile[]>([]);
+  const [sources, setSources] = useState<Profile[]>([]);
 
   // Controlled form state
   const [selectedGuestId, setSelectedGuestId] = useState("");
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState("");
   const [selectedRoomId, setSelectedRoomId] = useState("");
   const [selectedRatePlanId, setSelectedRatePlanId] = useState("");
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [selectedAgentId, setSelectedAgentId] = useState("");
+  const [selectedSourceId, setSelectedSourceId] = useState("");
   const [checkInDate, setCheckInDate] = useState(new Date().toISOString().split("T")[0]);
   const [checkOutDate, setCheckOutDate] = useState("");
   const [adults, setAdults] = useState(1);
@@ -71,18 +78,24 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
   useEffect(() => {
     async function loadData() {
       try {
-        const [gRaw, rt, rm, rpRaw] = await Promise.all([
-          fetch(`/api/guests?propertyId=${propertyId}`).then((r) => r.json()),
+        const [gRaw, rt, rm, rpRaw, compRaw, agentRaw, sourceRaw] = await Promise.all([
+          fetch(`/api/profiles?propertyId=${propertyId}&type=individual`).then((r) => r.json()),
           fetch(`/api/room-types?propertyId=${propertyId}`).then((r) => r.json()),
           fetch(`/api/rooms?propertyId=${propertyId}`).then((r) => r.json()),
           fetch(`/api/rate-plans?propertyId=${propertyId}`).then((r) => r.json()).catch(() => []),
+          fetch(`/api/profiles?propertyId=${propertyId}&type=company`).then((r) => r.json()),
+          fetch(`/api/profiles?propertyId=${propertyId}&type=travel_agent`).then((r) => r.json()),
+          fetch(`/api/profiles?propertyId=${propertyId}&type=source`).then((r) => r.json()),
         ]);
-        const g = Array.isArray(gRaw) ? gRaw : (gRaw.data ?? []);
+        const g = gRaw.data ?? [];
         const rp = Array.isArray(rpRaw) ? rpRaw : (rpRaw.data ?? []);
         setGuests(g);
         setRoomTypes(Array.isArray(rt) ? rt : (rt.data ?? []));
         setRooms(Array.isArray(rm) ? rm : (rm.data ?? []));
         setRatePlans(rp);
+        setCompanies(compRaw.data ?? []);
+        setAgents(agentRaw.data ?? []);
+        setSources(sourceRaw.data ?? []);
         // Загружаем матрицу цен для всех тарифных планов
         const allRates = await Promise.all(
           rp.map((plan: RatePlan) =>
@@ -155,11 +168,13 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
     setError(null);
 
     try {
-      const res = await fetch(`/api/guests`, {
+      const res = await fetch(`/api/profiles`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           propertyId,
+          type: "individual",
+          name: `${newGuestData.firstName} ${newGuestData.lastName}`,
           ...newGuestData,
         }),
       });
@@ -205,7 +220,7 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
 
     const body: Record<string, unknown> = {
       propertyId,
-      guestId: selectedGuestId,
+      guestProfileId: selectedGuestId,
       roomTypeId: selectedRoomTypeId,
       checkInDate,
       checkOutDate,
@@ -219,6 +234,9 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
     if (guaranteeCode) body.guaranteeCode = guaranteeCode;
     if (paymentMethod) body.paymentMethod = paymentMethod;
     if (notes) body.notes = notes;
+    if (selectedCompanyId) body.companyProfileId = selectedCompanyId;
+    if (selectedAgentId) body.agentProfileId = selectedAgentId;
+    if (selectedSourceId) body.sourceProfileId = selectedSourceId;
 
     const url = `/api/bookings`;
 
@@ -295,7 +313,7 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
             <option value="">Select guest...</option>
             {guests.map((g) => (
               <option key={g.id} value={g.id}>
-                {g.lastName}, {g.firstName}
+                {g.lastName || g.name}, {g.firstName}
               </option>
             ))}
           </select>
@@ -356,11 +374,56 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
             {/* Selected guest indicator */}
             {selectedGuestId && (
               <p className="text-xs text-green-600">
-                Guest selected: {guests.find((g) => g.id === selectedGuestId)?.lastName}, {guests.find((g) => g.id === selectedGuestId)?.firstName}
+                Guest selected: {guests.find((g) => g.id === selectedGuestId)?.name}
               </p>
             )}
           </div>
         )}
+      </div>
+
+      {/* Company */}
+      <div>
+        <label className="block text-xs text-gray-500 mb-1">Company</label>
+        <select
+          value={selectedCompanyId}
+          onChange={(e) => setSelectedCompanyId(e.target.value)}
+          className="w-full px-3 py-2 border rounded"
+        >
+          <option value="">— None —</option>
+          {companies.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Travel Agent */}
+      <div>
+        <label className="block text-xs text-gray-500 mb-1">Travel Agent</label>
+        <select
+          value={selectedAgentId}
+          onChange={(e) => setSelectedAgentId(e.target.value)}
+          className="w-full px-3 py-2 border rounded"
+        >
+          <option value="">— None —</option>
+          {agents.map((a) => (
+            <option key={a.id} value={a.id}>{a.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Source */}
+      <div>
+        <label className="block text-xs text-gray-500 mb-1">Source</label>
+        <select
+          value={selectedSourceId}
+          onChange={(e) => setSelectedSourceId(e.target.value)}
+          className="w-full px-3 py-2 border rounded"
+        >
+          <option value="">— None —</option>
+          {sources.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -527,18 +590,18 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Гарантия</label>
+          <label className="block text-xs text-gray-500 mb-1">Guarantee</label>
           <select
             value={guaranteeCode}
             onChange={(e) => setGuaranteeCode(e.target.value)}
             className="w-full px-3 py-2 border rounded"
           >
-            <option value="">Не указана</option>
-            <option value="cc_guaranteed">Кредитная карта</option>
-            <option value="deposit_guaranteed">Депозит</option>
-            <option value="company_guaranteed">Компания</option>
-            <option value="non_guaranteed">Без гарантии</option>
-            <option value="travel_agent_guaranteed">Турагент</option>
+            <option value="">Not specified</option>
+            <option value="cc_guaranteed">Credit Card</option>
+            <option value="deposit_guaranteed">Deposit</option>
+            <option value="company_guaranteed">Company</option>
+            <option value="non_guaranteed">No Guarantee</option>
+            <option value="travel_agent_guaranteed">Travel Agent</option>
           </select>
         </div>
       </div>

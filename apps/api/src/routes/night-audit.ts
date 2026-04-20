@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import {
   bookings,
   rooms,
-  guests,
+  profiles,
   properties,
   businessDates,
   transactionCodes,
@@ -19,10 +19,10 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/night-audit/preview", async (request, reply) => {
     const propertyId = (request.body as { propertyId?: string })?.propertyId;
     if (!propertyId) {
-      return reply.status(400).send({ error: "propertyId is required" });
+      return reply.status(400).send({ error: "propertyId is required", code: "MISSING_PROPERTY_ID" });
     }
     if (!isValidUuid(propertyId)) {
-      return reply.status(400).send({ error: "Invalid propertyId format" });
+      return reply.status(400).send({ error: "Invalid propertyId format", code: "INVALID_PROPERTY_ID" });
     }
 
     // Get open business date
@@ -37,7 +37,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
       );
 
     if (!bizDate) {
-      return reply.status(404).send({ error: "No open business date" });
+      return reply.status(404).send({ error: "No open business date", code: "NO_OPEN_BUSINESS_DATE" });
     }
 
     // Overdue due outs: checked_in with checkOut < bizDate (блокирующие — аудит нельзя запустить)
@@ -80,11 +80,11 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
         checkInDate: bookings.checkInDate,
         checkOutDate: bookings.checkOutDate,
         guaranteeCode: bookings.guaranteeCode,
-        guestFirstName: guests.firstName,
-        guestLastName: guests.lastName,
+        guestFirstName: profiles.firstName,
+        guestLastName: profiles.lastName,
       })
       .from(bookings)
-      .innerJoin(guests, eq(bookings.guestId, guests.id))
+      .innerJoin(profiles, eq(bookings.guestProfileId, profiles.id))
       .where(
         and(
           eq(bookings.propertyId, propertyId),
@@ -99,12 +99,12 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
         id: bookings.id,
         rateAmount: bookings.rateAmount,
         roomNumber: rooms.roomNumber,
-        guestFirstName: guests.firstName,
-        guestLastName: guests.lastName,
+        guestFirstName: profiles.firstName,
+        guestLastName: profiles.lastName,
       })
       .from(bookings)
       .leftJoin(rooms, eq(bookings.roomId, rooms.id))
-      .innerJoin(guests, eq(bookings.guestId, guests.id))
+      .innerJoin(profiles, eq(bookings.guestProfileId, profiles.id))
       .where(
         and(
           eq(bookings.propertyId, propertyId),
@@ -135,11 +135,11 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
     const warnings: string[] = [];
     if (overdueDueOuts.length > 0) {
       warnings.push(
-        `БЛОКИРОВКА: ${overdueDueOuts.length} гост(ей) с просроченным выездом — checkout до запуска аудита`,
+        `BLOCK: ${overdueDueOuts.length} guest(s) with overdue check-out - checkout before running audit`,
       );
     }
     if (dueToday.length > 0) {
-      warnings.push(`${dueToday.length} гост(ей) выезжает сегодня`);
+      warnings.push(`${dueToday.length} guest(s) departing today`);
     }
 
     return {
@@ -172,10 +172,10 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/night-audit/run", async (request, reply) => {
     const { propertyId, noShowDecisions } = request.body;
     if (!propertyId) {
-      return reply.status(400).send({ error: "propertyId is required" });
+      return reply.status(400).send({ error: "propertyId is required", code: "MISSING_PROPERTY_ID" });
     }
     if (!isValidUuid(propertyId)) {
-      return reply.status(400).send({ error: "Invalid propertyId format" });
+      return reply.status(400).send({ error: "Invalid propertyId format", code: "INVALID_PROPERTY_ID" });
     }
 
     // Get open business date
@@ -190,7 +190,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
       );
 
     if (!bizDate) {
-      return reply.status(404).send({ error: "No open business date" });
+      return reply.status(404).send({ error: "No open business date", code: "NO_OPEN_BUSINESS_DATE" });
     }
 
     // Get property for tax rate
@@ -213,13 +213,13 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
     if (!roomCode) {
       return reply
         .status(400)
-        .send({ error: "ROOM transaction code not found. Run seed first." });
+        .send({ error: "ROOM transaction code not found. Run seed first.", code: "MISSING_ROOM_CODE" });
     }
 
     if (taxRate > 0 && !roomTaxCode) {
       return reply
         .status(400)
-        .send({ error: "ROOM_TAX transaction code not found but tax rate is set. Add ROOM_TAX code or set tax rate to 0." });
+        .send({ error: "ROOM_TAX transaction code not found but tax rate is set. Add ROOM_TAX code or set tax rate to 0.", code: "MISSING_TAX_CODE" });
     }
 
     // B-01: Блокировка при наличии просроченных due outs
@@ -241,8 +241,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
 
     if (overdueDueOuts.length > 0) {
       return reply.status(400).send({
-        error: `Невозможно запустить ночной аудит: ${overdueDueOuts.length} гост(ей) с просроченным выездом (checkOut < ${bizDate.date}). Сначала выполните checkout или продлите бронь.`,
-        code: "OVERDUE_DUE_OUTS",
+        error: `Cannot run night audit: ${overdueDueOuts.length} guest(s) with overdue check-out (checkOut < ${bizDate.date}). Please checkout or extend the booking first.`, code: "OVERDUE_DUE_OUTS",
         overdueDueOuts: overdueDueOuts.map((b) => ({
           id: b.id,
           confirmationNumber: b.confirmationNumber,
@@ -367,7 +366,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
             bookingId: booking.id,
             businessDateId: bizDate.id,
             transactionCodeId: roomCode.id,
-            debit: String(rate),
+            debit: booking.rateAmount!,
             credit: "0",
             description: "Room Charge",
             isSystemGenerated: true,
@@ -392,7 +391,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
             bookingId: booking.id,
             businessDateId: bizDate.id,
             transactionCodeId: roomTaxCode.id,
-            debit: String(taxAmount),
+            debit: taxAmount.toFixed(2),
             credit: "0",
             description: "Room Tax",
             isSystemGenerated: true,
@@ -402,7 +401,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
           });
 
           taxChargesPosted++;
-          totalRevenue += taxAmount;
+          totalRevenue = Math.round((totalRevenue + taxAmount) * 100) / 100;
         }
       }
 
@@ -528,7 +527,7 @@ export const nightAuditRoutes: FastifyPluginAsync = async (app) => {
       if (err.message === "ALREADY_RUN") {
         return reply
           .status(409)
-          .send({ error: "Night Audit already run for this business date" });
+          .send({ error: "Night Audit already run for this business date", code: "AUDIT_ALREADY_RUN" });
       }
       throw err;
     }

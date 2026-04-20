@@ -1,4 +1,4 @@
-import Link from "next/link";
+import React from "react";
 
 type HelpContent = {
   titleRu: string;
@@ -7,7 +7,7 @@ type HelpContent = {
   contentEn: React.ReactNode;
 };
 
-const helpContent: Record<string, HelpContent> = {
+export const HelpContentDict: Record<string, HelpContent> = {
   "quick-start": {
     titleRu: "Быстрый старт",
     titleEn: "Quick Start",
@@ -1139,56 +1139,3 @@ const helpContent: Record<string, HelpContent> = {
     ),
   },
 };
-
-const defaultContent: HelpContent = {
-  titleRu: "Тема не найдена",
-  titleEn: "Topic not found",
-  contentRu: <p>Содержимое этой темы находится в разработке.</p>,
-  contentEn: <p>This topic content is under development.</p>,
-};
-
-export default async function HelpTopicPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ topic: string }>;
-  searchParams: Promise<{ lang?: string }>;
-}) {
-  const { topic } = await params;
-  const { lang = "ru" } = await searchParams;
-
-  const content = helpContent[topic] || defaultContent;
-
-  return (
-    <main className="p-8 max-w-4xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <Link href={`/help?lang=${lang}`} className="text-blue-600 hover:underline text-sm">
-            &larr; {lang === "ru" ? "Назад к справке" : "Back to Help"}
-          </Link>
-          <h1 className="text-2xl font-bold mt-2">
-            {lang === "ru" ? content.titleRu : content.titleEn}
-          </h1>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href={`/help/${topic}?lang=ru`}
-            className={`px-3 py-1 rounded ${lang === "ru" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
-          >
-            RU
-          </Link>
-          <Link
-            href={`/help/${topic}?lang=en`}
-            className={`px-3 py-1 rounded ${lang === "en" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
-          >
-            EN
-          </Link>
-        </div>
-      </div>
-
-      <div className="bg-white border rounded-lg p-6">
-        {lang === "ru" ? content.contentRu : content.contentEn}
-      </div>
-    </main>
-  );
-}

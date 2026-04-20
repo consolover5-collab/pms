@@ -1,59 +1,57 @@
 import { BackButton } from "@/components/back-button";
+import { getLocale, getDict, t } from "@/lib/i18n";
 
-const GUARANTEE_CODES = [
-  {
-    code: "cc_guaranteed",
-    label: "Гарантия кредитной картой",
-    description:
-      "Бронь обеспечена кредитной картой гостя. При no-show возможно списание с карты.",
-  },
-  {
-    code: "company_guaranteed",
-    label: "Гарантия компании",
-    description:
-      "Счёт выставляется компании. При no-show счёт выставляется компании.",
-  },
-  {
-    code: "deposit_guaranteed",
-    label: "Гарантия депозитом",
-    description:
-      "Гость внёс предоплату. При no-show депозит удерживается полностью или частично.",
-  },
-  {
-    code: "non_guaranteed",
-    label: "Без гарантии",
-    description:
-      "Бронь не обеспечена. При no-show финансовые претензии невозможны.",
-  },
-  {
-    code: "travel_agent_guaranteed",
-    label: "Гарантия турагента",
-    description:
-      "Турагент несёт финансовую ответственность. При no-show счёт выставляется агенту.",
-  },
-];
+export default async function GuaranteeCodesPage() {
+  const locale = await getLocale();
+  const dict = getDict(locale);
 
-export default function GuaranteeCodesPage() {
+  const GUARANTEE_CODES = [
+    {
+      code: "cc_guaranteed",
+      label: t(dict, "gc.cc.label"),
+      description: t(dict, "gc.cc.desc"),
+    },
+    {
+      code: "company_guaranteed",
+      label: t(dict, "gc.co.label"),
+      description: t(dict, "gc.co.desc"),
+    },
+    {
+      code: "deposit_guaranteed",
+      label: t(dict, "gc.dep.label"),
+      description: t(dict, "gc.dep.desc"),
+    },
+    {
+      code: "non_guaranteed",
+      label: t(dict, "gc.ng.label"),
+      description: t(dict, "gc.ng.desc"),
+    },
+    {
+      code: "travel_agent_guaranteed",
+      label: t(dict, "gc.ta.label"),
+      description: t(dict, "gc.ta.desc"),
+    },
+  ];
+
   return (
     <main className="p-8 max-w-3xl mx-auto">
       <BackButton fallbackHref="/configuration" label="Back to Configuration" />
-      <h1 className="text-2xl font-bold mt-2 mb-2">Коды гарантии</h1>
+      <h1 className="text-2xl font-bold mt-2 mb-2">{t(dict, "guaranteeCodes.title")}</h1>
       <p className="text-sm text-gray-500 mb-6">
-        Код гарантии определяет чем обеспечена бронь и влияет на обработку
-        no-show и отмены бронирования.
+        {t(dict, "guaranteeCodes.subtitle")}
       </p>
       <div className="border rounded overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
               <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase w-52">
-                Код
+                {t(dict, "guaranteeCodes.colCode")}
               </th>
               <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase w-48">
-                Название
+                {t(dict, "guaranteeCodes.colName")}
               </th>
               <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                Описание
+                {t(dict, "guaranteeCodes.colDesc")}
               </th>
             </tr>
           </thead>

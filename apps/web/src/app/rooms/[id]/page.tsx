@@ -2,6 +2,7 @@ import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import { RoomStatusActions } from "./room-status-actions";
 import { BackButton } from "@/components/back-button";
+import { getLocale, getDict, t } from "@/lib/i18n";
 
 type Room = {
   id: string;
@@ -65,6 +66,8 @@ export default async function RoomDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const locale = await getLocale();
+  const dict = getDict(locale);
   const { id } = await params;
   const room = await apiFetch<Room>(`/api/rooms/${id}`);
 
@@ -108,7 +111,7 @@ export default async function RoomDetailPage({
             href={`/rooms/${room.id}/edit`}
             className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200"
           >
-            Настройки комнаты
+            {t(dict, "rooms.settingsTitle")}
           </Link>
         )}
       </div>

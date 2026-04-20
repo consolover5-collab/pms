@@ -2,9 +2,12 @@
 
 import { useState, type FormEvent } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { dict } = useLocale();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +34,7 @@ export default function LoginPage() {
               htmlFor="username"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Логин
+              {t(dict, "login.username")}
             </label>
             <input
               id="username"
@@ -48,7 +51,7 @@ export default function LoginPage() {
               htmlFor="password"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Пароль
+              {t(dict, "login.password")}
             </label>
             <input
               id="password"
@@ -69,7 +72,7 @@ export default function LoginPage() {
             disabled={submitting}
             className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            {submitting ? "Вход..." : "Войти"}
+            {submitting ? t(dict, "login.signingIn") : t(dict, "login.signIn")}
           </button>
         </form>
       </div>

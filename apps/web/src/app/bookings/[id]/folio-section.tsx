@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { formatCurrency } from "@/lib/format";
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
 
 type Transaction = {
   id: string;
@@ -13,6 +15,20 @@ type Transaction = {
   isSystemGenerated: boolean;
   postedBy: string;
   createdAt: string;
+  folioWindowId: string;
+};
+
+type FolioWindow = {
+  id: string;
+  bookingId: string;
+  windowNumber: number;
+  label: string;
+  payeeType: string | null;
+  payeeId: string | null;
+  paymentMethod: string | null;
+  balance: number;
+  totalCharges: number;
+  totalPayments: number;
 };
 
 type FolioData = {
@@ -22,6 +38,7 @@ type FolioData = {
     totalCharges: number;
     totalPayments: number;
   };
+  windows: FolioWindow[];
 };
 
 type TransactionCode = {
@@ -35,25 +52,30 @@ type TransactionCode = {
 type PostFormMode = null | "charge" | "payment";
 
 export function FolioSection({ bookingId }: { bookingId: string }) {
+  const { dict } = useLocale();
   const [folio, setFolio] = useState<FolioData | null>(null);
   const [codes, setCodes] = useState<TransactionCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [postFormMode, setPostFormMode] = useState<PostFormMode>(null);
   const [posting, setPosting] = useState(false);
+  const [selectedWindowId, setSelectedWindowId] = useState<string | null>(null);
 
   const fetchFolio = useCallback(async () => {
     try {
       const res = await fetch(`/api/bookings/${bookingId}/folio`);
       if (!res.ok) throw new Error("Failed to fetch folio");
-      const data = await res.json();
+      const data: FolioData = await res.json();
       setFolio(data);
+      if (!selectedWindowId && data.windows.length > 0) {
+        setSelectedWindowId(data.windows[0].id);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error loading folio");
     } finally {
       setLoading(false);
     }
-  }, [bookingId]);
+  }, [bookingId, selectedWindowId]);
 
   async function fetchCodes() {
     try {
@@ -80,6 +102,11 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
   const chargeCodes = codes.filter((c) => c.transactionType === "charge");
   const paymentCodes = codes.filter((c) => c.transactionType === "payment");
 
+  const activeWindow = folio?.windows.find((w) => w.id === selectedWindowId);
+  const windowTransactions = folio
+    ? folio.transactions.filter((t) => t.folioWindowId === selectedWindowId)
+    : [];
+
   async function handlePost(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setPosting(true);
@@ -91,7 +118,7 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
     const description = form.get("description") as string;
 
     if (!codeId || isNaN(amount) || amount <= 0) {
-      setError("Выберите код и укажите сумму больше 0");
+      setError(t(dict, "folio.validationError"));
       setPosting(false);
       return;
     }
@@ -101,13 +128,11 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
       ? `/api/bookings/${bookingId}/folio/payment`
       : `/api/bookings/${bookingId}/folio/post`;
 
-    // Find the selected transaction code for optimistic display
     const selectedCode = codes.find((c) => c.id === codeId);
     const optimisticId = `optimistic-${Date.now()}`;
     const now = new Date().toISOString();
     const today = now.slice(0, 10);
 
-    // Build optimistic transaction
     const optimisticTxn: Transaction = {
       id: optimisticId,
       date: today,
@@ -121,12 +146,11 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
       isSystemGenerated: false,
       postedBy: "You",
       createdAt: now,
+      folioWindowId: selectedWindowId || "",
     };
 
-    // Snapshot previous folio state for rollback
     const previousFolio = folio;
 
-    // Apply optimistic update
     if (folio) {
       const newBalance = isPayment
         ? folio.balance - amount
@@ -139,6 +163,7 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
         : folio.summary.totalPayments;
 
       setFolio({
+        ...folio,
         balance: newBalance,
         transactions: [...folio.transactions, optimisticTxn],
         summary: { totalCharges: newCharges, totalPayments: newPayments },
@@ -154,22 +179,20 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
         body: JSON.stringify({
           transactionCodeId: codeId,
           amount,
+          folioWindowId: selectedWindowId || undefined,
           ...(description ? { description } : {}),
         }),
       });
 
       if (!res.ok) {
         const data = await res.json();
-        // Rollback optimistic update
         setFolio(previousFolio);
         setError(data.error || "Failed to post");
         return;
       }
 
-      // Refetch to get authoritative server state
       await fetchFolio();
     } catch {
-      // Rollback optimistic update
       setFolio(previousFolio);
       setError("Network error");
     } finally {
@@ -266,6 +289,28 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
         </div>
       )}
 
+      {/* Window tabs */}
+      {folio.windows.length > 1 && (
+        <div className="flex gap-1 mb-3">
+          {folio.windows.map((w) => (
+            <button
+              key={w.id}
+              onClick={() => setSelectedWindowId(w.id)}
+              className={`px-3 py-1.5 text-xs rounded-t border-b-2 ${
+                selectedWindowId === w.id
+                  ? "bg-white border-blue-600 text-blue-700 font-medium"
+                  : "bg-gray-50 border-transparent text-gray-500 hover:bg-gray-100"
+              }`}
+            >
+              W{w.windowNumber}: {w.label}
+              <span className="ml-1 font-mono">
+                ({formatCurrency(w.balance)} &#8381;)
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Post form */}
       {postFormMode && (
         <form
@@ -320,19 +365,19 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
         <div>
           <span className="text-gray-500">Total Charges:</span>{" "}
           <span className="font-mono">
-            {formatCurrency(folio.summary.totalCharges)} &#8381;
+            {formatCurrency(activeWindow?.totalCharges ?? folio.summary.totalCharges)} &#8381;
           </span>
         </div>
         <div>
           <span className="text-gray-500">Total Payments:</span>{" "}
           <span className="font-mono">
-            {formatCurrency(folio.summary.totalPayments)} &#8381;
+            {formatCurrency(activeWindow?.totalPayments ?? folio.summary.totalPayments)} &#8381;
           </span>
         </div>
       </div>
 
       {/* Transactions table */}
-      {folio.transactions.length === 0 ? (
+      {windowTransactions.length === 0 ? (
         <p className="text-gray-400 text-sm">No transactions</p>
       ) : (
         <div className="border rounded overflow-hidden">
@@ -360,7 +405,7 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {folio.transactions.map((t) => (
+              {windowTransactions.map((t) => (
                 <tr key={t.id} className={`hover:bg-gray-50 ${t.id.startsWith("optimistic-") ? "opacity-60" : ""}`}>
                   <td className="px-3 py-2 text-gray-600">{t.date}</td>
                   <td className="px-3 py-2 font-mono text-xs">

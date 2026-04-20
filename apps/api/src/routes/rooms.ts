@@ -20,11 +20,11 @@ async function validateRoomStatusUpdate(
   reply: FastifyReply,
 ): Promise<boolean> {
   if (housekeepingStatus && !validHkStatuses.includes(housekeepingStatus)) {
-    reply.status(400).send({ error: "Invalid housekeeping status" });
+    reply.status(400).send({ error: "Invalid housekeeping status", code: "INVALID_HK_STATUS" });
     return false;
   }
   if (occupancyStatus && !validOccStatuses.includes(occupancyStatus)) {
-    reply.status(400).send({ error: "Invalid occupancy status" });
+    reply.status(400).send({ error: "Invalid occupancy status", code: "INVALID_OCC_STATUS" });
     return false;
   }
 
@@ -39,8 +39,7 @@ async function validateRoomStatusUpdate(
       const allowed = hkTransitions[currentRoom.housekeepingStatus];
       if (allowed && !allowed.includes(housekeepingStatus)) {
         reply.status(400).send({
-          error: `Нельзя изменить статус с "${currentRoom.housekeepingStatus}" на "${housekeepingStatus}". Допустимые переходы: ${allowed.join(", ")}.`,
-          code: "INVALID_HK_TRANSITION",
+          error: `Cannot change status from "${currentRoom.housekeepingStatus}" to "${housekeepingStatus}". Allowed transitions: ${allowed.join(", ")}.`, code: "INVALID_HK_TRANSITION",
           currentStatus: currentRoom.housekeepingStatus,
           allowedTransitions: allowed,
         });
@@ -128,7 +127,7 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
         .innerJoin(roomTypes, eq(rooms.roomTypeId, roomTypes.id))
         .where(eq(rooms.id, request.params.id));
 
-      if (!room) return reply.status(404).send({ error: "Not found" });
+      if (!room) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
       return room;
     }
   );
@@ -159,16 +158,14 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
       // B-05a: Нельзя OOO если комната занята
       if (room?.occupancyStatus === "occupied") {
         return reply.status(400).send({
-          error: "Нельзя перевести занятую комнату в статус Out of Order. Сначала выполните checkout.",
-          code: "ROOM_IS_OCCUPIED",
+          error: "Cannot set occupied room to Out of Order. Perform checkout first.", code: "ROOM_IS_OCCUPIED",
         });
       }
 
       // B-02: Даты OOO обязательны
       if (!oooFromDate || !oooToDate) {
         return reply.status(400).send({
-          error: "Для OOO/OOS обязательно укажите даты начала и окончания периода.",
-          code: "OOO_DATES_REQUIRED",
+          error: "Start and end dates are required for OOO/OOS.", code: "OOO_DATES_REQUIRED",
         });
       }
 
@@ -187,8 +184,7 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
 
       if (conflictingBookings.length > 0) {
         return reply.status(400).send({
-          error: `Нельзя установить Out of Order: комната забронирована на этот период (${conflictingBookings.length} брон(ей)).`,
-          code: "ROOM_HAS_BOOKINGS_IN_PERIOD",
+          error: `Cannot set Out of Order: room is booked for this period (${conflictingBookings.length} booking(s)).`, code: "ROOM_HAS_BOOKINGS_IN_PERIOD",
           conflictingBookings: conflictingBookings.map((b) => b.confirmationNumber),
         });
       }
@@ -197,14 +193,12 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
     // Валидация дат OOO
     if (oooToDate && oooFromDate && oooToDate < oooFromDate) {
       return reply.status(400).send({
-        error: "Дата окончания OOO не может быть раньше даты начала.",
-        code: "INVALID_OOO_DATES",
+        error: "OOO end date cannot be before start date.", code: "INVALID_OOO_DATES",
       });
     }
     if (returnStatus && !["clean", "dirty"].includes(returnStatus)) {
       return reply.status(400).send({
-        error: "Статус возврата должен быть clean или dirty.",
-        code: "INVALID_RETURN_STATUS",
+        error: "Return status must be clean or dirty.", code: "INVALID_RETURN_STATUS",
       });
     }
 
@@ -228,7 +222,7 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(rooms.id, request.params.id))
       .returning();
 
-    if (!updated) return reply.status(404).send({ error: "Not found" });
+    if (!updated) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
     return updated;
   });
 
@@ -256,15 +250,13 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
 
       if (room?.occupancyStatus === "occupied") {
         return reply.status(400).send({
-          error: "Нельзя перевести занятую комнату в статус Out of Order. Сначала выполните checkout.",
-          code: "ROOM_IS_OCCUPIED",
+          error: "Cannot set occupied room to Out of Order. Perform checkout first.", code: "ROOM_IS_OCCUPIED",
         });
       }
 
       if (!oooFromDate || !oooToDate) {
         return reply.status(400).send({
-          error: "Для OOO/OOS обязательно укажите даты начала и окончания периода.",
-          code: "OOO_DATES_REQUIRED",
+          error: "Start and end dates are required for OOO/OOS.", code: "OOO_DATES_REQUIRED",
         });
       }
 
@@ -282,8 +274,7 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
 
       if (conflictingBookings.length > 0) {
         return reply.status(400).send({
-          error: `Нельзя установить Out of Order: комната забронирована на этот период (${conflictingBookings.length} брон(ей)).`,
-          code: "ROOM_HAS_BOOKINGS_IN_PERIOD",
+          error: `Cannot set Out of Order: room is booked for this period (${conflictingBookings.length} booking(s)).`, code: "ROOM_HAS_BOOKINGS_IN_PERIOD",
           conflictingBookings: conflictingBookings.map((b) => b.confirmationNumber),
         });
       }
@@ -291,14 +282,12 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
 
     if (oooToDate && oooFromDate && oooToDate < oooFromDate) {
       return reply.status(400).send({
-        error: "Дата окончания OOO не может быть раньше даты начала.",
-        code: "INVALID_OOO_DATES",
+        error: "OOO end date cannot be before start date.", code: "INVALID_OOO_DATES",
       });
     }
     if (returnStatus && !["clean", "dirty"].includes(returnStatus)) {
       return reply.status(400).send({
-        error: "Статус возврата должен быть clean или dirty.",
-        code: "INVALID_RETURN_STATUS",
+        error: "Return status must be clean or dirty.", code: "INVALID_RETURN_STATUS",
       });
     }
 
@@ -321,7 +310,7 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(rooms.id, request.params.id))
       .returning();
 
-    if (!updated) return reply.status(404).send({ error: "Not found" });
+    if (!updated) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
     return updated;
   });
 
@@ -331,19 +320,18 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
     Body: { roomTypeId?: string; roomNumber?: string; floor?: number | null };
   }>("/api/rooms/:id", async (request, reply) => {
     const [room] = await app.db.select().from(rooms).where(eq(rooms.id, request.params.id));
-    if (!room) return reply.status(404).send({ error: "Not found" });
+    if (!room) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
 
     if (room.occupancyStatus === "occupied") {
       return reply.status(400).send({
-        error: "Нельзя изменить параметры занятой комнаты. Дождитесь выезда гостя.",
-        code: "ROOM_OCCUPIED",
+        error: "Cannot change parameters of an occupied room. Wait for guest check-out.", code: "ROOM_OCCUPIED",
       });
     }
 
     // Проверка нового типа комнаты
     if (request.body.roomTypeId) {
       const [rt] = await app.db.select({ id: roomTypes.id }).from(roomTypes).where(eq(roomTypes.id, request.body.roomTypeId));
-      if (!rt) return reply.status(400).send({ error: "Тип комнаты не найден", code: "ROOM_TYPE_NOT_FOUND" });
+      if (!rt) return reply.status(400).send({ error: "Room type not found", code: "ROOM_TYPE_NOT_FOUND" });
     }
 
     const updates: Record<string, unknown> = { updatedAt: new Date() };
@@ -368,8 +356,7 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
       const bookingCountNum = Number(bookingCount[0].count);
       if (bookingCountNum > 0) {
         return reply.status(400).send({
-          error: `Невозможно удалить комнату: ${bookingCountNum} бронирований связано с этой комнатой. Связанные функции: Бронирования, Фолио.`,
-          code: "HAS_BOOKINGS",
+          error: `Cannot delete room: ${bookingCountNum} bookings are linked to this room. Related functions: Bookings, Folio.`, code: "HAS_BOOKINGS",
           count: bookingCountNum,
         });
       }
@@ -379,7 +366,7 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
         .where(eq(rooms.id, request.params.id))
         .returning();
 
-      if (!deleted) return reply.status(404).send({ error: "Not found" });
+      if (!deleted) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
       return { success: true };
     }
   );

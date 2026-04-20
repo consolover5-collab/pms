@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ErrorDisplay, type ApiErrorDetail } from "@/components/error-display";
-
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
 
 type Property = {
   id: string;
@@ -22,6 +23,7 @@ type Property = {
 };
 
 export function PropertyForm({ property }: { property: Property }) {
+  const { dict } = useLocale();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ApiErrorDetail | null>(null);
@@ -232,7 +234,7 @@ export function PropertyForm({ property }: { property: Property }) {
               placeholder="20"
             />
             <p className="text-xs text-gray-500 mt-1">
-              НДС/VAT — ставка налога, применяемая к начислениям за проживание
+              {t(dict, "property.taxRateHint")}
             </p>
           </div>
         </div>

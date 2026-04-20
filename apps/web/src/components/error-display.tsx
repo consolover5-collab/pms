@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "@/components/locale-provider";
+import { t, type DictionaryKey } from "@/lib/i18n";
 
 export type ApiErrorDetail = {
   error: string;
@@ -23,10 +25,28 @@ export function ErrorDisplay({
   onDismiss?: () => void;
 }) {
   const [showDetails, setShowDetails] = useState(false);
+  const { dict } = useLocale();
 
   const isSimple = typeof error === "string";
-  const message = isSimple ? error : error.error;
+  let message = isSimple ? error : error.error;
   const hasDetails = !isSimple && (error.code || error.status || error.url || Object.keys(error).length > 1);
+
+  if (!isSimple && error.code) {
+    const codeKey = `err_${error.code.toLowerCase()}`;
+    // Provide fallback via type casting, check if dictionary actually has it
+    if (codeKey in dict) {
+      message = t(dict, codeKey as DictionaryKey);
+    } else {
+      // Use err_unknown if the code is completely unhandled
+      message = t(dict, "err_unknown" as DictionaryKey) + " (" + error.error + ")";
+    }
+  } else if (isSimple) {
+      // In case string errors are passed directly
+      const codeKey = `err_${error.replace(/\s+/g, '_').toLowerCase()}`;
+      if (codeKey in dict) {
+         message = t(dict, codeKey as DictionaryKey);
+      }
+  }
 
   // Build copyable technical info
   const technicalInfo = !isSimple
@@ -66,7 +86,7 @@ export function ErrorDisplay({
             onClick={() => setShowDetails(!showDetails)}
             className="text-xs text-red-500 hover:text-red-700 underline"
           >
-            {showDetails ? "Скрыть детали" : "Техническая информация"}
+            {showDetails ? t(dict, "error.hideDetails") : t(dict, "error.technicalInfo")}
           </button>
 
           {showDetails && (
@@ -76,9 +96,9 @@ export function ErrorDisplay({
               </pre>
               <button
                 onClick={copyToClipboard}
-                className="mt-2 text-xs bg-red-200 hover:bg-red-300 text-red-800 px-2 py-1 rounded"
+                className="mt-2 text-xs bg-red-200 hover:bg-red-300 text-red-800 px-2 py-1 rounded flex items-center gap-1"
               >
-                📋 Скопировать для техподдержки
+                <span>📋</span> {t(dict, "error.copyForSupport")}
               </button>
             </div>
           )}

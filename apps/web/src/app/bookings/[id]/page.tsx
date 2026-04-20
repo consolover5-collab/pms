@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BookingActions } from "./booking-actions";
 import { FolioSection } from "./folio-section";
 import { BackButton } from "@/components/back-button";
+import { getLocale, getDict, t } from "@/lib/i18n";
 
 type Booking = {
   id: string;
@@ -49,7 +50,7 @@ const statusColors: Record<string, string> = {
   checked_in: "bg-green-100 text-green-800",
   checked_out: "bg-gray-100 text-gray-800",
   cancelled: "bg-red-100 text-red-800",
-  no_show: "bg-yellow-100 text-yellow-800",
+  no_show: "bg-purple-100 text-purple-800",
 };
 
 const statusLabels: Record<string, string> = {
@@ -75,7 +76,13 @@ export default async function BookingDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const locale = await getLocale();
+  const dict = getDict(locale);
+
   const booking = await apiFetch<Booking>(`/api/bookings/${id}`);
+  const bizDate = await apiFetch<{ date: string }>(`/api/business-date?propertyId=${booking.propertyId}`)
+    .then((r) => r.date)
+    .catch(() => "");
 
   const nights = Math.max(1, Math.round(
     (new Date(booking.checkOutDate).getTime() -
@@ -85,7 +92,7 @@ export default async function BookingDetailPage({
 
   return (
     <main className="p-8 max-w-3xl">
-      <BackButton fallbackHref="/bookings" label="Back to bookings" />
+      <BackButton fallbackHref="/bookings" label={t(dict, "common.backToBookings")} />
 
       <div className="mt-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -93,16 +100,26 @@ export default async function BookingDetailPage({
             #{booking.confirmationNumber}
           </h1>
           <span
-            className={`text-xs px-2 py-1 rounded ${statusColors[booking.status] || "bg-gray-100"}`}
+            className={`text-xs px-2 py-1 rounded ${
+              booking.status === "confirmed" && booking.checkInDate === bizDate
+                ? "bg-orange-100 text-orange-800"
+                : booking.status === "checked_in" && booking.checkOutDate === bizDate
+                  ? "bg-yellow-100 text-yellow-800"
+                  : statusColors[booking.status] || "bg-gray-100"
+            }`}
           >
-            {statusLabels[booking.status] || booking.status}
+            {booking.status === "confirmed" && booking.checkInDate === bizDate
+              ? "Due In"
+              : booking.status === "checked_in" && booking.checkOutDate === bizDate
+                ? "Due Out"
+                : statusLabels[booking.status] || booking.status}
           </span>
         </div>
         <Link
           href={`/bookings/${booking.id}/edit`}
           className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200"
         >
-          Edit Booking
+          {t(dict, "common.editBooking")}
         </Link>
       </div>
 
@@ -119,10 +136,10 @@ export default async function BookingDetailPage({
 
       {/* Guest info */}
       <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <h2 className="text-sm font-semibold mb-3">Guest</h2>
+        <h2 className="text-sm font-semibold mb-3">{t(dict, "common.guest")}</h2>
         <div className="grid grid-cols-2 gap-4">
           <Field
-            label="Name"
+            label={t(dict, "common.name")}
             value={`${booking.guest.firstName} ${booking.guest.lastName}`}
           />
           <Field label="Email" value={booking.guest.email} />
@@ -146,7 +163,7 @@ export default async function BookingDetailPage({
           value={`${booking.adults} adults${booking.children ? `, ${booking.children} children` : ""}`}
         />
         <Field
-          label="Room"
+          label={t(dict, "common.room")}
           value={booking.room ? `#${booking.room.roomNumber}` : "Not assigned"}
         />
         <Field
@@ -159,7 +176,7 @@ export default async function BookingDetailPage({
       <div className="mt-6 grid grid-cols-2 gap-4">
         <Field label="Rate Plan" value={booking.ratePlan?.name || "—"} />
         <Field
-          label="Rate/Night"
+          label={t(dict, "common.rate")}
           value={
             booking.rateAmount
               ? `${formatCurrency(booking.rateAmount)} ₽`
@@ -167,7 +184,7 @@ export default async function BookingDetailPage({
           }
         />
         <Field
-          label="Расч. сумма"
+          label={t(dict, "booking.estAmount")}
           value={
             booking.rateAmount
               ? `${formatCurrency(String(parseFloat(booking.rateAmount) * nights))} ₽`
@@ -176,7 +193,7 @@ export default async function BookingDetailPage({
         />
         <Field label="Payment" value={booking.paymentMethod} />
         {booking.guaranteeCode && (
-          <Field label="Гарантия" value={booking.guaranteeCode} />
+          <Field label={t(dict, "booking.guarantee")} value={booking.guaranteeCode} />
         )}
       </div>
 
@@ -219,3 +236,4 @@ export default async function BookingDetailPage({
     </main>
   );
 }
+

@@ -1,0 +1,164 @@
+{
+  "project": "pms",
+  "updated": "2026-04-11",
+  "note": "Только подтверждённые проблемы — проверены по реальному коду, не по планам",
+  "items": [
+    {
+      "id": "BUG-001",
+      "title": "Auth plugin отключён — API полностью открыто",
+      "severity": "critical",
+      "status": "deferred",
+      "defer_reason": "Намеренно отключено до принятия решений по MVP-релизу",
+      "source": "A7",
+      "file": "apps/api/src/app.ts",
+      "lines": "6-7, 35-36",
+      "description": "authPlugin закомментирован: `// await app.register(authPlugin)`. Все эндпоинты доступны без аутентификации. Folio транзакции постятся от hardcoded 'user:front_desk' вместо request.user.id.",
+      "fix": "Раскомментировать import и register authPlugin. Заменить hardcoded userId в folio.ts на request.user.id."
+    },
+    {
+      "id": "BUG-002",
+      "title": "Нет CHECK constraints в схеме БД",
+      "severity": "high",
+      "status": "open",
+      "source": "A6",
+      "files": [
+        "packages/db/src/schema/bookings.ts",
+        "packages/db/src/schema/financial.ts",
+        "packages/db/src/schema/rooms.ts"
+      ],
+      "description": "Нет DB-level валидации: не проверяется checkInDate < checkOutDate, adults > 0, enum статусов. В financial.ts нет XOR constraint на debit/credit (оба могут быть > 0 одновременно). Валидация только на уровне API — её можно обойти.",
+      "fix": "Добавить sql`check(...)` в schema + Drizzle migration."
+    },
+    {
+      "id": "DEBT-002",
+      "title": "OOO-валидация дублирована в POST и PATCH /rooms/:id/status",
+      "severity": "medium",
+      "status": "open",
+      "source": "A4/M-08",
+      "file": "apps/api/src/routes/rooms.ts",
+      "lines": "152-196 (POST) и 252-296 (PATCH)",
+      "description": "POST и PATCH /api/rooms/:id/status содержат идентичный OOO/OOS блок (~45 строк). В коде даже есть комментарий 'keeping for compatibility, same validation as POST'.",
+      "fix": "Вынести OOO-блок в helper. Либо удалить PATCH если POST достаточно."
+    },
+    {
+      "id": "DEBT-003",
+      "title": "Unused imports в validation.ts",
+      "severity": "low",
+      "status": "open",
+      "source": "M-09",
+      "file": "apps/api/src/lib/validation.ts",
+      "lines": "1",
+      "description": "import { bookings, rooms, roomTypes } — rooms и roomTypes импортированы но нигде не используются.",
+      "fix": "Удалить rooms и roomTypes из импорта."
+    },
+    {
+      "id": "DEBT-004",
+      "title": "FK cascade политики — везде RESTRICT вместо CASCADE",
+      "severity": "low",
+      "status": "open",
+      "source": "A10",
+      "files": [
+        "packages/db/src/schema/bookings.ts",
+        "packages/db/src/schema/rooms.ts",
+        "packages/db/src/schema/financial.ts"
+      ],
+      "description": "Все FK используют onDelete: 'restrict'. Удаление property оставляет orphan записи вместо каскадного удаления. Для dev/test среды это проблема при очистке данных.",
+      "fix": "Определить политику: property → cascade rooms/roomTypes/bookings. booking → cascade folioTransactions."
+    },
+    {
+      "id": "FEAT-001",
+      "title": "SQL Migration 0006 — новые таблицы",
+      "severity": "critical",
+      "status": "resolved",
+      "resolved_date": "2026-04-10",
+      "resolve_note": "Создана миграция с IF NOT EXISTS, восстановлен _journal.json, drizzle.__drizzle_migrations содержит 7 записей"
+    },
+    {
+      "id": "FEAT-002",
+      "title": "Checkout: проверка баланса по окнам фолио",
+      "severity": "high",
+      "status": "resolved",
+      "resolved_date": "2026-04-10",
+      "resolve_note": "POST /api/bookings/:id/checkout проверяет каждое folio_window отдельно, нераспределённые транзакции учитываются в Window 1"
+    },
+    {
+      "id": "FEAT-003",
+      "title": "Предупреждение при check-in в dirty/pickup номер",
+      "severity": "medium",
+      "status": "resolved",
+      "resolved_date": "2026-04-10",
+      "resolve_note": "400 ROOM_NOT_READY без force=true; OOO/OOS блокируется жёстко с ROOM_UNAVAILABLE; Web UI показывает диалог подтверждения"
+    },
+    {
+      "id": "FEAT-004",
+      "title": "Due In / Due Out в UI (Opera alignment)",
+      "severity": "medium",
+      "status": "resolved",
+      "resolved_date": "2026-04-10",
+      "resolve_note": "Оранжевый бейдж Due In для confirmed-arrivals, жёлтый Due Out для checked_in-departures; dashboard использует терминологию Opera"
+    },
+    {
+      "id": "FEAT-005",
+      "title": "Web UI: Компании и Турагенты",
+      "severity": "medium",
+      "status": "resolved",
+      "resolved_date": "2026-04-10",
+      "resolve_note": "CRUD /configuration/companies и /configuration/travel-agents с soft-delete через isActive"
+    },
+    {
+      "id": "FEAT-006",
+      "title": "Web UI: Пакеты услуг",
+      "severity": "medium",
+      "status": "resolved",
+      "resolved_date": "2026-04-10",
+      "resolve_note": "CRUD /configuration/packages с привязкой к тарифным планам через rate_plan_packages"
+    },
+    {
+      "id": "FEAT-007",
+      "title": "Web UI: Хаускипинг задания",
+      "severity": "medium",
+      "status": "resolved",
+      "resolved_date": "2026-04-10",
+      "resolve_note": "Страница /housekeeping с генерацией заданий, группировкой по этажу, сменой статуса, назначением горничной"
+    },
+    {
+      "id": "FEAT-008",
+      "title": "Mass assignment fix — explicit field picks",
+      "severity": "high",
+      "status": "resolved",
+      "resolved_date": "2026-04-10",
+      "resolve_note": "Убран ...request.body из bookings.ts, guests.ts, rate-plans.ts, room-types.ts, properties.ts"
+    },
+    {
+      "id": "TASK-001",
+      "title": "Аудит актуальности backlog — сверить статусы с результатами тестирования",
+      "severity": "medium",
+      "status": "open",
+      "description": "Все FEAT-001–009 помечены resolved по плану от 2026-04-10, но ручное тестирование (2026-04-11) выявило расхождения: FEAT-002 (Folio) — не работает, FEAT-005 (Companies/TA) — runtime error. Нужно пройти по каждому resolved-пункту, проверить в UI/API и привести статусы в соответствие с реальностью.",
+      "action": "Для каждого FEAT: проверить curl или UI → обновить статус / добавить BUG если сломано"
+    },
+    {
+      "id": "FEAT-010",
+      "title": "Обновить Help под новые фичи — двуязычная версия (RU + EN)",
+      "severity": "low",
+      "status": "open",
+      "defer_reason": "Не применяем до завершения i18n-миграции и стабилизации UI",
+      "description": "Help-раздел (apps/web/src/app/help/) содержит описания базовых функций. После добавления FEAT-002..007 (Folio windows, Companies, TA, Packages, Housekeeping, Night Audit v2) нужно дополнить справку. Формат: русский основной текст + английские термины в скобках где нужно.",
+      "scope": [
+        "Folio — окна, оплата по окнам, checkout с балансом",
+        "Компании и турагенты — создание, привязка к брони",
+        "Пакеты — привязка к тарифному плану, ночной аудит",
+        "Хаускипинг — генерация заданий, смена статуса",
+        "Night Audit v2 — пакеты, daily details, no-show"
+      ]
+    },
+    {
+      "id": "FEAT-009",
+      "title": "Рефакторинг getBusinessDate → lib/business-date.ts",
+      "severity": "medium",
+      "status": "resolved",
+      "resolved_date": "2026-04-10",
+      "resolve_note": "Вынесена в apps/api/src/lib/business-date.ts, используется из bookings.ts, dashboard.ts, night-audit.ts"
+    }
+  ]
+}

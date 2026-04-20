@@ -10,10 +10,10 @@ export const transactionCodesRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/transaction-codes", async (request, reply) => {
     const { propertyId } = request.query;
     if (!propertyId) {
-      return reply.status(400).send({ error: "propertyId is required" });
+      return reply.status(400).send({ error: "propertyId is required", code: "MISSING_PROPERTY_ID" });
     }
     if (!isValidUuid(propertyId)) {
-      return reply.status(400).send({ error: "Invalid propertyId format" });
+      return reply.status(400).send({ error: "Invalid propertyId format", code: "INVALID_PROPERTY_ID" });
     }
 
     const result = await app.db
@@ -44,10 +44,10 @@ export const transactionCodesRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/transaction-codes", async (request, reply) => {
     const { propertyId, code, description, groupCode, transactionType, isManualPostAllowed, sortOrder } = request.body;
     if (!propertyId || !code || !description || !groupCode) {
-      return reply.status(400).send({ error: "propertyId, code, description, groupCode — обязательные поля" });
+      return reply.status(400).send({ error: "propertyId, code, description, groupCode are required", code: "MISSING_FIELDS" });
     }
     if (!isValidUuid(propertyId)) {
-      return reply.status(400).send({ error: "Invalid propertyId format" });
+      return reply.status(400).send({ error: "Invalid propertyId format", code: "INVALID_PROPERTY_ID" });
     }
     const [created] = await app.db
       .insert(transactionCodes)
@@ -78,13 +78,13 @@ export const transactionCodesRoutes: FastifyPluginAsync = async (app) => {
     };
   }>("/api/transaction-codes/:id", async (request, reply) => {
     if (!isValidUuid(request.params.id)) {
-      return reply.status(400).send({ error: "Invalid id format" });
+      return reply.status(400).send({ error: "Invalid id format", code: "INVALID_ID" });
     }
     const [existing] = await app.db
       .select({ id: transactionCodes.id })
       .from(transactionCodes)
       .where(eq(transactionCodes.id, request.params.id));
-    if (!existing) return reply.status(404).send({ error: "Not found" });
+    if (!existing) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
 
     const body: Record<string, unknown> = { ...request.body };
     if (body.code) body.code = (body.code as string).toUpperCase();
@@ -104,8 +104,8 @@ export const transactionCodesRoutes: FastifyPluginAsync = async (app) => {
   }>("/api/transaction-codes/:id", async (request, reply) => {
     const { id } = request.params;
     const { propertyId } = request.query;
-    if (!isValidUuid(id)) return reply.status(400).send({ error: "Invalid id format" });
-    if (!propertyId) return reply.status(400).send({ error: "propertyId is required" });
+    if (!isValidUuid(id)) return reply.status(400).send({ error: "Invalid id format", code: "INVALID_ID" });
+    if (!propertyId) return reply.status(400).send({ error: "propertyId is required", code: "MISSING_PROPERTY_ID" });
 
     // Check for folio transaction usage before deleting
     const [usage] = await app.db
@@ -115,8 +115,7 @@ export const transactionCodesRoutes: FastifyPluginAsync = async (app) => {
 
     if (Number(usage.cnt) > 0) {
       return reply.status(400).send({
-        error: `Нельзя удалить: код используется в ${usage.cnt} транзакциях фолио (Фолио)`,
-        code: "HAS_FOLIO_TRANSACTIONS",
+        error: `Cannot delete: code is used in ${usage.cnt} folio transactions.`, code: "HAS_FOLIO_TRANSACTIONS",
       });
     }
 
@@ -126,7 +125,7 @@ export const transactionCodesRoutes: FastifyPluginAsync = async (app) => {
       .where(and(eq(transactionCodes.id, id), eq(transactionCodes.propertyId, propertyId)))
       .returning({ id: transactionCodes.id });
 
-    if (!deleted) return reply.status(404).send({ error: "Not found" });
+    if (!deleted) return reply.status(404).send({ error: "Not found", code: "NOT_FOUND" });
     return reply.status(204).send();
   });
 };
