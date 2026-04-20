@@ -95,7 +95,7 @@ export default async function RoomTypeDetailPage({
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
             <p className="text-gray-700 font-medium mb-2">No rooms assigned to this type</p>
             <p className="text-sm text-gray-500 mb-4">
-              To assign a room to this type, go to Rooms, open a room, and click "Edit Room" to change its type.
+              To assign a room to this type, go to Rooms, open a room, and click &ldquo;Edit Room&rdquo; to change its type.
             </p>
             <Link
               href="/rooms"

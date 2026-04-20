@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
-
+import { useLocale } from "@/components/locale-provider";
+import { t, type DictionaryKey } from "@/lib/i18n";
 
 type Guest = {
   id: string;
@@ -21,32 +22,37 @@ type Guest = {
   notes: string | null;
 };
 
-const documentTypes = [
-  { value: "", label: "Not specified" },
-  { value: "passport", label: "Passport" },
-  { value: "national_id", label: "National ID" },
-  { value: "drivers_license", label: "Driver's License" },
+const documentTypes: { value: string; labelKey: DictionaryKey }[] = [
+  { value: "", labelKey: "guests.opt.notSpecified" },
+  { value: "passport", labelKey: "guests.opt.doc.passport" },
+  { value: "national_id", labelKey: "guests.opt.doc.nationalId" },
+  { value: "drivers_license", labelKey: "guests.opt.doc.driversLicense" },
 ];
 
-const genders = [
-  { value: "", label: "Not specified" },
-  { value: "M", label: "Male" },
-  { value: "F", label: "Female" },
+const genders: { value: string; labelKey: DictionaryKey }[] = [
+  { value: "", labelKey: "guests.opt.notSpecified" },
+  { value: "M", labelKey: "guests.opt.male" },
+  { value: "F", labelKey: "guests.opt.female" },
 ];
 
-const languages = [
-  { value: "", label: "Not specified" },
-  { value: "EN", label: "English" },
-  { value: "RU", label: "Russian" },
-  { value: "DE", label: "German" },
-  { value: "FR", label: "French" },
-  { value: "ES", label: "Spanish" },
-  { value: "ZH", label: "Chinese" },
-  { value: "JA", label: "Japanese" },
+const languages: { value: string; labelKey: DictionaryKey }[] = [
+  { value: "", labelKey: "guests.opt.notSpecified" },
+  { value: "EN", labelKey: "guests.opt.lang.en" },
+  { value: "RU", labelKey: "guests.opt.lang.ru" },
+  { value: "DE", labelKey: "guests.opt.lang.de" },
+  { value: "FR", labelKey: "guests.opt.lang.fr" },
+  { value: "ES", labelKey: "guests.opt.lang.es" },
+  { value: "ZH", labelKey: "guests.opt.lang.zh" },
+  { value: "JA", labelKey: "guests.opt.lang.ja" },
 ];
+
+const required = (
+  <span style={{ color: "var(--cancelled)", marginLeft: 2 }}>*</span>
+);
 
 export function GuestEditForm({ guest }: { guest: Guest }) {
   const router = useRouter();
+  const { dict } = useLocale();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,8 +71,15 @@ export function GuestEditForm({ guest }: { guest: Guest }) {
     };
 
     const optionalFields = [
-      "email", "phone", "documentType", "documentNumber",
-      "nationality", "gender", "language", "dateOfBirth", "notes",
+      "email",
+      "phone",
+      "documentType",
+      "documentNumber",
+      "nationality",
+      "gender",
+      "language",
+      "dateOfBirth",
+      "notes",
     ];
     for (const field of optionalFields) {
       const value = form.get(field);
@@ -74,7 +87,8 @@ export function GuestEditForm({ guest }: { guest: Guest }) {
     }
 
     const vipStatus = form.get("vipStatus");
-    body.vipStatus = vipStatus && String(vipStatus).trim() ? String(vipStatus).trim() : null;
+    body.vipStatus =
+      vipStatus && String(vipStatus).trim() ? String(vipStatus).trim() : null;
 
     try {
       const res = await fetch(`/api/profiles/${guest.id}`, {
@@ -91,73 +105,147 @@ export function GuestEditForm({ guest }: { guest: Guest }) {
       router.replace(`/guests/${guest.id}`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save");
+      setError(err instanceof Error ? err.message : t(dict, "guests.saveFailed"));
       setSaving(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
+    <form
+      onSubmit={handleSubmit}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+        maxWidth: 720,
+      }}
+    >
       {error && (
-        <div className="p-3 bg-red-50 text-red-700 rounded text-sm">{error}</div>
+        <div
+          role="alert"
+          style={{
+            padding: "10px 12px",
+            background: "var(--cancelled-bg)",
+            color: "var(--cancelled-fg)",
+            borderRadius: 6,
+            fontSize: 12.5,
+            lineHeight: 1.4,
+          }}
+        >
+          {error}
+        </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">First Name *</label>
-          <input name="firstName" type="text" required defaultValue={guest.firstName}
-            className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">
+            {t(dict, "guests.fld.firstName")}
+            {required}
+          </label>
+          <input
+            name="firstName"
+            type="text"
+            required
+            defaultValue={guest.firstName}
+            className="input"
+          />
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Last Name *</label>
-          <input name="lastName" type="text" required defaultValue={guest.lastName}
-            className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500" />
+        <div className="field">
+          <label className="lab">
+            {t(dict, "guests.fld.lastName")}
+            {required}
+          </label>
+          <input
+            name="lastName"
+            type="text"
+            required
+            defaultValue={guest.lastName}
+            className="input"
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Email</label>
-          <input name="email" type="email" defaultValue={guest.email || ""}
-            className="w-full px-3 py-2 border rounded" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.email")}</label>
+          <input
+            name="email"
+            type="email"
+            defaultValue={guest.email || ""}
+            className="input"
+          />
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Phone</label>
-          <input name="phone" type="tel" defaultValue={guest.phone || ""}
-            className="w-full px-3 py-2 border rounded" />
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.phone")}</label>
+          <input
+            name="phone"
+            type="tel"
+            defaultValue={guest.phone || ""}
+            className="input"
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Gender</label>
-          <select name="gender" defaultValue={guest.gender || ""} className="w-full px-3 py-2 border rounded">
-            {genders.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.gender")}</label>
+          <select
+            name="gender"
+            defaultValue={guest.gender || ""}
+            className="select"
+          >
+            {genders.map((g) => (
+              <option key={g.value} value={g.value}>
+                {t(dict, g.labelKey)}
+              </option>
+            ))}
           </select>
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Date of Birth</label>
-          <input name="dateOfBirth" type="date" defaultValue={guest.dateOfBirth || ""}
-            className="w-full px-3 py-2 border rounded" />
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.dob")}</label>
+          <input
+            name="dateOfBirth"
+            type="date"
+            defaultValue={guest.dateOfBirth || ""}
+            className="input"
+          />
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Nationality</label>
-          <input name="nationality" type="text" maxLength={2} placeholder="e.g. RU"
-            defaultValue={guest.nationality || ""} className="w-full px-3 py-2 border rounded" />
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.nationality")}</label>
+          <input
+            name="nationality"
+            type="text"
+            maxLength={2}
+            placeholder={t(dict, "guests.ph.nationality")}
+            defaultValue={guest.nationality || ""}
+            className="input"
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Language</label>
-          <select name="language" defaultValue={guest.language || ""} className="w-full px-3 py-2 border rounded">
-            {languages.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.language")}</label>
+          <select
+            name="language"
+            defaultValue={guest.language || ""}
+            className="select"
+          >
+            {languages.map((l) => (
+              <option key={l.value} value={l.value}>
+                {t(dict, l.labelKey)}
+              </option>
+            ))}
           </select>
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">VIP Status</label>
-          <select name="vipStatus" defaultValue={guest.vipStatus || ""} className="w-full px-3 py-2 border rounded">
-            <option value="">None</option>
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.vipStatus")}</label>
+          <select
+            name="vipStatus"
+            defaultValue={guest.vipStatus || ""}
+            className="select"
+          >
+            <option value="">{t(dict, "guests.opt.none")}</option>
             <option value="VIP1">VIP 1</option>
             <option value="VIP2">VIP 2</option>
             <option value="VIP3">VIP 3</option>
@@ -165,34 +253,49 @@ export function GuestEditForm({ guest }: { guest: Guest }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Document Type</label>
-          <select name="documentType" defaultValue={guest.documentType || ""} className="w-full px-3 py-2 border rounded">
-            {documentTypes.map((dt) => <option key={dt.value} value={dt.value}>{dt.label}</option>)}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.docType")}</label>
+          <select
+            name="documentType"
+            defaultValue={guest.documentType || ""}
+            className="select"
+          >
+            {documentTypes.map((dt) => (
+              <option key={dt.value} value={dt.value}>
+                {t(dict, dt.labelKey)}
+              </option>
+            ))}
           </select>
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Document Number</label>
-          <input name="documentNumber" type="text" defaultValue={guest.documentNumber || ""}
-            className="w-full px-3 py-2 border rounded" />
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.docNumber")}</label>
+          <input
+            name="documentNumber"
+            type="text"
+            defaultValue={guest.documentNumber || ""}
+            className="input"
+          />
         </div>
       </div>
 
-      <div>
-        <label className="block text-xs text-gray-500 mb-1">Notes</label>
-        <textarea name="notes" rows={3} defaultValue={guest.notes || ""}
-          className="w-full px-3 py-2 border rounded" />
+      <div className="field">
+        <label className="lab">{t(dict, "guests.fld.notes")}</label>
+        <textarea
+          name="notes"
+          rows={3}
+          defaultValue={guest.notes || ""}
+          className="input"
+          style={{ resize: "vertical", minHeight: 72 }}
+        />
       </div>
 
-      <div className="flex gap-3">
-        <button type="submit" disabled={saving}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-          {saving ? "Saving..." : "Save Changes"}
+      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+        <button type="submit" disabled={saving} className="btn primary">
+          {saving ? t(dict, "common.saving") : t(dict, "guests.updateBtn")}
         </button>
-        <Link href={`/guests/${guest.id}`}
-          className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-          Cancel
+        <Link href={`/guests/${guest.id}`} className="btn ghost">
+          {t(dict, "common.cancel")}
         </Link>
       </div>
     </form>

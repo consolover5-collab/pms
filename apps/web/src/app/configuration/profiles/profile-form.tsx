@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type InputHTMLAttributes, type ReactNode } from "react";
+import { useLocale } from "@/components/locale-provider";
+import { t, type DictionaryKey } from "@/lib/i18n";
 
 type Profile = {
   id: string;
@@ -35,13 +37,67 @@ type Profile = {
   contactTitle: string | null;
 };
 
+function Field({
+  label,
+  required,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="field">
+      <label className="lab">
+        {label}
+        {required && (
+          <span style={{ color: "var(--cancelled)", marginLeft: 2 }}>*</span>
+        )}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function TextField({
+  label,
+  required,
+  ...props
+}: { label: string; required?: boolean } & InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <Field label={label} required={required}>
+      <input {...props} className="input" />
+    </Field>
+  );
+}
+
+function Row({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 10,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function ProfileForm({ profile }: { profile?: Profile }) {
   const router = useRouter();
+  const { dict } = useLocale();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isEdit = !!profile;
-  const type = profile?.type || new URLSearchParams(window.location.search).get("type") || "individual";
+  const type =
+    profile?.type ||
+    (typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("type")
+      : null) ||
+    "individual";
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -84,153 +140,282 @@ export function ProfileForm({ profile }: { profile?: Profile }) {
 
       router.replace("/configuration/profiles");
     } catch {
-      setError("Network error");
+      setError(t(dict, "profiles.networkError"));
       setSaving(false);
     }
   }
 
-  function Input({ label, name, defaultValue, type: inputType = "text", disabled = false }: {
-    label: string; name: string; defaultValue?: string | null; type?: string; disabled?: boolean;
-  }) {
-    return (
-      <div>
-        <label className="block text-xs text-gray-500 mb-1">{label}</label>
-        <input
-          type={inputType}
-          name={name}
-          defaultValue={defaultValue || ""}
-          disabled={disabled}
-          className="w-full px-3 py-2 border rounded disabled:bg-gray-100 disabled:text-gray-400"
-        />
-      </div>
-    );
-  }
+  const typeLabelKey: DictionaryKey =
+    type === "company"
+      ? "profiles.typeCompany"
+      : type === "travel_agent"
+        ? "profiles.typeAgent"
+        : type === "source"
+          ? "profiles.typeSource"
+          : "profiles.typeIndividual";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
+    <form
+      onSubmit={handleSubmit}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+        maxWidth: 640,
+      }}
+    >
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded">
+        <div
+          role="alert"
+          style={{
+            padding: "10px 12px",
+            background: "var(--cancelled-bg)",
+            color: "var(--cancelled-fg)",
+            borderRadius: 6,
+            fontSize: 12.5,
+            lineHeight: 1.4,
+          }}
+        >
           {error}
         </div>
       )}
 
-      <div className="text-sm text-gray-500 mb-2">
-        Profile type: <span className="font-semibold capitalize">{type === "travel_agent" ? "Travel Agent" : type}</span>
-      </div>
-
-      {(type === "individual") && (
-        <div className="grid grid-cols-2 gap-4">
-          <Input label="First Name *" name="firstName" defaultValue={profile?.firstName || ""} />
-          <Input label="Last Name *" name="lastName" defaultValue={profile?.lastName || ""} />
-        </div>
-      )}
-
-      <Input label="Name *" name="name" defaultValue={profile?.name || ""} />
-      <div className="grid grid-cols-2 gap-4">
-        <Input label="Email" name="email" defaultValue={profile?.email || ""} />
-        <Input label="Phone" name="phone" defaultValue={profile?.phone || ""} />
+      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+        {t(dict, "profiles.typeLabel")}:{" "}
+        <strong style={{ color: "var(--fg)", fontWeight: 600 }}>
+          {t(dict, typeLabelKey)}
+        </strong>
       </div>
 
       {type === "individual" && (
+        <Row>
+          <TextField
+            label={t(dict, "profiles.fld.firstName")}
+            required
+            name="firstName"
+            defaultValue={profile?.firstName || ""}
+          />
+          <TextField
+            label={t(dict, "profiles.fld.lastName")}
+            required
+            name="lastName"
+            defaultValue={profile?.lastName || ""}
+          />
+        </Row>
+      )}
+
+      <TextField
+        label={t(dict, "profiles.fld.name")}
+        required
+        name="name"
+        defaultValue={profile?.name || ""}
+      />
+
+      <Row>
+        <TextField
+          label={t(dict, "profiles.fld.email")}
+          name="email"
+          type="email"
+          defaultValue={profile?.email || ""}
+        />
+        <TextField
+          label={t(dict, "profiles.fld.phone")}
+          name="phone"
+          defaultValue={profile?.phone || ""}
+        />
+      </Row>
+
+      {type === "individual" && (
         <>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Date of Birth" name="dateOfBirth" defaultValue={profile?.dateOfBirth || ""} type="date" />
-            <Input label="Nationality" name="nationality" defaultValue={profile?.nationality || ""} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Gender" name="gender" defaultValue={profile?.gender || ""} />
-            <Input label="Language" name="language" defaultValue={profile?.language || ""} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Document Type" name="documentType" defaultValue={profile?.documentType || ""} />
-            <Input label="Passport Number" name="passportNumber" defaultValue={profile?.passportNumber || ""} />
-          </div>
-          <Input label="VIP Status" name="vipStatus" defaultValue={profile?.vipStatus || ""} />
+          <Row>
+            <TextField
+              label={t(dict, "profiles.fld.dob")}
+              name="dateOfBirth"
+              type="date"
+              defaultValue={profile?.dateOfBirth || ""}
+            />
+            <TextField
+              label={t(dict, "profiles.fld.nationality")}
+              name="nationality"
+              defaultValue={profile?.nationality || ""}
+            />
+          </Row>
+          <Row>
+            <TextField
+              label={t(dict, "profiles.fld.gender")}
+              name="gender"
+              defaultValue={profile?.gender || ""}
+            />
+            <TextField
+              label={t(dict, "profiles.fld.language")}
+              name="language"
+              defaultValue={profile?.language || ""}
+            />
+          </Row>
+          <Row>
+            <TextField
+              label={t(dict, "profiles.fld.docType")}
+              name="documentType"
+              defaultValue={profile?.documentType || ""}
+            />
+            <TextField
+              label={t(dict, "profiles.fld.passport")}
+              name="passportNumber"
+              defaultValue={profile?.passportNumber || ""}
+            />
+          </Row>
+          <TextField
+            label={t(dict, "profiles.fld.vip")}
+            name="vipStatus"
+            defaultValue={profile?.vipStatus || ""}
+          />
         </>
       )}
 
       {type === "company" && (
         <>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Short Name" name="shortName" defaultValue={profile?.shortName || ""} />
-            <Input label="Tax ID" name="taxId" defaultValue={profile?.taxId || ""} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Registration Number" name="registrationNumber" defaultValue={profile?.registrationNumber || ""} />
-            <Input label="AR Account Number" name="arAccountNumber" defaultValue={profile?.arAccountNumber || ""} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Credit Limit" name="creditLimit" defaultValue={profile?.creditLimit || ""} />
-            <Input label="Payment Terms (days)" name="paymentTermDays" defaultValue={profile?.paymentTermDays?.toString() || ""} />
-          </div>
-          <Input label="Address" name="address" defaultValue={profile?.address || ""} />
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Contact Person" name="contactPerson" defaultValue={profile?.contactPerson || ""} />
-            <Input label="Contact Title" name="contactTitle" defaultValue={profile?.contactTitle || ""} />
-          </div>
+          <Row>
+            <TextField
+              label={t(dict, "profiles.fld.shortName")}
+              name="shortName"
+              defaultValue={profile?.shortName || ""}
+            />
+            <TextField
+              label={t(dict, "profiles.fld.taxId")}
+              name="taxId"
+              defaultValue={profile?.taxId || ""}
+            />
+          </Row>
+          <Row>
+            <TextField
+              label={t(dict, "profiles.fld.regNumber")}
+              name="registrationNumber"
+              defaultValue={profile?.registrationNumber || ""}
+            />
+            <TextField
+              label={t(dict, "profiles.fld.arAccount")}
+              name="arAccountNumber"
+              defaultValue={profile?.arAccountNumber || ""}
+            />
+          </Row>
+          <Row>
+            <TextField
+              label={t(dict, "profiles.fld.creditLimit")}
+              name="creditLimit"
+              defaultValue={profile?.creditLimit || ""}
+            />
+            <TextField
+              label={t(dict, "profiles.fld.paymentTerms")}
+              name="paymentTermDays"
+              defaultValue={profile?.paymentTermDays?.toString() || ""}
+            />
+          </Row>
+          <TextField
+            label={t(dict, "profiles.fld.address")}
+            name="address"
+            defaultValue={profile?.address || ""}
+          />
+          <Row>
+            <TextField
+              label={t(dict, "profiles.fld.contactPerson")}
+              name="contactPerson"
+              defaultValue={profile?.contactPerson || ""}
+            />
+            <TextField
+              label={t(dict, "profiles.fld.contactTitle")}
+              name="contactTitle"
+              defaultValue={profile?.contactTitle || ""}
+            />
+          </Row>
         </>
       )}
 
       {type === "travel_agent" && (
         <>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="IATA Code" name="iataCode" defaultValue={profile?.iataCode || ""} />
-            <Input label="Commission %" name="commissionPercent" defaultValue={profile?.commissionPercent || ""} disabled />
-          </div>
-          <Input label="Address" name="address" defaultValue={profile?.address || ""} />
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Contact Person" name="contactPerson" defaultValue={profile?.contactPerson || ""} />
-            <Input label="Contact Title" name="contactTitle" defaultValue={profile?.contactTitle || ""} />
-          </div>
+          <Row>
+            <TextField
+              label={t(dict, "profiles.fld.iataCode")}
+              name="iataCode"
+              defaultValue={profile?.iataCode || ""}
+            />
+            <TextField
+              label={t(dict, "profiles.fld.commission")}
+              name="commissionPercent"
+              defaultValue={profile?.commissionPercent || ""}
+              disabled
+            />
+          </Row>
+          <TextField
+            label={t(dict, "profiles.fld.address")}
+            name="address"
+            defaultValue={profile?.address || ""}
+          />
+          <Row>
+            <TextField
+              label={t(dict, "profiles.fld.contactPerson")}
+              name="contactPerson"
+              defaultValue={profile?.contactPerson || ""}
+            />
+            <TextField
+              label={t(dict, "profiles.fld.contactTitle")}
+              name="contactTitle"
+              defaultValue={profile?.contactTitle || ""}
+            />
+          </Row>
         </>
       )}
 
       {type === "source" && (
         <>
-          <Input label="Source Code" name="sourceCode" defaultValue={profile?.sourceCode || ""} />
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Channel Type</label>
+          <TextField
+            label={t(dict, "profiles.fld.sourceCode")}
+            name="sourceCode"
+            defaultValue={profile?.sourceCode || ""}
+          />
+          <Field label={t(dict, "profiles.fld.channelType")}>
             <select
               name="channelType"
               defaultValue={profile?.channelType || ""}
-              className="w-full px-3 py-2 border rounded"
+              className="select"
             >
-              <option value="">—</option>
-              <option value="direct">Direct</option>
-              <option value="ota">OTA</option>
-              <option value="gds">GDS</option>
-              <option value="corporate">Corporate</option>
-              <option value="walkin">Walk-in</option>
-              <option value="other">Other</option>
+              <option value="">{t(dict, "profiles.channel.none")}</option>
+              <option value="direct">{t(dict, "profiles.channel.direct")}</option>
+              <option value="ota">{t(dict, "profiles.channel.ota")}</option>
+              <option value="gds">{t(dict, "profiles.channel.gds")}</option>
+              <option value="corporate">
+                {t(dict, "profiles.channel.corporate")}
+              </option>
+              <option value="walkin">{t(dict, "profiles.channel.walkin")}</option>
+              <option value="other">{t(dict, "profiles.channel.other")}</option>
             </select>
-          </div>
+          </Field>
         </>
       )}
 
-      <div>
-        <label className="block text-xs text-gray-500 mb-1">Notes</label>
+      <Field label={t(dict, "profiles.fld.notes")}>
         <textarea
           name="notes"
           defaultValue={profile?.notes || ""}
           rows={3}
-          className="w-full px-3 py-2 border rounded"
+          className="input"
+          style={{ resize: "vertical", minHeight: 72 }}
         />
-      </div>
+      </Field>
 
-      <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={saving}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          {saving ? "Saving..." : isEdit ? "Update Profile" : "Create Profile"}
+      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+        <button type="submit" disabled={saving} className="btn primary">
+          {saving
+            ? t(dict, "common.saving")
+            : isEdit
+              ? t(dict, "profiles.updateBtn")
+              : t(dict, "profiles.createBtn")}
         </button>
         <button
           type="button"
           onClick={() => router.replace("/configuration/profiles")}
-          className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+          className="btn ghost"
         >
-          Cancel
+          {t(dict, "common.cancel")}
         </button>
       </div>
     </form>

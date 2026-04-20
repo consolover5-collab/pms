@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
 
 type RatePlan = {
   id: string;
@@ -43,6 +45,7 @@ export function PackageForm({
   isEdit?: boolean;
 }) {
   const router = useRouter();
+  const { dict } = useLocale();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,7 +82,7 @@ export function PackageForm({
     try {
       let packageId = pkg?.id;
       const url = isEdit ? `/api/packages/${packageId}` : `/api/packages`;
-      
+
       const res = await fetch(url, {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -92,7 +95,7 @@ export function PackageForm({
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to save package");
+        throw new Error(data.error || t(dict, "packages.saveFailed"));
       }
 
       if (!isEdit) {
@@ -107,170 +110,303 @@ export function PackageForm({
           body: JSON.stringify({ ratePlans: links }),
         });
         if (!linksRes.ok) {
-          throw new Error("Failed to save rate plan links");
+          throw new Error(t(dict, "packages.saveLinksFailed"));
         }
       }
 
       router.replace("/configuration/packages");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(err instanceof Error ? err.message : t(dict, "packages.saveFailed"));
     } finally {
       setLoading(false);
     }
   }
 
+  const required = (
+    <span style={{ color: "var(--cancelled)", marginLeft: 2 }}>*</span>
+  );
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl">
-      {error && <div className="p-3 bg-red-50 text-red-700 rounded">{error}</div>}
-
-      <div className="bg-white p-6 rounded-lg border space-y-6">
-        <h2 className="text-lg font-semibold">Package Details</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Code *</label>
-            <input
-              type="text"
-              value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-              required
-              disabled={isEdit}
-              maxLength={20}
-              className="w-full border rounded px-3 py-2 disabled:bg-gray-100"
-              placeholder="e.g. BKFST"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Name *</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-              className="w-full border rounded px-3 py-2"
-              placeholder="e.g. Continental Breakfast"
-            />
-          </div>
-
-          <div className="col-span-2">
-            <label className="block text-sm font-medium mb-1">Description</label>
-            <textarea
-              value={form.description || ""}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              rows={2}
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Transaction Code *</label>
-            <select
-              value={form.transactionCodeId}
-              onChange={(e) => setForm({ ...form, transactionCodeId: e.target.value })}
-              required
-              className="w-full border rounded px-3 py-2"
-            >
-              <option value="">Select Code...</option>
-              {transactionCodes.map((tc) => (
-                <option key={tc.id} value={tc.id}>
-                  {tc.code} - {tc.description || "No description"}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Calculation Rule *</label>
-            <select
-              value={form.calculationRule}
-              onChange={(e) => setForm({ ...form, calculationRule: e.target.value })}
-              required
-              className="w-full border rounded px-3 py-2"
-            >
-              <option value="per_night">Per Night (Fixed)</option>
-              <option value="per_person_per_night">Per Person Per Night</option>
-              <option value="per_stay">Per Stay (Once)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Posting Rhythm *</label>
-            <select
-              value={form.postingRhythm}
-              onChange={(e) => setForm({ ...form, postingRhythm: e.target.value })}
-              required
-              className="w-full border rounded px-3 py-2"
-            >
-              <option value="every_night">Every Night</option>
-              <option value="arrival_only">Arrival Only</option>
-              <option value="departure_only">Departure Only</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Amount (₽) *</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: e.target.value })}
-              required
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
+    <form
+      onSubmit={handleSubmit}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+      }}
+    >
+      {error && (
+        <div
+          role="alert"
+          style={{
+            padding: "10px 12px",
+            background: "var(--cancelled-bg)",
+            color: "var(--cancelled-fg)",
+            borderRadius: 6,
+            fontSize: 12.5,
+            lineHeight: 1.4,
+          }}
+        >
+          {error}
         </div>
+      )}
 
-        <div className="pt-2 border-t">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.isActive}
-              onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-              className="rounded"
-            />
-            <span className="font-medium">Active (available for rate plans)</span>
+      <div
+        style={{
+          fontSize: 13,
+          fontWeight: 600,
+          color: "var(--fg)",
+          marginBottom: -4,
+        }}
+      >
+        {t(dict, "packages.section.details")}
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 10,
+        }}
+      >
+        <div className="field">
+          <label className="lab">
+            {t(dict, "packages.fld.code")}
+            {required}
           </label>
+          <input
+            type="text"
+            value={form.code}
+            onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+            required
+            disabled={isEdit}
+            maxLength={20}
+            className="input"
+            placeholder={t(dict, "packages.ph.code")}
+          />
+        </div>
+        <div className="field">
+          <label className="lab">
+            {t(dict, "packages.fld.name")}
+            {required}
+          </label>
+          <input
+            type="text"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+            className="input"
+            placeholder={t(dict, "packages.ph.name")}
+          />
         </div>
       </div>
 
+      <div className="field">
+        <label className="lab">{t(dict, "packages.fld.description")}</label>
+        <textarea
+          value={form.description || ""}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          rows={2}
+          className="input"
+          style={{ resize: "vertical", minHeight: 60 }}
+        />
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 10,
+        }}
+      >
+        <div className="field">
+          <label className="lab">
+            {t(dict, "packages.fld.transactionCode")}
+            {required}
+          </label>
+          <select
+            value={form.transactionCodeId}
+            onChange={(e) => setForm({ ...form, transactionCodeId: e.target.value })}
+            required
+            className="select"
+          >
+            <option value="">{t(dict, "packages.ph.transactionCode")}</option>
+            {transactionCodes.map((tc) => (
+              <option key={tc.id} value={tc.id}>
+                {tc.code} — {tc.description || t(dict, "packages.ph.noTcDescription")}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="field">
+          <label className="lab">
+            {t(dict, "packages.fld.calculationRule")}
+            {required}
+          </label>
+          <select
+            value={form.calculationRule}
+            onChange={(e) => setForm({ ...form, calculationRule: e.target.value })}
+            required
+            className="select"
+          >
+            <option value="per_night">{t(dict, "packages.rule.perNight")}</option>
+            <option value="per_person_per_night">
+              {t(dict, "packages.rule.perPerson")}
+            </option>
+            <option value="per_stay">{t(dict, "packages.rule.perStay")}</option>
+          </select>
+        </div>
+
+        <div className="field">
+          <label className="lab">
+            {t(dict, "packages.fld.postingRhythm")}
+            {required}
+          </label>
+          <select
+            value={form.postingRhythm}
+            onChange={(e) => setForm({ ...form, postingRhythm: e.target.value })}
+            required
+            className="select"
+          >
+            <option value="every_night">{t(dict, "packages.rhythm.every")}</option>
+            <option value="arrival_only">{t(dict, "packages.rhythm.arrival")}</option>
+            <option value="departure_only">
+              {t(dict, "packages.rhythm.departure")}
+            </option>
+          </select>
+        </div>
+
+        <div className="field">
+          <label className="lab">
+            {t(dict, "packages.fld.amount")}
+            {required}
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.amount}
+            onChange={(e) => setForm({ ...form, amount: e.target.value })}
+            required
+            className="input tnum"
+          />
+        </div>
+      </div>
+
+      <label
+        style={{
+          display: "inline-flex",
+          gap: 8,
+          fontSize: 13,
+          alignItems: "center",
+          cursor: "pointer",
+          borderTop: "1px solid var(--border)",
+          marginTop: 4,
+          paddingTop: 10,
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={form.isActive}
+          onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+        />
+        <span style={{ fontWeight: 500 }}>{t(dict, "packages.fld.isActive")}</span>
+        <span style={{ color: "var(--muted)", fontSize: 12 }}>
+          {t(dict, "packages.fld.isActiveHint")}
+        </span>
+      </label>
+
       {isEdit && (
-        <div className="bg-white p-6 rounded-lg border space-y-4">
-          <h2 className="text-lg font-semibold">Rate Plans</h2>
-          <p className="text-sm text-gray-600 mb-4">Select the rate plans this package is available for.</p>
-          
+        <>
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "var(--fg)",
+              marginTop: 8,
+              marginBottom: -4,
+            }}
+          >
+            {t(dict, "packages.section.ratePlans")}
+          </div>
+          <p style={{ fontSize: 12.5, color: "var(--muted)", margin: 0 }}>
+            {t(dict, "packages.section.ratePlansDesc")}
+          </p>
+
           {ratePlans.length === 0 ? (
-            <p className="text-sm text-gray-500">No rate plans available.</p>
+            <p style={{ fontSize: 12.5, color: "var(--muted-2)", margin: 0 }}>
+              {t(dict, "packages.section.ratePlansEmpty")}
+            </p>
           ) : (
-            <div className="space-y-3">
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {ratePlans.map((rp) => {
                 const link = links.find((l) => l.ratePlanId === rp.id);
                 const isLinked = !!link;
                 const includedInRate = link?.includedInRate ?? true;
 
                 return (
-                  <div key={rp.id} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
-                    <label className="flex items-center gap-3 flex-1 cursor-pointer">
+                  <div
+                    key={rp.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      padding: "8px 10px",
+                      border: "1px solid var(--border)",
+                      borderRadius: 6,
+                      background: isLinked ? "var(--accent-soft)" : "var(--surface)",
+                    }}
+                  >
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        flex: 1,
+                        cursor: "pointer",
+                      }}
+                    >
                       <input
                         type="checkbox"
                         checked={isLinked}
-                        onChange={(e) => toggleRatePlanLink(rp.id, includedInRate, e.target.checked)}
-                        className="rounded"
+                        onChange={(e) =>
+                          toggleRatePlanLink(rp.id, includedInRate, e.target.checked)
+                        }
                       />
                       <div>
-                        <div className="font-medium">{rp.name}</div>
-                        <div className="text-sm text-gray-500 font-mono">{rp.code}</div>
+                        <div style={{ fontSize: 13, fontWeight: 500 }}>{rp.name}</div>
+                        <div
+                          className="tnum"
+                          style={{
+                            fontSize: 11.5,
+                            color: "var(--muted)",
+                            fontFamily: "var(--font-mono)",
+                          }}
+                        >
+                          {rp.code}
+                        </div>
                       </div>
                     </label>
                     {isLinked && (
-                      <label className="flex items-center gap-2 text-sm ml-4">
+                      <label
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 12,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         <input
                           type="checkbox"
                           checked={includedInRate}
                           onChange={(e) => updateIncludedInRate(rp.id, e.target.checked)}
-                          className="rounded"
                         />
-                        <span>Included in Rate</span>
+                        {t(dict, "packages.fld.includedInRate")}
                       </label>
                     )}
                   </div>
@@ -278,22 +414,19 @@ export function PackageForm({
               })}
             </div>
           )}
-        </div>
+        </>
       )}
 
-      <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? "Saving..." : isEdit ? "Update Package" : "Create Package"}
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <button type="submit" disabled={loading} className="btn primary">
+          {loading
+            ? t(dict, "common.saving")
+            : isEdit
+              ? t(dict, "packages.updateBtn")
+              : t(dict, "packages.createBtn")}
         </button>
-        <Link
-          href="/configuration/packages"
-          className="px-4 py-2 border rounded hover:bg-gray-50 inline-block"
-        >
-          Cancel
+        <Link href="/configuration/packages" className="btn ghost">
+          {t(dict, "common.cancel")}
         </Link>
       </div>
     </form>
