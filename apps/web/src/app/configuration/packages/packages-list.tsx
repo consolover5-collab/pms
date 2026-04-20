@@ -4,6 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
+import { Icon } from "@/components/icon";
 
 type Package = {
   id: string;
@@ -15,8 +18,15 @@ type Package = {
   isActive: boolean;
 };
 
-export function PackagesList({ packages, initialSearch }: { packages: Package[]; initialSearch: string }) {
+export function PackagesList({
+  packages,
+  initialSearch,
+}: {
+  packages: Package[];
+  initialSearch: string;
+}) {
   const router = useRouter();
+  const { dict } = useLocale();
   const [search, setSearch] = useState(initialSearch);
   const [deactivating, setDeactivating] = useState<string | null>(null);
 
@@ -30,8 +40,10 @@ export function PackagesList({ packages, initialSearch }: { packages: Package[];
   }
 
   async function handleToggleActive(id: string, currentActive: boolean) {
-    if (!confirm(`Are you sure you want to ${currentActive ? "deactivate" : "activate"} this package?`)) return;
-
+    const action = currentActive
+      ? t(dict, "packages.deactivate").toLowerCase()
+      : t(dict, "packages.activate").toLowerCase();
+    if (!confirm(t(dict, "packages.confirmToggle", { action }))) return;
     setDeactivating(id);
     try {
       const res = await fetch(`/api/packages/${id}`, {
@@ -42,115 +54,160 @@ export function PackagesList({ packages, initialSearch }: { packages: Package[];
       if (res.ok) {
         router.refresh();
       } else {
-        alert("Failed to update package status");
+        alert(t(dict, "packages.updateFailed"));
       }
-    } catch (err) {
-      alert("Network error");
+    } catch {
+      alert(t(dict, "profiles.networkError"));
     } finally {
       setDeactivating(null);
     }
   }
 
-  function getCalculationRuleBadge(rule: string) {
+  function ruleLabel(rule: string) {
     switch (rule) {
       case "per_night":
-        return <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded">Per Night</span>;
+        return t(dict, "packages.rule.perNight");
       case "per_stay":
-        return <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Per Stay</span>;
+        return t(dict, "packages.rule.perStay");
       case "per_person_per_night":
-        return <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">Per Person/Night</span>;
+        return t(dict, "packages.rule.perPerson");
       default:
-        return <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded">{rule}</span>;
+        return rule;
     }
   }
 
-  function getPostingRhythmLabel(rhythm: string) {
+  function rhythmLabel(rhythm: string) {
     switch (rhythm) {
-      case "every_night": return "Every Night";
-      case "arrival_only": return "Arrival Only";
-      case "departure_only": return "Departure Only";
-      default: return rhythm;
+      case "every_night":
+        return t(dict, "packages.rhythm.every");
+      case "arrival_only":
+        return t(dict, "packages.rhythm.arrival");
+      case "departure_only":
+        return t(dict, "packages.rhythm.departure");
+      default:
+        return rhythm;
     }
   }
 
   return (
-    <div className="space-y-4">
-      <form onSubmit={handleSearch} className="flex gap-2">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name..."
-          className="border rounded px-3 py-2 flex-1 max-w-sm"
-        />
-        <button type="submit" className="bg-gray-100 px-4 py-2 rounded hover:bg-gray-200">
-          Search
+    <>
+      <form onSubmit={handleSearch} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ position: "relative", flex: "1 1 320px", maxWidth: 420 }}>
+          <span
+            style={{
+              position: "absolute",
+              left: 10,
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "var(--muted)",
+              pointerEvents: "none",
+            }}
+          >
+            <Icon name="search" size={14} />
+          </span>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t(dict, "packages.search")}
+            className="input"
+            style={{ paddingLeft: 32, width: "100%" }}
+          />
+        </div>
+        <button type="submit" className="btn sm">
+          {t(dict, "profiles.searchBtn")}
         </button>
         {initialSearch && (
-          <Link href="/configuration/packages" className="px-4 py-2 text-blue-600 hover:underline flex items-center">
-            Clear
+          <Link href="/configuration/packages" className="btn sm ghost">
+            {t(dict, "profiles.clear")}
           </Link>
         )}
       </form>
 
-      {packages.length === 0 ? (
-        <div className="text-center py-12 text-gray-500 bg-white border rounded-lg">
-          No packages found.
+      <div className="card">
+        <div className="card-head">
+          <div className="card-title">
+            {t(dict, "packages.title")} <span className="count">{packages.length}</span>
+          </div>
         </div>
-      ) : (
-        <div className="bg-white border rounded-lg overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Code</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Rule</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Rhythm</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {packages.map((pkg) => (
-                <tr key={pkg.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-mono text-sm">{pkg.code}</td>
-                  <td className="px-4 py-3 font-medium">{pkg.name}</td>
-                  <td className="px-4 py-3 text-sm">
-                    {Number(pkg.amount) === 0 ? "Included" : formatCurrency(pkg.amount) + " ₽"}
-                  </td>
-                  <td className="px-4 py-3">{getCalculationRuleBadge(pkg.calculationRule)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{getPostingRhythmLabel(pkg.postingRhythm)}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`text-xs px-2 py-1 rounded ${
-                        pkg.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"
-                      }`}
-                    >
-                      {pkg.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right space-x-2">
-                    <Link
-                      href={`/configuration/packages/${pkg.id}/edit`}
-                      className="text-blue-600 hover:underline text-sm"
-                    >
-                      Edit
-                    </Link>
-                    <button
-                      onClick={() => handleToggleActive(pkg.id, pkg.isActive)}
-                      disabled={deactivating === pkg.id}
-                      className="text-gray-600 hover:text-black text-sm disabled:opacity-50"
-                    >
-                      {deactivating === pkg.id ? "..." : (pkg.isActive ? "Deactivate" : "Activate")}
-                    </button>
-                  </td>
+        <div className="card-body" style={{ padding: 0 }}>
+          {packages.length === 0 ? (
+            <div
+              style={{
+                padding: 24,
+                textAlign: "center",
+                color: "var(--muted)",
+                fontSize: 13,
+              }}
+            >
+              {t(dict, "packages.empty")}
+            </div>
+          ) : (
+            <table className="t">
+              <thead>
+                <tr>
+                  <th style={{ width: 100 }}>{t(dict, "packages.colCode")}</th>
+                  <th>{t(dict, "packages.colName")}</th>
+                  <th className="r" style={{ width: 120 }}>
+                    {t(dict, "packages.colAmount")}
+                  </th>
+                  <th style={{ width: 150 }}>{t(dict, "packages.colRule")}</th>
+                  <th style={{ width: 140 }}>{t(dict, "packages.colRhythm")}</th>
+                  <th style={{ width: 110 }}>{t(dict, "packages.colStatus")}</th>
+                  <th className="r">{t(dict, "packages.colActions")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {packages.map((pkg) => (
+                  <tr key={pkg.id}>
+                    <td className="tnum">{pkg.code}</td>
+                    <td style={{ fontWeight: 500 }}>{pkg.name}</td>
+                    <td className="r tnum">
+                      {Number(pkg.amount) === 0
+                        ? t(dict, "packages.included")
+                        : `${formatCurrency(pkg.amount)} ₽`}
+                    </td>
+                    <td style={{ fontSize: 12, color: "var(--muted)" }}>
+                      {ruleLabel(pkg.calculationRule)}
+                    </td>
+                    <td style={{ fontSize: 12, color: "var(--muted)" }}>
+                      {rhythmLabel(pkg.postingRhythm)}
+                    </td>
+                    <td>
+                      <span className={`badge ${pkg.isActive ? "checked-in" : "cancelled"}`}>
+                        <span className="dot" />
+                        {pkg.isActive ? t(dict, "packages.active") : t(dict, "packages.inactive")}
+                      </span>
+                    </td>
+                    <td className="r">
+                      <div style={{ display: "inline-flex", gap: 6 }}>
+                        <Link
+                          href={`/configuration/packages/${pkg.id}/edit`}
+                          className="btn xs ghost"
+                        >
+                          {t(dict, "packages.edit")}
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleActive(pkg.id, pkg.isActive)}
+                          disabled={deactivating === pkg.id}
+                          className="btn xs ghost"
+                        >
+                          {deactivating === pkg.id
+                            ? "…"
+                            : pkg.isActive
+                              ? t(dict, "packages.deactivate")
+                              : t(dict, "packages.activate")}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }

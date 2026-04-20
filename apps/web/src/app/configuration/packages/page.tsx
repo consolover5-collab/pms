@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
-import { BackButton } from "@/components/back-button";
+import { getLocale, getDict, t } from "@/lib/i18n";
+import { Icon } from "@/components/icon";
 import { PackagesList } from "./packages-list";
 
 type Package = {
@@ -18,33 +19,40 @@ export default async function PackagesPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
+  const locale = await getLocale();
+  const dict = getDict(locale);
   const { q } = await searchParams;
   const properties = await apiFetch<{ id: string }[]>("/api/properties");
   const propertyId = properties[0]?.id;
 
   let packages: Package[] = [];
   if (propertyId) {
-    const url = q ? `/api/packages?propertyId=${propertyId}&q=${encodeURIComponent(q)}` : `/api/packages?propertyId=${propertyId}`;
+    const url = q
+      ? `/api/packages?propertyId=${propertyId}&q=${encodeURIComponent(q)}`
+      : `/api/packages?propertyId=${propertyId}`;
     const res = await apiFetch<{ data: Package[] }>(url);
     packages = res.data;
   }
 
   return (
-    <main className="p-8 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <BackButton fallbackHref="/configuration" label="Back to Configuration" />
-          <h1 className="text-2xl font-bold mt-2">Packages</h1>
-        </div>
-        <Link
-          href="/configuration/packages/new"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Add Package
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <Link href="/configuration" style={{ color: "var(--muted)" }}>
+          ← {t(dict, "config.backToConfig")}
         </Link>
       </div>
 
+      <div className="page-head">
+        <h1 className="page-title">{t(dict, "packages.title")}</h1>
+        <div className="actions">
+          <Link href="/configuration/packages/new" className="btn sm primary">
+            <Icon name="plus" size={12} />
+            {t(dict, "packages.add")}
+          </Link>
+        </div>
+      </div>
+
       <PackagesList packages={packages} initialSearch={q || ""} />
-    </main>
+    </>
   );
 }

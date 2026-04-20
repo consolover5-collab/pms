@@ -1,7 +1,7 @@
 import { apiFetch } from "@/lib/api";
-import { BackButton } from "@/components/back-button";
 import Link from "next/link";
 import { getLocale, getDict, t } from "@/lib/i18n";
+import { Icon } from "@/components/icon";
 
 type TransactionCode = {
   id: string;
@@ -30,70 +30,64 @@ export default async function TransactionCodesPage() {
   const paymentCodes = allCodes.filter((c) => c.transactionType === "payment");
 
   return (
-    <main className="p-8 max-w-4xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <BackButton
-            fallbackHref="/configuration"
-            label="Back to Configuration"
-          />
-          <h1 className="text-2xl font-bold mt-2">{t(dict, "txCodes.title")}</h1>
-        </div>
-        <Link
-          href="/configuration/transaction-codes/new"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
-        >
-          {t(dict, "txCodes.newCode")}
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <Link href="/configuration" style={{ color: "var(--muted)" }}>
+          ← {t(dict, "config.backToConfig")}
         </Link>
       </div>
 
+      <div className="page-head">
+        <h1 className="page-title">{t(dict, "txCodes.title")}</h1>
+        <div className="actions">
+          <Link href="/configuration/transaction-codes/new" className="btn sm primary">
+            <Icon name="plus" size={12} />
+            {t(dict, "txCodes.newCode")}
+          </Link>
+        </div>
+      </div>
+
       {allCodes.length === 0 ? (
-        <p className="text-gray-500">{t(dict, "txCodes.empty")}</p>
+        <div className="card">
+          <div className="card-body" style={{ textAlign: "center", color: "var(--muted)", padding: 28 }}>
+            {t(dict, "txCodes.empty")}
+          </div>
+        </div>
       ) : (
-        <div className="space-y-8">
-          {/* Charges */}
-          <section>
-            <h2 className="text-lg font-semibold mb-3 text-blue-700">
-              {t(dict, "txCodes.charges", { count: chargeCodes.length })}
-            </h2>
-            <div className="border rounded overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-blue-50">
+        <>
+          <div className="card">
+            <div className="card-head">
+              <div className="card-title">
+                {t(dict, "txCodes.charges", { count: String(chargeCodes.length) })}
+              </div>
+            </div>
+            <div className="card-body" style={{ padding: 0 }}>
+              <table className="t">
+                <thead>
                   <tr>
-                    <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      {t(dict, "txCodes.colCode")}
-                    </th>
-                    <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      {t(dict, "txCodes.colName")}
-                    </th>
-                    <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      {t(dict, "txCodes.colGroup")}
-                    </th>
-                    <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      {t(dict, "txCodes.colType")}
-                    </th>
-                    <th className="px-4 py-2"></th>
+                    <th style={{ width: 120 }}>{t(dict, "txCodes.colCode")}</th>
+                    <th>{t(dict, "txCodes.colName")}</th>
+                    <th style={{ width: 120 }}>{t(dict, "txCodes.colGroup")}</th>
+                    <th style={{ width: 100 }}>{t(dict, "txCodes.colType")}</th>
+                    <th className="r" style={{ width: 80 }} />
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody>
                   {chargeCodes.map((c) => (
-                    <tr key={c.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 font-mono text-xs">
-                        {c.code}
-                      </td>
-                      <td className="px-4 py-2">{c.description}</td>
-                      <td className="px-4 py-2 text-gray-600">
-                        {c.groupCode}
-                      </td>
-                      <td className="px-4 py-2">
-                        <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+                    <tr key={c.id}>
+                      <td className="tnum">{c.code}</td>
+                      <td>{c.description}</td>
+                      <td style={{ color: "var(--muted)" }}>{c.groupCode}</td>
+                      <td>
+                        <span className="badge confirmed">
+                          <span className="dot" />
                           charge
                         </span>
                       </td>
-                      <td className="px-4 py-2 text-right">
+                      <td className="r">
                         <Link
                           href={`/configuration/transaction-codes/${c.id}/edit`}
-                          className="text-xs text-blue-600 hover:underline"
+                          className="btn xs ghost"
                         >
                           {t(dict, "txCodes.edit")}
                         </Link>
@@ -103,51 +97,41 @@ export default async function TransactionCodesPage() {
                 </tbody>
               </table>
             </div>
-          </section>
+          </div>
 
-          {/* Payments */}
-          <section>
-            <h2 className="text-lg font-semibold mb-3 text-green-700">
-              {t(dict, "txCodes.payments", { count: paymentCodes.length })}
-            </h2>
-            <div className="border rounded overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-green-50">
+          <div className="card">
+            <div className="card-head">
+              <div className="card-title">
+                {t(dict, "txCodes.payments", { count: String(paymentCodes.length) })}
+              </div>
+            </div>
+            <div className="card-body" style={{ padding: 0 }}>
+              <table className="t">
+                <thead>
                   <tr>
-                    <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      {t(dict, "txCodes.colCode")}
-                    </th>
-                    <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      {t(dict, "txCodes.colName")}
-                    </th>
-                    <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      {t(dict, "txCodes.colGroup")}
-                    </th>
-                    <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                      {t(dict, "txCodes.colType")}
-                    </th>
-                    <th className="px-4 py-2"></th>
+                    <th style={{ width: 120 }}>{t(dict, "txCodes.colCode")}</th>
+                    <th>{t(dict, "txCodes.colName")}</th>
+                    <th style={{ width: 120 }}>{t(dict, "txCodes.colGroup")}</th>
+                    <th style={{ width: 100 }}>{t(dict, "txCodes.colType")}</th>
+                    <th className="r" style={{ width: 80 }} />
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody>
                   {paymentCodes.map((c) => (
-                    <tr key={c.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 font-mono text-xs">
-                        {c.code}
-                      </td>
-                      <td className="px-4 py-2">{c.description}</td>
-                      <td className="px-4 py-2 text-gray-600">
-                        {c.groupCode}
-                      </td>
-                      <td className="px-4 py-2">
-                        <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">
+                    <tr key={c.id}>
+                      <td className="tnum">{c.code}</td>
+                      <td>{c.description}</td>
+                      <td style={{ color: "var(--muted)" }}>{c.groupCode}</td>
+                      <td>
+                        <span className="badge checked-in">
+                          <span className="dot" />
                           payment
                         </span>
                       </td>
-                      <td className="px-4 py-2 text-right">
+                      <td className="r">
                         <Link
                           href={`/configuration/transaction-codes/${c.id}/edit`}
-                          className="text-xs text-green-600 hover:underline"
+                          className="btn xs ghost"
                         >
                           {t(dict, "txCodes.edit")}
                         </Link>
@@ -157,9 +141,9 @@ export default async function TransactionCodesPage() {
                 </tbody>
               </table>
             </div>
-          </section>
-        </div>
+          </div>
+        </>
       )}
-    </main>
+    </>
   );
 }

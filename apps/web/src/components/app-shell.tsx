@@ -1,8 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Navbar } from "./navbar";
 import type { ReactNode } from "react";
+import { Sidebar } from "@/components/sidebar";
+import { Topbar } from "@/components/topbar";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -12,9 +13,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <>
-      <Navbar />
-      {children}
-    </>
+    <div className="app">
+      <Sidebar />
+      <div className="main">
+        <Topbar />
+        <div className="content">{children}</div>
+      </div>
+    </div>
   );
 }

@@ -2,10 +2,14 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
+import { Icon } from "@/components/icon";
 
 export function SearchForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { dict } = useLocale();
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -19,14 +23,11 @@ export function SearchForm() {
   );
 
   useEffect(() => {
-    // Skip debounce on initial render
     if (query === (searchParams.get("q") || "")) return;
-
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       navigate(query);
     }, 300);
-
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
@@ -39,19 +40,31 @@ export function SearchForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2 mb-6">
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search by name, email, or phone..."
-        className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
-      <button
-        type="submit"
-        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-      >
-        Search
+    <form onSubmit={handleSubmit} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <div style={{ position: "relative", flex: "1 1 320px", maxWidth: 480 }}>
+        <span
+          style={{
+            position: "absolute",
+            left: 10,
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "var(--muted)",
+            pointerEvents: "none",
+          }}
+        >
+          <Icon name="search" size={14} />
+        </span>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t(dict, "profiles.search")}
+          className="input"
+          style={{ paddingLeft: 32, width: "100%" }}
+        />
+      </div>
+      <button type="submit" className="btn sm">
+        {t(dict, "profiles.searchBtn")}
       </button>
     </form>
   );

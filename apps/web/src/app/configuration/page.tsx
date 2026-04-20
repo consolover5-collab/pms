@@ -1,79 +1,115 @@
 import Link from "next/link";
-import { BackButton } from "@/components/back-button";
 import { getLocale, getDict, t } from "@/lib/i18n";
+import { Icon, type IconName } from "@/components/icon";
+
+type Section = {
+  title: string;
+  href: string;
+  description: string;
+  icon: IconName;
+};
 
 export default async function ConfigurationPage() {
   const locale = await getLocale();
   const dict = getDict(locale);
 
-  const configSections = [
+  const sections: Section[] = [
     {
-      title: "Room Types",
+      title: t(dict, "config.roomTypes"),
       href: "/configuration/room-types",
-      description: "Manage room categories, occupancy limits, and base rates",
+      description: t(dict, "config.roomTypesDesc"),
       icon: "bed",
     },
     {
-      title: "Rate Plans",
+      title: t(dict, "config.ratePlans"),
       href: "/configuration/rate-plans",
-      description: "Configure rate codes and pricing strategies",
-      icon: "currency",
+      description: t(dict, "config.ratePlansDesc"),
+      icon: "cash",
     },
     {
-      title: "Packages",
+      title: t(dict, "config.packages"),
       href: "/configuration/packages",
-      description: "Manage service packages (breakfast, parking, etc.)",
-      icon: "gift",
+      description: t(dict, "config.packagesDesc"),
+      icon: "sparkles",
     },
     {
-      title: "Profiles",
+      title: t(dict, "config.profiles"),
       href: "/configuration/profiles",
-      description: "Manage guests, companies, travel agents, and booking sources",
+      description: t(dict, "config.profilesDesc"),
       icon: "users",
     },
     {
-      title: "Property Settings",
+      title: t(dict, "config.property"),
       href: "/configuration/property",
-      description: "Hotel details, check-in/out times, currency",
-      icon: "building",
+      description: t(dict, "config.propertyDesc"),
+      icon: "settings",
     },
     {
-      title: "Transaction Codes",
+      title: t(dict, "config.txCodes"),
       href: "/configuration/transaction-codes",
-      description: "View charge and payment codes for folio postings",
-      icon: "receipt",
+      description: t(dict, "config.txCodesDesc"),
+      icon: "key",
     },
     {
       title: t(dict, "guaranteeCodes.title"),
       href: "/configuration/guarantee-codes",
       description: t(dict, "config.guaranteeCodesDesc"),
-      icon: "shield",
+      icon: "flag",
     },
   ];
 
   return (
-    <main className="p-8 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-2">Configuration</h1>
-      <p className="text-gray-600 mb-8">
-        Manage system settings and reference data
-      </p>
+    <>
+      <div className="page-head">
+        <h1 className="page-title">{t(dict, "config.title")}</h1>
+        <span className="page-sub">{t(dict, "config.subtitle")}</span>
+      </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        {configSections.map((section) => (
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+          gap: 12,
+        }}
+      >
+        {sections.map((section) => (
           <Link
             key={section.href}
             href={section.href}
-            className="block p-6 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow"
+            className="card"
+            style={{
+              textDecoration: "none",
+              color: "inherit",
+              transition: "transform .12s ease, border-color .12s ease",
+            }}
           >
-            <h2 className="text-xl font-semibold mb-2">{section.title}</h2>
-            <p className="text-gray-600 text-sm">{section.description}</p>
+            <div className="card-body" style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  background: "var(--accent-soft)",
+                  color: "var(--accent)",
+                  display: "grid",
+                  placeItems: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <Icon name={section.icon} size={18} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                  {section.title}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.45 }}>
+                  {section.description}
+                </div>
+              </div>
+            </div>
           </Link>
         ))}
       </div>
-
-      <div className="mt-8">
-        <BackButton fallbackHref="/" label="Back to Home" />
-      </div>
-    </main>
+    </>
   );
 }

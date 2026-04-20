@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
-import { BackButton } from "@/components/back-button";
+import { getLocale, getDict, t } from "@/lib/i18n";
+import { Icon } from "@/components/icon";
 import { ProfilesList } from "./profiles-list";
 
 type Profile = {
@@ -21,6 +22,8 @@ export default async function ProfilesPage({
 }: {
   searchParams: Promise<{ type?: string; q?: string }>;
 }) {
+  const locale = await getLocale();
+  const dict = getDict(locale);
   const { type, q } = await searchParams;
   const params = new URLSearchParams();
   params.set("propertyId", "ff1d9135-dfb9-4baa-be46-0e739cd26dad");
@@ -32,36 +35,44 @@ export default async function ProfilesPage({
   const profiles = result.data;
 
   return (
-    <main className="p-8 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <BackButton fallbackHref="/configuration" label="Back to Configuration" />
-          <h1 className="text-2xl font-bold mt-2">Profiles</h1>
-        </div>
-        <div className="flex gap-2">
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <Link href="/configuration" style={{ color: "var(--muted)" }}>
+          ← {t(dict, "config.backToConfig")}
+        </Link>
+      </div>
+
+      <div className="page-head">
+        <h1 className="page-title">{t(dict, "profiles.title")}</h1>
+        <span className="page-sub">{t(dict, "profiles.subtitle")}</span>
+        <div className="actions">
           <Link
             href="/configuration/profiles/new?type=individual"
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
+            className="btn sm"
           >
-            Add Guest
+            <Icon name="plus" size={12} />
+            {t(dict, "profiles.addGuest")}
           </Link>
           <Link
             href="/configuration/profiles/new?type=company"
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm"
+            className="btn sm"
           >
-            Add Company
+            <Icon name="plus" size={12} />
+            {t(dict, "profiles.addCompany")}
           </Link>
           <Link
             href="/configuration/profiles/new?type=travel_agent"
-            className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 text-sm"
+            className="btn sm"
           >
-            Add Agent
+            <Icon name="plus" size={12} />
+            {t(dict, "profiles.addAgent")}
           </Link>
           <Link
             href="/configuration/profiles/new?type=source"
-            className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 text-sm"
+            className="btn sm primary"
           >
-            Add Source
+            <Icon name="plus" size={12} />
+            {t(dict, "profiles.addSource")}
           </Link>
         </div>
       </div>
@@ -71,6 +82,6 @@ export default async function ProfilesPage({
         initialType={type || ""}
         initialSearch={q || ""}
       />
-    </main>
+    </>
   );
 }

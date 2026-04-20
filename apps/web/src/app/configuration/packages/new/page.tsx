@@ -1,30 +1,41 @@
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
+import { getLocale, getDict, t } from "@/lib/i18n";
 import { PackageForm } from "../package-form";
 
-export default async function NewPackagePage() {
-  const properties = await apiFetch<{ id: string }[]>("/api/properties");
-  const propertyId = properties[0]?.id;
+type TransactionCode = { id: string; code: string; description: string | null };
 
-  const transactionCodes = propertyId 
-    ? await apiFetch<any[]>(`/api/transaction-codes?propertyId=${propertyId}`)
+export default async function NewPackagePage() {
+  const locale = await getLocale();
+  const dict = getDict(locale);
+  const properties = await apiFetch<{ id: string }[]>("/api/properties");
+  const propertyId = properties[0]?.id ?? "";
+
+  const transactionCodes = propertyId
+    ? await apiFetch<TransactionCode[]>(`/api/transaction-codes?propertyId=${propertyId}`)
     : [];
 
   return (
-    <main className="p-8 max-w-4xl mx-auto">
-      <Link
-        href="/configuration/packages"
-        className="text-blue-600 hover:underline text-sm"
-      >
-        &larr; Back to Packages
-      </Link>
-      <h1 className="text-2xl font-bold mt-2 mb-6">New Package</h1>
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <Link href="/configuration/packages" style={{ color: "var(--muted)" }}>
+          ← {t(dict, "packages.title")}
+        </Link>
+      </div>
 
-      <PackageForm 
-        propertyId={propertyId} 
-        transactionCodes={transactionCodes} 
-        ratePlans={[]} 
-      />
-    </main>
+      <div className="page-head">
+        <h1 className="page-title">{t(dict, "packages.newTitle")}</h1>
+      </div>
+
+      <div className="card">
+        <div className="card-body">
+          <PackageForm
+            propertyId={propertyId}
+            transactionCodes={transactionCodes}
+            ratePlans={[]}
+          />
+        </div>
+      </div>
+    </>
   );
 }

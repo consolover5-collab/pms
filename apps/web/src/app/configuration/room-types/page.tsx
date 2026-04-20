@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
-import { BackButton } from "@/components/back-button";
+import { getLocale, getDict, t } from "@/lib/i18n";
+import { Icon } from "@/components/icon";
 import { RoomTypesList } from "./room-types-list";
 
 type RoomType = {
@@ -13,28 +14,35 @@ type RoomType = {
 };
 
 export default async function RoomTypesPage() {
+  const locale = await getLocale();
+  const dict = getDict(locale);
   const properties = await apiFetch<{ id: string }[]>("/api/properties");
   const propertyId = properties[0]?.id;
   const roomTypesWithCount = propertyId
-    ? await apiFetch<(RoomType & { roomCount: number })[]>(`/api/room-types?propertyId=${propertyId}`)
+    ? await apiFetch<(RoomType & { roomCount: number })[]>(
+        `/api/room-types?propertyId=${propertyId}`,
+      )
     : [];
 
   return (
-    <main className="p-8 max-w-4xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <BackButton fallbackHref="/configuration" label="Back to Configuration" />
-          <h1 className="text-2xl font-bold mt-2">Room Types</h1>
-        </div>
-        <Link
-          href="/configuration/room-types/new"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Add Room Type
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <Link href="/configuration" style={{ color: "var(--muted)" }}>
+          ← {t(dict, "config.backToConfig")}
         </Link>
       </div>
 
+      <div className="page-head">
+        <h1 className="page-title">{t(dict, "roomTypes.title")}</h1>
+        <div className="actions">
+          <Link href="/configuration/room-types/new" className="btn sm primary">
+            <Icon name="plus" size={12} />
+            {t(dict, "roomTypes.add")}
+          </Link>
+        </div>
+      </div>
+
       <RoomTypesList roomTypes={roomTypesWithCount} propertyId={propertyId ?? ""} />
-    </main>
+    </>
   );
 }

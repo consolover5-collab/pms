@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api";
-import { BackButton } from "@/components/back-button";
+import Link from "next/link";
 import { TransactionCodeForm } from "../../transaction-code-form";
 import { notFound } from "next/navigation";
 import { getLocale, getDict, t } from "@/lib/i18n";
@@ -35,13 +35,23 @@ export default async function EditTransactionCodePage({
   if (!tc) notFound();
 
   return (
-    <main className="p-8 max-w-2xl mx-auto">
-      <BackButton
-        fallbackHref="/configuration/transaction-codes"
-        label="Back to Transaction Codes"
-      />
-      <h1 className="text-2xl font-bold mt-2 mb-6">{t(dict, "txCodes.editTitle")}</h1>
-      <TransactionCodeForm code={tc} propertyId={propertyId} isEdit />
-    </main>
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <Link href="/configuration/transaction-codes" style={{ color: "var(--muted)" }}>
+          ← {t(dict, "txCodes.title")}
+        </Link>
+      </div>
+
+      <div className="page-head">
+        <h1 className="page-title">{t(dict, "txCodes.editTitle")}</h1>
+        <span className="page-sub">{tc.code}</span>
+      </div>
+
+      <div className="card">
+        <div className="card-body">
+          <TransactionCodeForm code={tc} propertyId={propertyId} isEdit />
+        </div>
+      </div>
+    </>
   );
 }

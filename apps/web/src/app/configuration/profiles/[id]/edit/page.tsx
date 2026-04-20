@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/api";
 import { notFound } from "next/navigation";
-import { BackButton } from "@/components/back-button";
+import Link from "next/link";
+import { getLocale, getDict, t } from "@/lib/i18n";
 import { ProfileForm } from "../../profile-form";
 
 type Profile = {
@@ -40,6 +41,8 @@ export default async function EditProfilePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const locale = await getLocale();
+  const dict = getDict(locale);
   const { id } = await params;
 
   let profile: Profile;
@@ -50,12 +53,23 @@ export default async function EditProfilePage({
   }
 
   return (
-    <main className="p-8 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <BackButton fallbackHref="/configuration/profiles" label="Back to Profiles" />
-        <h1 className="text-2xl font-bold mt-2">Edit Profile: {profile.name}</h1>
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <Link href={`/configuration/profiles/${id}`} style={{ color: "var(--muted)" }}>
+          ← {profile.name}
+        </Link>
       </div>
-      <ProfileForm profile={profile} />
-    </main>
+
+      <div className="page-head">
+        <h1 className="page-title">{t(dict, "profiles.editTitle")}</h1>
+        <span className="page-sub">{profile.name}</span>
+      </div>
+
+      <div className="card">
+        <div className="card-body">
+          <ProfileForm profile={profile} />
+        </div>
+      </div>
+    </>
   );
 }

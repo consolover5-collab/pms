@@ -1,4 +1,4 @@
-import { BackButton } from "@/components/back-button";
+import Link from "next/link";
 import { getLocale, getDict, t } from "@/lib/i18n";
 
 export default async function GuaranteeCodesPage() {
@@ -34,38 +34,42 @@ export default async function GuaranteeCodesPage() {
   ];
 
   return (
-    <main className="p-8 max-w-3xl mx-auto">
-      <BackButton fallbackHref="/configuration" label="Back to Configuration" />
-      <h1 className="text-2xl font-bold mt-2 mb-2">{t(dict, "guaranteeCodes.title")}</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        {t(dict, "guaranteeCodes.subtitle")}
-      </p>
-      <div className="border rounded overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase w-52">
-                {t(dict, "guaranteeCodes.colCode")}
-              </th>
-              <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase w-48">
-                {t(dict, "guaranteeCodes.colName")}
-              </th>
-              <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                {t(dict, "guaranteeCodes.colDesc")}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {GUARANTEE_CODES.map((g) => (
-              <tr key={g.code} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-mono text-blue-700">{g.code}</td>
-                <td className="px-4 py-3 font-medium">{g.label}</td>
-                <td className="px-4 py-3 text-gray-600">{g.description}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <Link href="/configuration" style={{ color: "var(--muted)" }}>
+          ← {t(dict, "config.backToConfig")}
+        </Link>
       </div>
-    </main>
+
+      <div className="page-head">
+        <h1 className="page-title">{t(dict, "guaranteeCodes.title")}</h1>
+        <span className="page-sub">{t(dict, "guaranteeCodes.subtitle")}</span>
+      </div>
+
+      <div className="card">
+        <div className="card-body" style={{ padding: 0 }}>
+          <table className="t">
+            <thead>
+              <tr>
+                <th style={{ width: 220 }}>{t(dict, "guaranteeCodes.colCode")}</th>
+                <th style={{ width: 220 }}>{t(dict, "guaranteeCodes.colName")}</th>
+                <th>{t(dict, "guaranteeCodes.colDesc")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {GUARANTEE_CODES.map((g) => (
+                <tr key={g.code}>
+                  <td className="tnum" style={{ color: "var(--accent)" }}>
+                    {g.code}
+                  </td>
+                  <td style={{ fontWeight: 500 }}>{g.label}</td>
+                  <td style={{ color: "var(--muted)" }}>{g.description}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
   );
 }

@@ -1,6 +1,7 @@
-import { apiFetch } from "@/lib/api";
 import Link from "next/link";
+import { apiFetch } from "@/lib/api";
 import { getLocale, getDict, t } from "@/lib/i18n";
+import { Icon } from "@/components/icon";
 
 type Property = { id: string; name: string };
 
@@ -46,319 +47,472 @@ function formatDate(dateStr: string, locale: string): string {
   });
 }
 
+function initials(first: string, last: string): string {
+  return `${(first[0] ?? "").toUpperCase()}${(last[0] ?? "").toUpperCase()}`;
+}
+
+type StatusClass = "confirmed" | "checked-in" | "checked-out" | "cancelled" | "no-show";
+
+function statusClass(st: string): StatusClass {
+  switch (st) {
+    case "checked_in":
+    case "checked-in":
+      return "checked-in";
+    case "checked_out":
+    case "checked-out":
+      return "checked-out";
+    case "cancelled":
+      return "cancelled";
+    case "no_show":
+    case "no-show":
+      return "no-show";
+    default:
+      return "confirmed";
+  }
+}
+
+function ErrorState({
+  message,
+  dict,
+}: {
+  message: string;
+  dict: ReturnType<typeof getDict>;
+}) {
+  return (
+    <div className="card">
+      <div className="card-body">
+        <h2 style={{ color: "var(--cancelled)", margin: 0, fontSize: 15 }}>
+          {t(dict, "dashboard.failedToLoad")}
+        </h2>
+        <p style={{ color: "var(--muted)", fontSize: 12, marginTop: 4 }}>{message}</p>
+        <Link href="/" className="btn sm" style={{ marginTop: 8, display: "inline-flex" }}>
+          {t(dict, "dashboard.retry")}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export default async function Home() {
   const locale = await getLocale();
   const dict = getDict(locale);
 
-  // Get property (single-property MVP)
   let properties: Property[];
   try {
     properties = await apiFetch<Property[]>("/api/properties");
   } catch (err) {
-    return (
-      <main className="p-8">
-        <div className="border-2 border-red-300 bg-red-50 rounded-lg p-4">
-          <h2 className="text-lg font-bold text-red-800">
-            {t(dict, "dashboard.failedToLoad")}
-          </h2>
-          <p className="text-red-700 text-sm mt-1">
-            {err instanceof Error ? err.message : t(dict, "dashboard.couldNotConnect")}
-          </p>
-          <Link
-            href="/"
-            className="inline-block mt-3 text-sm text-blue-600 hover:underline"
-          >
-            {t(dict, "dashboard.retry")}
-          </Link>
-        </div>
-      </main>
-    );
+    const msg = err instanceof Error ? err.message : t(dict, "dashboard.couldNotConnect");
+    return <ErrorState message={msg} dict={dict} />;
   }
 
   const property = properties[0];
-
   if (!property) {
     return (
-      <main className="p-8">
-        <h1 className="text-2xl font-bold">{t(dict, "dashboard.noProperty")}</h1>
-        <p className="text-gray-600 mt-2">
-          {t(dict, "dashboard.runSeed")}
-        </p>
-      </main>
+      <div className="card">
+        <div className="card-body">
+          <h2 style={{ margin: 0 }}>{t(dict, "dashboard.noProperty")}</h2>
+          <p style={{ color: "var(--muted)", fontSize: 12, marginTop: 4 }}>
+            {t(dict, "dashboard.runSeed")}
+          </p>
+        </div>
+      </div>
     );
   }
 
   const qs = `propertyId=${property.id}`;
 
-  // Fetch all dashboard data in parallel
   let arrivals: DashboardArrival[];
   let departures: DashboardBooking[];
-  let inHouse: DashboardBooking[];
   let summary: DashboardSummary;
   try {
-    [arrivals, departures, inHouse, summary] = await Promise.all([
+    [arrivals, departures, summary] = await Promise.all([
       apiFetch<DashboardArrival[]>(`/api/dashboard/arrivals?${qs}`),
       apiFetch<DashboardBooking[]>(`/api/dashboard/departures?${qs}`),
-      apiFetch<DashboardBooking[]>(`/api/dashboard/in-house?${qs}`),
       apiFetch<DashboardSummary>(`/api/dashboard/summary?${qs}`),
     ]);
   } catch (err) {
-    return (
-      <main className="p-8">
-        <div className="border-2 border-red-300 bg-red-50 rounded-lg p-4">
-          <h2 className="text-lg font-bold text-red-800">
-            {t(dict, "dashboard.failedToLoad")}
-          </h2>
-          <p className="text-red-700 text-sm mt-1">
-            {err instanceof Error ? err.message : t(dict, "dashboard.couldNotConnect")}
-          </p>
-          <Link
-            href="/"
-            className="inline-block mt-3 text-sm text-blue-600 hover:underline"
-          >
-            {t(dict, "dashboard.retry")}
-          </Link>
-        </div>
-      </main>
-    );
+    const msg = err instanceof Error ? err.message : t(dict, "dashboard.couldNotConnect");
+    return <ErrorState message={msg} dict={dict} />;
   }
 
-  const occupancyPct =
-    summary.totalRooms > 0
-      ? Math.round((summary.occupiedRooms / summary.totalRooms) * 100)
-      : 0;
+  const totalRooms = summary.totalRooms;
+  const occ = summary.occupiedRooms;
+  const ooo = summary.outOfOrderRooms;
+  const oos = summary.outOfServiceRooms;
+  const vac = Math.max(totalRooms - occ - ooo - oos, 0);
+  const occPct = totalRooms ? Math.round((occ / totalRooms) * 100) : 0;
+  const vacPct = totalRooms ? Math.round((vac / totalRooms) * 100) : 0;
+  const oooPct = totalRooms ? Math.round((ooo / totalRooms) * 100) : 0;
+  const oosPct = totalRooms ? Math.max(100 - occPct - vacPct - oooPct, 0) : 0;
+
+  const hkTotal = Math.max(
+    summary.dirtyRooms + summary.cleanRooms + summary.pickupRooms + summary.inspectedRooms + ooo + oos,
+    1,
+  );
+
+  const sources: { label: string }[] = [];
+  void sources;
 
   return (
-    <main className="p-8 max-w-6xl mx-auto">
-      {/* Business Date */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-1">{t(dict, "dashboard.title")}</h1>
-        <p className="text-lg text-gray-600">
-          {formatDate(summary.currentBusinessDate, locale)}
-        </p>
+    <>
+      <div className="page-head">
+        <h1 className="page-title">
+          {t(dict, "dashboard.greeting", { name: property.name })}
+        </h1>
+        <span className="page-sub">{formatDate(summary.currentBusinessDate, locale)}</span>
+        <div className="actions">
+          <Link href="/" className="btn sm">
+            <Icon name="refresh" size={12} />
+            <span>{t(dict, "dashboard.refresh")}</span>
+          </Link>
+          <Link href="/night-audit" className="btn sm primary">
+            <Icon name="moon" size={12} />
+            <span>{t(dict, "dashboard.runAudit")}</span>
+          </Link>
+        </div>
       </div>
 
-      {/* Room Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-8">
-        <div className="bg-white border rounded-lg p-4 text-center">
-          <div className="text-2xl font-bold text-blue-600">
-            {summary.occupiedRooms}
-            <span className="text-gray-400 text-lg">
-              /{summary.totalRooms}
+      {/* KPI row */}
+      <div className="grid g4">
+        <div className="kpi accent">
+          <div className="lab">
+            <Icon name="bed" size={13} />
+            <span>{t(dict, "dashboard.kpi.occupancy")}</span>
+          </div>
+          <div className="val">
+            {occPct}
+            <span className="of">%</span>
+          </div>
+          <div className="foot">
+            <span>{t(dict, "dashboard.kpi.rooms", { sold: occ, total: totalRooms })}</span>
+          </div>
+        </div>
+        <div className="kpi">
+          <div className="lab">
+            <Icon name="sparkles" size={13} />
+            <span>{t(dict, "dashboard.kpi.adr")}</span>
+          </div>
+          <div className="val">—</div>
+          <div className="foot">
+            <span>{t(dict, "dashboard.kpi.adrSub")}</span>
+          </div>
+        </div>
+        <div className="kpi">
+          <div className="lab">
+            <Icon name="star" size={13} />
+            <span>{t(dict, "dashboard.kpi.revpar")}</span>
+          </div>
+          <div className="val">—</div>
+          <div className="foot">
+            <span>{t(dict, "dashboard.kpi.revparSub")}</span>
+          </div>
+        </div>
+        <div className="kpi">
+          <div className="lab">
+            <Icon name="users" size={13} />
+            <span>{t(dict, "dashboard.kpi.inHouse")}</span>
+          </div>
+          <div className="val">{summary.inHouseCount}</div>
+          <div className="foot">
+            <span>
+              {t(dict, "dashboard.kpi.inHouseSub", {
+                arrivals: summary.arrivalsCount,
+                departures: summary.departuresCount,
+              })}
             </span>
           </div>
-          <div className="text-xs text-gray-500 uppercase mt-1">
-            {t(dict, "dashboard.occupied")} ({occupancyPct}%)
-          </div>
         </div>
-        <div className="bg-white border rounded-lg p-4 text-center">
-          <div className="text-2xl font-bold text-green-600">
-            {summary.vacantRooms}
+      </div>
+
+      {/* Inventory + Housekeeping */}
+      <div className="grid g4">
+        <div className="card" style={{ gridColumn: "span 2" }}>
+          <div className="card-head">
+            <div className="card-title">{t(dict, "dashboard.inventory.title")}</div>
           </div>
-          <div className="text-xs text-gray-500 uppercase mt-1">{t(dict, "dashboard.vacant")}</div>
-        </div>
-        {(summary.outOfOrderRooms > 0 || summary.outOfServiceRooms > 0) && (
-          <div className="bg-white border rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-red-600">
-              {summary.outOfOrderRooms + summary.outOfServiceRooms}
+          <div className="card-body" style={{ display: "flex", gap: 24, alignItems: "center" }}>
+            <div
+              className="donut"
+              style={
+                {
+                  "--occ": occPct,
+                  "--vac": vacPct,
+                  "--ooo": oooPct,
+                  "--oos": oosPct,
+                } as React.CSSProperties
+              }
+            >
+              <div className="mid">
+                {occPct}%
+                <small>occupancy</small>
+              </div>
             </div>
-            <div className="text-xs text-gray-500 uppercase mt-1">OOO/OOS</div>
+            <div style={{ flex: 1 }}>
+              <div className="leg">
+                <span className="lab" style={{ color: "var(--occ-occupied)" }}>
+                  <span className="sw" />
+                  {t(dict, "dashboard.occupied")}
+                </span>
+                <strong>
+                  {occ} / {totalRooms}
+                </strong>
+              </div>
+              <div className="leg">
+                <span className="lab" style={{ color: "var(--muted-2)" }}>
+                  <span className="sw" />
+                  {t(dict, "dashboard.vacant")}
+                </span>
+                <strong>{vac}</strong>
+              </div>
+              <div className="leg">
+                <span className="lab" style={{ color: "var(--hk-ooo)" }}>
+                  <span className="sw" />
+                  {t(dict, "dashboard.inventory.ooo")}
+                </span>
+                <strong>{ooo}</strong>
+              </div>
+              <div className="leg">
+                <span className="lab" style={{ color: "var(--hk-oos)" }}>
+                  <span className="sw" />
+                  {t(dict, "dashboard.inventory.oos")}
+                </span>
+                <strong>{oos}</strong>
+              </div>
+            </div>
           </div>
-        )}
-        <Link
-          href="/rooms?hk=dirty"
-          className="bg-white border rounded-lg p-4 text-center hover:bg-gray-50"
-        >
-          <div className="text-2xl font-bold text-orange-600">
-            {summary.dirtyRooms}
+        </div>
+
+        <div className="card" style={{ gridColumn: "span 2" }}>
+          <div className="card-head">
+            <div className="card-title">{t(dict, "dashboard.hk.title")}</div>
+            <Link className="btn sm ghost" href="/housekeeping">
+              <span>{t(dict, "dashboard.hk.openBoard")}</span>
+              <Icon name="chevRight" size={12} />
+            </Link>
           </div>
-          <div className="text-xs text-gray-500 uppercase mt-1">{t(dict, "dashboard.dirty")}</div>
-        </Link>
-        <Link
-          href="/rooms?hk=clean"
-          className="bg-white border rounded-lg p-4 text-center hover:bg-gray-50"
-        >
-          <div className="text-2xl font-bold text-green-600">
-            {summary.cleanRooms}
+          <div className="card-body">
+            <div className="stackbar" style={{ marginBottom: 12 }}>
+              <div
+                className="seg"
+                style={{
+                  width: `${(summary.dirtyRooms / hkTotal) * 100}%`,
+                  background: "var(--hk-dirty)",
+                }}
+              />
+              <div
+                className="seg"
+                style={{
+                  width: `${(summary.pickupRooms / hkTotal) * 100}%`,
+                  background: "var(--hk-pickup)",
+                }}
+              />
+              <div
+                className="seg"
+                style={{
+                  width: `${(summary.cleanRooms / hkTotal) * 100}%`,
+                  background: "var(--hk-clean)",
+                }}
+              />
+              <div
+                className="seg"
+                style={{
+                  width: `${(summary.inspectedRooms / hkTotal) * 100}%`,
+                  background: "var(--hk-inspected)",
+                }}
+              />
+              <div
+                className="seg"
+                style={{
+                  width: `${(ooo / hkTotal) * 100}%`,
+                  background: "var(--hk-ooo)",
+                }}
+              />
+              <div
+                className="seg"
+                style={{
+                  width: `${(oos / hkTotal) * 100}%`,
+                  background: "var(--hk-oos)",
+                }}
+              />
+            </div>
+            <div className="grid g3" style={{ gap: 10 }}>
+              <HkStat cls="hk-dirty" n={summary.dirtyRooms} lab={t(dict, "dashboard.dirty")} />
+              <HkStat cls="hk-pickup" n={summary.pickupRooms} lab={t(dict, "dashboard.hk.pickup")} />
+              <HkStat cls="hk-clean" n={summary.cleanRooms} lab={t(dict, "dashboard.clean")} />
+              <HkStat cls="hk-inspected" n={summary.inspectedRooms} lab={t(dict, "dashboard.inspected")} />
+              <HkStat cls="hk-ooo" n={ooo} lab={t(dict, "dashboard.hk.ooo")} />
+              <HkStat cls="hk-oos" n={oos} lab={t(dict, "dashboard.hk.oos")} />
+            </div>
           </div>
-          <div className="text-xs text-gray-500 uppercase mt-1">{t(dict, "dashboard.clean")}</div>
-        </Link>
-        <Link
-          href="/rooms?hk=inspected"
-          className="bg-white border rounded-lg p-4 text-center hover:bg-gray-50"
-        >
-          <div className="text-2xl font-bold text-emerald-600">
-            {summary.inspectedRooms}
-          </div>
-          <div className="text-xs text-gray-500 uppercase mt-1">{t(dict, "dashboard.inspected")}</div>
-        </Link>
+        </div>
       </div>
 
       {/* Arrivals + Departures */}
-      <div className="grid md:grid-cols-2 gap-6 mb-6">
-        {/* Arrivals */}
-        <div className="bg-white border rounded-lg p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">
-              {t(dict, "dashboard.dueIn")}
-              <span className="text-gray-400 font-normal ml-2 text-sm">
-                {arrivals.length}
-              </span>
-            </h2>
-            <Link
-              href="/bookings?view=arrivals"
-              className="text-sm text-blue-600 hover:underline"
-            >
-              {t(dict, "dashboard.viewAll")}
-            </Link>
-          </div>
-          {arrivals.length === 0 ? (
-            <p className="text-gray-400 text-sm">{t(dict, "dashboard.noArrivals")}</p>
-          ) : (
-            <div className="divide-y">
-              {arrivals.slice(0, 8).map((b) => (
-                <Link
-                  key={b.id}
-                  href={`/bookings/${b.id}`}
-                  className="flex items-center justify-between py-2 px-1 hover:bg-gray-50 rounded"
-                >
-                  <div>
-                    <span className="font-medium">
-                      {b.guest.firstName} {b.guest.lastName}
-                    </span>
-                    <span className="text-gray-400 text-xs ml-2">
-                      #{b.confirmationNumber}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {b.roomType.code}
-                    {b.room?.roomNumber && (
-                      <span className="ml-1 text-blue-600">
-                        &rarr; {b.room.roomNumber}
-                      </span>
-                    )}
-                  </div>
-                </Link>
-              ))}
-              {arrivals.length > 8 && (
-                <Link
-                  href="/bookings?view=arrivals"
-                  className="block text-center py-2 text-blue-600 hover:underline text-sm"
-                >
-                  {t(dict, "dashboard.more", { count: arrivals.length - 8 })}
-                </Link>
-              )}
+      <div className="grid g2">
+        <div className="card">
+          <div className="card-head">
+            <div className="card-title">
+              {t(dict, "dashboard.arrivals.title")}{" "}
+              <span className="count">· {arrivals.length}</span>
             </div>
-          )}
+          </div>
+          <div className="card-body flush" style={{ maxHeight: 360, overflow: "auto" }}>
+            {arrivals.length === 0 ? (
+              <div className="empty">{t(dict, "dashboard.noArrivals")}</div>
+            ) : (
+              <table className="t">
+                <thead>
+                  <tr>
+                    <th>{t(dict, "dashboard.arrivals.guest")}</th>
+                    <th>{t(dict, "dashboard.arrivals.roomCol")}</th>
+                    <th>{t(dict, "dashboard.arrivals.nights")}</th>
+                    <th>{t(dict, "dashboard.arrivals.status")}</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {arrivals.map((a) => {
+                    const nights =
+                      Math.max(
+                        Math.round(
+                          (new Date(a.checkOutDate).getTime() -
+                            new Date(a.checkInDate).getTime()) /
+                            86_400_000,
+                        ),
+                        1,
+                      ) || 1;
+                    const stCls = statusClass(a.status);
+                    return (
+                      <tr key={a.id}>
+                        <td>
+                          <Link className="guest" href={`/bookings/${a.id}`}>
+                            <span className="av">
+                              {initials(a.guest.firstName, a.guest.lastName)}
+                            </span>
+                            <span>
+                              <span className="nm">
+                                {a.guest.firstName} {a.guest.lastName}
+                              </span>
+                              <div className="sub">
+                                <span className="conf">{a.confirmationNumber}</span>
+                              </div>
+                            </span>
+                          </Link>
+                        </td>
+                        <td className="tnum">
+                          {a.room.roomNumber ?? "—"}
+                          <span style={{ color: "var(--muted)", fontSize: 11 }}>
+                            {" "}· {a.roomType.code}
+                          </span>
+                        </td>
+                        <td className="tnum">{nights}</td>
+                        <td>
+                          <span className={`badge ${stCls}`}>
+                            <span className="dot" />
+                            {stCls === "checked-in"
+                              ? t(dict, "dashboard.status.checkedIn")
+                              : stCls === "no-show"
+                                ? t(dict, "dashboard.status.noShow")
+                                : t(dict, "dashboard.status.pending")}
+                          </span>
+                        </td>
+                        <td className="r">
+                          {stCls === "confirmed" && (
+                            <Link href={`/bookings/${a.id}`} className="btn xs primary">
+                              <Icon name="key" size={11} />
+                              <span>{t(dict, "dashboard.arrivals.checkIn")}</span>
+                            </Link>
+                          )}
+                          {stCls !== "confirmed" && (
+                            <Link href={`/bookings/${a.id}`} className="btn xs ghost">
+                              <Icon name="more" size={11} />
+                            </Link>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
 
-        {/* Departures */}
-        <div className="bg-white border rounded-lg p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">
-              {t(dict, "dashboard.dueOut")}
-              <span className="text-gray-400 font-normal ml-2 text-sm">
-                {departures.length}
-              </span>
-            </h2>
-            <Link
-              href="/bookings?view=departures"
-              className="text-sm text-blue-600 hover:underline"
-            >
-              {t(dict, "dashboard.viewAll")}
-            </Link>
-          </div>
-          {departures.length === 0 ? (
-            <p className="text-gray-400 text-sm">{t(dict, "dashboard.noDepartures")}</p>
-          ) : (
-            <div className="divide-y">
-              {departures.slice(0, 8).map((b) => (
-                <Link
-                  key={b.id}
-                  href={`/bookings/${b.id}`}
-                  className="flex items-center justify-between py-2 px-1 hover:bg-gray-50 rounded"
-                >
-                  <div>
-                    <span className="font-medium">
-                      {b.guest.firstName} {b.guest.lastName}
-                    </span>
-                    <span className="text-gray-400 text-xs ml-2">
-                      #{b.confirmationNumber}
-                    </span>
-                  </div>
-                  <span className="text-sm text-gray-500">
-                    {b.room?.roomNumber
-                      ? t(dict, "dashboard.room", { number: b.room.roomNumber })
-                      : b.roomType.code}
-                  </span>
-                </Link>
-              ))}
-              {departures.length > 8 && (
-                <Link
-                  href="/bookings?view=departures"
-                  className="block text-center py-2 text-blue-600 hover:underline text-sm"
-                >
-                  {t(dict, "dashboard.more", { count: departures.length - 8 })}
-                </Link>
-              )}
+        <div className="card">
+          <div className="card-head">
+            <div className="card-title">
+              {t(dict, "dashboard.departures.title")}{" "}
+              <span className="count">· {departures.length}</span>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* In-House */}
-      <div className="bg-white border rounded-lg p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">
-            {t(dict, "dashboard.inHouse")}
-            <span className="text-gray-400 font-normal ml-2 text-sm">
-              {t(dict, "dashboard.guests", { count: inHouse.length })}
-            </span>
-          </h2>
-          <Link
-            href="/bookings?view=inhouse"
-            className="text-sm text-blue-600 hover:underline"
-          >
-            {t(dict, "dashboard.viewAll")}
-          </Link>
-        </div>
-        {inHouse.length === 0 ? (
-          <p className="text-gray-400 text-sm">{t(dict, "dashboard.noInHouse")}</p>
-        ) : (
-          <div className="max-h-64 overflow-y-auto divide-y">
-            {inHouse.map((b) => (
-              <Link
-                key={b.id}
-                href={`/bookings/${b.id}`}
-                className="flex items-center justify-between py-2 px-1 hover:bg-gray-50 rounded"
-              >
-                <div>
-                  <span className="font-medium">
-                    {b.guest.firstName} {b.guest.lastName}
-                  </span>
-                  <span className="text-gray-400 text-xs ml-2">
-                    #{b.confirmationNumber}
-                  </span>
-                </div>
-                <div className="text-sm text-gray-500">
-                  {b.room?.roomNumber && (
-                    <span className="mr-3">{t(dict, "dashboard.room", { number: b.room.roomNumber })}</span>
-                  )}
-                  <span>
-                    CO{" "}
-                    {new Date(
-                      b.checkOutDate + "T00:00:00",
-                    ).toLocaleDateString(locale === "ru" ? "ru-RU" : "en-US", {
-                      day: "numeric",
-                      month: "short",
-                    })}
-                  </span>
-                </div>
-              </Link>
-            ))}
           </div>
-        )}
+          <div className="card-body flush" style={{ maxHeight: 360, overflow: "auto" }}>
+            {departures.length === 0 ? (
+              <div className="empty">{t(dict, "dashboard.noDepartures")}</div>
+            ) : (
+              <table className="t">
+                <thead>
+                  <tr>
+                    <th>{t(dict, "dashboard.arrivals.guest")}</th>
+                    <th>{t(dict, "dashboard.arrivals.roomCol")}</th>
+                    <th>{t(dict, "dashboard.departures.etd")}</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {departures.map((d) => (
+                    <tr key={d.id}>
+                      <td>
+                        <Link className="guest" href={`/bookings/${d.id}`}>
+                          <span className="av">
+                            {initials(d.guest.firstName, d.guest.lastName)}
+                          </span>
+                          <span>
+                            <span className="nm">
+                              {d.guest.firstName} {d.guest.lastName}
+                            </span>
+                            <div className="sub">
+                              <span className="conf">{d.confirmationNumber}</span>
+                            </div>
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="tnum">
+                        {d.room.roomNumber ?? "—"}
+                        <span style={{ color: "var(--muted)", fontSize: 11 }}>
+                          {" "}· {d.roomType.code}
+                        </span>
+                      </td>
+                      <td className="tnum">
+                        {new Date(d.checkOutDate + "T00:00:00").toLocaleDateString(
+                          locale === "ru" ? "ru-RU" : "en-US",
+                          { day: "numeric", month: "short" },
+                        )}
+                      </td>
+                      <td className="r">
+                        <Link href={`/bookings/${d.id}`} className="btn xs primary">
+                          <Icon name="logout" size={11} />
+                          <span>{t(dict, "dashboard.departures.checkOut")}</span>
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
       </div>
-    </main>
+    </>
+  );
+}
+
+function HkStat({ cls, n, lab }: { cls: string; n: number; lab: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+      <span className={`badge ${cls}`} style={{ minWidth: 34, justifyContent: "center" }}>
+        {n}
+      </span>
+      <span style={{ fontSize: 12, color: "var(--muted)" }}>{lab}</span>
+    </div>
   );
 }

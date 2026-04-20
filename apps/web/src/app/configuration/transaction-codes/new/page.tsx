@@ -1,7 +1,7 @@
 import { apiFetch } from "@/lib/api";
-import { BackButton } from "@/components/back-button";
-import { TransactionCodeForm } from "../transaction-code-form";
+import Link from "next/link";
 import { getLocale, getDict, t } from "@/lib/i18n";
+import { TransactionCodeForm } from "../transaction-code-form";
 
 export default async function NewTransactionCodePage() {
   const locale = await getLocale();
@@ -10,13 +10,22 @@ export default async function NewTransactionCodePage() {
   const propertyId = properties[0]?.id || "";
 
   return (
-    <main className="p-8 max-w-2xl mx-auto">
-      <BackButton
-        fallbackHref="/configuration/transaction-codes"
-        label="Back to Transaction Codes"
-      />
-      <h1 className="text-2xl font-bold mt-2 mb-6">{t(dict, "txCodes.newTitle")}</h1>
-      <TransactionCodeForm propertyId={propertyId} />
-    </main>
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <Link href="/configuration/transaction-codes" style={{ color: "var(--muted)" }}>
+          ← {t(dict, "txCodes.title")}
+        </Link>
+      </div>
+
+      <div className="page-head">
+        <h1 className="page-title">{t(dict, "txCodes.newTitle")}</h1>
+      </div>
+
+      <div className="card">
+        <div className="card-body">
+          <TransactionCodeForm propertyId={propertyId} />
+        </div>
+      </div>
+    </>
   );
 }
