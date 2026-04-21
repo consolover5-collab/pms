@@ -130,7 +130,7 @@ export default async function RoomTypeDetailPage({
               <tbody className="divide-y">
                 {rooms.map((room) => (
                   <tr key={room.id} className="hover:bg-gray-50" data-testid="room-type-detail-room-row" data-room-id={room.id}>
-                    <td className="px-4 py-3 font-mono font-medium">#{room.roomNumber}</td>
+                    <td className="px-4 py-3 font-mono font-medium" data-testid="room-type-detail-room-number">#{room.roomNumber}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {room.floor ?? "—"}
                     </td>

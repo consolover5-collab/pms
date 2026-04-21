@@ -43,8 +43,9 @@ ui:
       - { id: room-type-detail-title,     element: h1,                  added: true }
       - { id: room-type-detail-edit,      element: "Link (Edit Type)",  added: true }
       - { id: room-type-detail-rooms,     element: "div (rooms section wrapper)", added: true }
-      - { id: room-type-detail-room-row,  element: "tbody tr",          added: true, note: "also data-room-id={id}" }
-      - { id: room-type-detail-empty,     element: "div (no rooms)",    added: true }
+      - { id: room-type-detail-room-row,     element: "tbody tr",          added: true, note: "also data-room-id={id}" }
+      - { id: room-type-detail-room-number, element: "td (room number)",  added: true }
+      - { id: room-type-detail-empty,        element: "div (no rooms)",    added: true }
 
 seed_data:
   property: "Grand Baltic Hotel (GBH) — ff1d9135-dfb9-4baa-be46-0e739cd26dad"
@@ -146,13 +147,13 @@ api_calls_observed:
   - { method: GET,    path: "/api/rooms?propertyId=...&roomTypeId=...", status: 200, note: "scenario 03 — STD detail rooms" }
   - { method: POST,   path: "/api/room-types",                status: 201, note: "scenario 01 — create AUD_TYPE" }
   - { method: PUT,    path: "/api/room-types/:id",            status: 200, note: "scenario 02 — edit JRS; extraAfterAll restore" }
-  - { method: DELETE, path: "/api/room-types/:id?propertyId=...", status: 400, note: "scenario 04 — HAS_ROOMS blocked" }
+  - { method: DELETE, path: "/api/room-types/:id?propertyId=...", status: 400, note: "scenario 04 — HAS_DEPENDENCIES blocked" }
   - { method: DELETE, path: "/api/room-types/:id?propertyId=...", status: 200, note: "extraAfterAll — AUD_TYPE cleanup" }
 
 console_errors: []
 network_errors:
   - { method: DELETE, path: "/api/room-types/:id?propertyId=...", status: 400,
-      note: "Expected — scenario 04 HAS_ROOMS validation rejection; not a bug" }
+      note: "Expected — scenario 04 HAS_DEPENDENCIES validation rejection; not a bug" }
 
 bugs:
   - BUG-009

@@ -148,22 +148,23 @@ test.describe('16 configuration-room-types', () => {
         console.log('[16-room-types] extraAfterAll: restoring JRS snapshot...');
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id, createdAt, updatedAt, ...snapshotBody } = jrsSnapshot;
-        const restored = await putRoomType(JRS_ID, snapshotBody);
+        await putRoomType(JRS_ID, snapshotBody);
 
-        // Verify critical fields restored
+        // Independent re-GET to verify restore — do NOT trust PUT response body alone
+        const reGotten = await fetchRoomType(JRS_ID);
         const fieldsToCheck: Array<keyof typeof snapshotBody> = ['code', 'name', 'maxOccupancy', 'description', 'sortOrder', 'baseRate'];
         for (const field of fieldsToCheck) {
           const expected = String(snapshotBody[field]);
-          const actual   = String((restored as Record<string, unknown>)[field]);
+          const actual   = String((reGotten as Record<string, unknown>)[field]);
           if (expected !== actual) {
             throw new Error(
-              `CRITICAL: JRS restore mismatch — field=${field} expected="${expected}" actual="${actual}". ` +
+              `CRITICAL: JRS restore failed (re-GET mismatch) — field=${field} expected="${expected}" re-GET="${actual}". ` +
               `Manual intervention required: PUT /api/room-types/${JRS_ID}`,
             );
           }
         }
         // eslint-disable-next-line no-console
-        console.log(`[16-room-types] extraAfterAll: JRS restored OK. description="${restored.description}"`);
+        console.log(`[16-room-types] extraAfterAll: JRS restored OK (re-GET confirmed). description="${reGotten.description}"`);
         editMutationApplied = false;
       }
 
@@ -411,7 +412,7 @@ test.describe('16 configuration-room-types', () => {
     // Sample first 3 rows to keep test fast
     for (let i = 0; i < Math.min(3, roomRowCount); i++) {
       const row = roomRows.nth(i);
-      const cellText = await row.locator('td').first().textContent();
+      const cellText = await row.getByTestId('room-type-detail-room-number').textContent();
       testInfo.attach(`room-row-${i}-text`, { body: cellText ?? '', contentType: 'text/plain' });
       expect(cellText).toMatch(/^#\d+/);
     }
@@ -424,8 +425,8 @@ test.describe('16 configuration-room-types', () => {
     await auditScreenshot(page, SECTION_ID, '03-associated-rooms', locale);
   });
 
-  // ── Scenario 04: delete-blocked — STD_TWN has rooms → 400 HAS_ROOMS ───────
-  test('04-delete-blocked: STD_TWN delete attempt → 400 HAS_ROOMS count=5; no mutation', async ({ page }, testInfo) => {
+  // ── Scenario 04: delete-blocked — STD_TWN has rooms → 400 HAS_DEPENDENCIES ─
+  test('04-delete-blocked: STD_TWN delete attempt → 400 HAS_DEPENDENCIES count=5; no mutation', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'en', 'mutation scenario runs only on en');
 
     await setLocaleAndGoto(page, 'en', ROUTE);
