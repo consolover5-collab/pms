@@ -4,13 +4,13 @@
 #
 # Создан: 2026-04-21. План: ../ui-audit-plan.md
 
-generated: null
-app_commit: null
+generated: 2026-04-21
+app_commit: 98fbc439cca280b14d4f1d95e182c3e06ecf835c
 
 sections:
   - { id: "01", file: features/01-dashboard.yml,                    status: pending, bugs: 0, priority: P0 }
   - { id: "02", file: features/02-bookings-list.yml,                status: pending, bugs: 0, priority: P0 }
-  - { id: "03", file: features/03-booking-create.yml,               status: pending, bugs: 0, priority: P0 }
+  - { id: "03", file: features/03-booking-create.yml,               status: ok,      bugs: 0, priority: P0 }
   - { id: "04", file: features/04-booking-detail.yml,               status: pending, bugs: 0, priority: P0 }
   - { id: "05", file: features/05-booking-edit.yml,                 status: pending, bugs: 0, priority: P1 }
   - { id: "06", file: features/06-checkin-checkout.yml,             status: pending, bugs: 0, priority: P0 }
@@ -35,9 +35,9 @@ sections:
 
 totals:
   sections: 24
-  ok: 0
+  ok: 1
   partial: 0
   broken: 0
   missing: 0
-  pending: 24
+  pending: 23
   bugs: 0

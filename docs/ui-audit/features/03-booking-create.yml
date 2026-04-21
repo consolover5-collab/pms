@@ -1,0 +1,181 @@
+id: booking.create
+title: "Создание бронирования"
+route: /bookings/new
+depends_on:
+  - auth.login
+  - profile.create
+  - property.select
+  - rate-plan.list
+  - room-type.list
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "Новое бронирование"
+    en: "New Booking"
+  required_fields:
+    - { id: guest, label: { ru: "Гость", en: "Guest" }, kind: "select+inline-create" }
+    - { id: checkIn, label: { ru: "Заезд", en: "Check-in" }, kind: "date" }
+    - { id: checkOut, label: { ru: "Выезд", en: "Check-out" }, kind: "date" }
+    - { id: roomType, label: { ru: "Тип номера", en: "Room Type" }, kind: "select" }
+    - { id: ratePlan, label: { ru: "Тарифный план", en: "Rate Plan" }, kind: "select" }
+    - { id: rateAmount, label: { ru: "Цена / ночь", en: "Rate per Night" }, kind: "number", note: "auto-filled from rate plan × room type" }
+  optional_fields:
+    - { id: room, label: { ru: "Номер", en: "Room" }, kind: "select", note: "'Назначить позже…' / 'Assign later…' if empty" }
+    - { id: adults, label: { ru: "Взрослых", en: "Adults" }, kind: "number", default: 1 }
+    - { id: children, label: { ru: "Детей", en: "Children" }, kind: "number", default: 0 }
+    - { id: company, label: { ru: "Компания", en: "Company" }, kind: "select" }
+    - { id: travelAgent, label: { ru: "Турагент", en: "Travel Agent" }, kind: "select" }
+    - { id: source, label: { ru: "Источник", en: "Source" }, kind: "select" }
+    - { id: paymentMethod, label: { ru: "Способ оплаты", en: "Payment Method" }, kind: "select" }
+    - { id: guarantee, label: { ru: "Гарантия", en: "Guarantee" }, kind: "select" }
+    - { id: notes, label: { ru: "Примечания", en: "Notes" }, kind: "textarea" }
+  buttons:
+    addNewGuest: { ru: "+ Добавить нового гостя", en: "+ Add New Guest" }
+    cancelAddGuest: { ru: "Отмена", en: "Cancel" }
+    createGuest: { ru: "Создать и выбрать", en: "Create & Select" }
+    submit: { ru: "Создать бронирование", en: "Create Booking" }
+
+steps:
+  - id: "01-empty-form"
+    action: "Открыть /bookings/new под admin; форма загружается пустой"
+    screenshots: [03-booking-create-01-empty-form-ru.png, 03-booking-create-01-empty-form-en.png]
+  - id: "02-empty-validation"
+    action: "Нажать Submit без заполнения — HTML5 required блокирует отправку, фокус на первом обязательном поле"
+    screenshots: [03-booking-create-02-empty-validation-ru.png, 03-booking-create-02-empty-validation-en.png]
+  - id: "03-happy-initial"
+    action: "Выбрать существующего гостя (первый в списке), тип номера Standard Double"
+    screenshots: [03-booking-create-03-happy-initial-ru.png, 03-booking-create-03-happy-initial-en.png]
+  - id: "04-happy-filled"
+    action: "Задать даты (завтра + 3 ночи) и тариф RACK; rateAmount подставляется автоматически, итого рассчитывается"
+    screenshots: [03-booking-create-04-happy-filled-ru.png, 03-booking-create-04-happy-filled-en.png]
+  - id: "05-happy-result"
+    action: "Submit → POST /api/bookings 201 → редирект на /bookings/{id}"
+    screenshots: [03-booking-create-05-happy-result-ru.png, 03-booking-create-05-happy-result-en.png]
+  - id: "06-checkout-before-checkin"
+    action: "Задать checkOut = checkIn-1 — форма показывает ошибку newBooking.dateError, кнопка submit disabled"
+    screenshots: [03-booking-create-06-checkout-before-checkin-ru.png, 03-booking-create-06-checkout-before-checkin-en.png]
+  - id: "07-room-unavail-filled"
+    action: "Выбрать конкретный OOS/занятый номер и попытаться создать — форма валидна на клиенте"
+    screenshots: [03-booking-create-07-room-unavail-filled-ru.png, 03-booking-create-07-room-unavail-filled-en.png]
+  - id: "08-room-unavail-error"
+    action: "Submit → POST /api/bookings 400 — ошибка API отображается пользователю"
+    screenshots: [03-booking-create-08-room-unavail-error-ru.png, 03-booking-create-08-room-unavail-error-en.png]
+  - id: "09-newguest-form"
+    action: "Нажать '+ Добавить нового гостя' — инлайн-форма с полями firstName/lastName/email/phone"
+    screenshots: [03-booking-create-09-newguest-form-ru.png, 03-booking-create-09-newguest-form-en.png]
+  - id: "10-newguest-created"
+    action: "Заполнить имя/фамилию, нажать 'Создать и выбрать' → POST /api/profiles 201 → гость выбран, форма продолжает заполнение"
+    screenshots: [03-booking-create-10-newguest-created-ru.png, 03-booking-create-10-newguest-created-en.png]
+  - id: "11-rate-default-rack"
+    action: "Выбрать room type → по умолчанию подставляется base-rate план (RACK) и rateAmount"
+    screenshots: [03-booking-create-11-rate-default-rack-ru.png, 03-booking-create-11-rate-default-rack-en.png]
+  - id: "12-rate-after-promo"
+    action: "Переключить rate plan на PROMO → rateAmount автоматически меняется на значение тарифа (4000)"
+    screenshots: [03-booking-create-12-rate-after-promo-ru.png, 03-booking-create-12-rate-after-promo-en.png]
+
+edge_cases:
+  - id: empty-submit
+    description: "Submit пустой формы"
+    expected: "HTML5 required блокирует отправку; POST /api/bookings не вызывается"
+    observed: "OK — валидатор браузера блокирует submit (скриншот 02)"
+  - id: checkout-before-checkin
+    description: "checkOut ≤ checkIn"
+    expected: "newBooking.dateError виден; submit disabled"
+    observed: "OK — форма показывает ошибку, submit disabled (скриншот 06)"
+  - id: room-unavailable
+    description: "Выбран OOS/занятый номер"
+    expected: "Клиент не валидирует OOS; API возвращает 400 и форма отображает ошибку"
+    observed: "OK — POST /api/bookings → 400; страница не крашится (скриншот 08)"
+  - id: inline-new-guest
+    description: "Создание гостя прямо из формы бронирования"
+    expected: "POST /api/profiles 201 → гость сразу выбран"
+    observed: "OK — скриншоты 09/10"
+  - id: rate-plan-auto-rate
+    description: "Смена тарифного плана пересчитывает rateAmount"
+    expected: "rateAmount обновляется из /api/rate-plans/:id/room-rates"
+    observed: "OK — RACK→PROMO меняет сумму с 4500 на 4000 (скриншоты 11/12)"
+
+api_calls_observed:
+  - { method: GET,  path: "/api/auth/me" }
+  - { method: GET,  path: "/api/properties" }
+  - { method: GET,  path: "/api/business-date?propertyId={propertyId}" }
+  - { method: GET,  path: "/api/profiles?propertyId={propertyId}&type=individual" }
+  - { method: GET,  path: "/api/profiles?propertyId={propertyId}&type=company" }
+  - { method: GET,  path: "/api/profiles?propertyId={propertyId}&type=travel_agent" }
+  - { method: GET,  path: "/api/profiles?propertyId={propertyId}&type=source" }
+  - { method: GET,  path: "/api/room-types?propertyId={propertyId}" }
+  - { method: GET,  path: "/api/rooms?propertyId={propertyId}" }
+  - { method: GET,  path: "/api/rate-plans?propertyId={propertyId}" }
+  - { method: GET,  path: "/api/rate-plans/{rate-plan-id}/room-rates" }
+  - { method: POST, path: "/api/profiles",            status: 201, note: "inline-new-guest" }
+  - { method: POST, path: "/api/bookings",            status: 201, note: "happy-path" }
+  - { method: POST, path: "/api/bookings",            status: 400, note: "room-unavailable — OOS room rejected" }
+  - { method: GET,  path: "/api/bookings/{id}/folio",              note: "после редиректа на /bookings/{id}" }
+  - { method: GET,  path: "/api/transaction-codes?propertyId={propertyId}", note: "на странице деталей" }
+
+console_errors:
+  - locale: ru
+    scenario: room-unavailable
+    text: "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+    verdict: expected
+  - locale: en
+    scenario: room-unavailable
+    text: "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+    verdict: expected
+
+network_errors:
+  - locale: ru
+    scenario: room-unavailable
+    status: 400
+    method: POST
+    url: "http://localhost:3000/api/bookings"
+    verdict: expected
+  - locale: en
+    scenario: room-unavailable
+    status: 400
+    method: POST
+    url: "http://localhost:3000/api/bookings"
+    verdict: expected
+
+bugs: []
+
+help_rewrite_hints:
+  topic: bookings
+  current: |
+    1. Нажмите + New Booking
+    2. Выберите гостя (или создайте нового)
+    3. Укажите даты заезда и выезда
+    4. Выберите тип номера и тарифный план
+    5. При необходимости назначьте конкретный номер
+    6. Нажмите Create Booking
+  actual: |
+    Текущая хелп-статья корректно описывает шаги. В UI дополнительно доступны:
+    — инлайн-создание гостя (кнопка '+ Добавить нового гостя' с формой firstName/lastName/email/phone, POST /api/profiles)
+    — автоподстановка rateAmount из тарифного плана (RACK выбирается по умолчанию, при смене на PROMO цена пересчитывается)
+    — валидация дат на клиенте (checkOut > checkIn), newBooking.dateError, submit disabled
+    — опциональные поля: adults, children, company, travel agent, source, payment method, guarantee, notes
+    — редирект после создания на /bookings/{id} (страница фолио)
+  rewrite: |
+    ## Создание бронирования
+
+    1. Перейдите на **Bookings → + New Booking**.
+    2. **Выберите гостя** из списка или нажмите **+ Добавить нового гостя**,
+       чтобы создать профиль прямо из формы (нужны только имя и фамилия).
+    3. **Даты**: Заезд и Выезд. Выезд должен быть позже заезда — иначе форма
+       покажет ошибку и не даст отправить.
+    4. **Тип номера** → выбор делает обязательным **Тарифный план**. По умолчанию
+       подставляется базовый тариф (например, RACK). При смене тарифа
+       **Цена / ночь** пересчитывается автоматически.
+    5. **Номер** — опционально. Можно оставить "Назначить позже…"
+       и присвоить конкретную комнату перед заездом.
+    6. При необходимости заполните гостей (взрослых / детей), компанию /
+       турагента / источник, способ оплаты, гарантию и примечания.
+    7. Нажмите **Create Booking**. Откроется страница бронирования с фолио.
+
+    **Если выбранный номер OOS / занят**, API ответит ошибкой 400, и форма
+    останется открытой — выберите другой номер или снимите назначение.
+
+status: ok
+last_audited: 2026-04-21
+screenshots_dir: docs/ui-audit/screenshots/
