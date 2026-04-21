@@ -52,6 +52,19 @@
       "fix": "Either honor force: true server-side (skip the hk-clean gate analogous to check-out's force path) or remove the 'Force check-in' button from the UI and require the user to clean the room first."
     },
     {
+      "id": "BUG-005",
+      "title": "Booking edit page не локализована (форма + заголовок)",
+      "severity": "low",
+      "status": "open",
+      "source": "ui-audit/05-booking-edit",
+      "files": [
+        "apps/web/src/app/bookings/[id]/edit/booking-edit-form.tsx",
+        "apps/web/src/app/bookings/[id]/edit/page.tsx"
+      ],
+      "description": "Страница /bookings/[id]/edit рендерится полностью на английском вне зависимости от locale-cookie. page.tsx использует хардкод 'Edit Booking #{confirmationNumber}'; booking-edit-form.tsx содержит все лейблы (Guest, Room Type, Check-in, Adults, Children, Rate Plan, Notes, Save Changes, Cancel, терминальный и status-info баннеры) как английские строки без обращения к i18n-словарям. Аналогичный паттерн как BUG-003 (search-form на /bookings).",
+      "fix": "Добавить ключи bookings.edit.* в apps/web/src/i18n/dictionaries/{ru,en}.ts и подтянуть через useI18n() в форме. Заголовок в page.tsx вывести через server-side getDictionary."
+    },
+    {
       "id": "DEBT-002",
       "title": "OOO-валидация дублирована в POST и PATCH /rooms/:id/status",
       "severity": "medium",

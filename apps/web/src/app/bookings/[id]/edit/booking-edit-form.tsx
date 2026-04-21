@@ -301,20 +301,26 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
   const explanation = statusExplanations[booking.status];
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl" data-testid="booking-edit-form">
       {error && (
         <ErrorDisplay error={error} onDismiss={() => setError(null)} />
       )}
 
       {explanation && (
-        <div className="p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded text-sm">
+        <div
+          data-testid="booking-edit-status-info"
+          className="p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded text-sm"
+        >
           <strong className="font-medium">Status: {booking.status.replace("_", " ")}</strong>
           <p className="mt-1">{explanation}</p>
         </div>
       )}
 
       {isTerminal && (
-        <div className="p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded text-sm">
+        <div
+          data-testid="booking-edit-terminal-banner"
+          className="p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded text-sm"
+        >
           This booking cannot be edited in its current state.
           <Link href={`/bookings/${booking.id}`} className="ml-1 underline">
             Go back and use &quot;Reinstate&quot; to restore it first.
@@ -324,6 +330,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
 
       <FormField label="Confirmation Number" disabled>
         <input type="text" value={booking.confirmationNumber} disabled
+          data-testid="booking-edit-confirmation"
           className="w-full px-3 py-2 border rounded bg-gray-100 text-gray-500 cursor-not-allowed" />
       </FormField>
 
@@ -338,6 +345,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           disabled={!canEditCoreFields}
           value={selectedGuestId}
           onChange={(e) => setSelectedGuestId(e.target.value)}
+          data-testid="booking-edit-guest"
           className={`w-full px-3 py-2 border rounded ${!canEditCoreFields ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
         >
           {guests.map((g) => <option key={g.id} value={g.id}>{g.lastName || g.name}, {g.firstName}</option>)}
@@ -423,6 +431,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
                 setCheckOutDate("");
               }
             }}
+            data-testid="booking-edit-checkin"
             className={`w-full px-3 py-2 border rounded ${!canEditCoreFields ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
           />
         </FormField>
@@ -439,9 +448,10 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
             value={checkOutDate}
             min={checkInDate ? (() => { const d = new Date(checkInDate); d.setDate(d.getDate() + 1); return d.toISOString().split("T")[0]; })() : undefined}
             onChange={(e) => setCheckOutDate(e.target.value)}
+            data-testid="booking-edit-checkout"
             className={`w-full px-3 py-2 border rounded ${(!canEditCoreFields && !canExtendStay) ? "bg-gray-100 text-gray-500 cursor-not-allowed" : dateError ? "border-red-500" : ""}`}
           />
-          {dateError && <p className="text-xs text-red-500 mt-1">{dateError}</p>}
+          {dateError && <p className="text-xs text-red-500 mt-1" data-testid="booking-edit-date-error">{dateError}</p>}
           {nights > 0 && <p className="text-xs text-gray-500 mt-1">{nights} night{nights > 1 ? "s" : ""}</p>}
           {canExtendStay && !canEditCoreFields && <p className="text-xs text-blue-600 mt-1">You can extend the stay by changing the check-out date</p>}
         </FormField>
@@ -461,6 +471,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
             setSelectedRoomTypeId(e.target.value);
             setSelectedRoomId("");
           }}
+          data-testid="booking-edit-room-type"
           className={`w-full px-3 py-2 border rounded ${!canEditCoreFields ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
         >
           {roomTypes.map((rt) => <option key={rt.id} value={rt.id}>{rt.name} ({rt.code})</option>)}
@@ -510,6 +521,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
             disabled={!canEditCoreFields}
             value={adultsVal}
             onChange={(e) => setAdultsVal(Number(e.target.value) || 1)}
+            data-testid="booking-edit-adults"
             className={`w-full px-3 py-2 border rounded ${!canEditCoreFields ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
           />
         </FormField>
@@ -524,6 +536,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
             disabled={!canEditCoreFields}
             value={childrenVal}
             onChange={(e) => setChildrenVal(Number(e.target.value) || 0)}
+            data-testid="booking-edit-children"
             className={`w-full px-3 py-2 border rounded ${!canEditCoreFields ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
           />
         </FormField>
@@ -623,6 +636,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           rows={3}
           value={notesVal}
           onChange={(e) => setNotesVal(e.target.value)}
+          data-testid="booking-edit-notes"
           className="w-full px-3 py-2 border rounded"
         />
         <p className="mt-1 text-xs text-gray-500">Notes can always be updated.</p>
@@ -632,12 +646,14 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
         <button
           type="submit"
           disabled={saving || isTerminal || !!dateError}
+          data-testid="booking-edit-submit"
           className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? "Saving..." : "Save Changes"}
         </button>
         <Link
           href={`/bookings/${booking.id}`}
+          data-testid="booking-edit-cancel"
           className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
         >
           Cancel
