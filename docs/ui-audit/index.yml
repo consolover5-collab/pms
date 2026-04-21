@@ -10,7 +10,7 @@ app_commit: 98fbc439cca280b14d4f1d95e182c3e06ecf835c
 sections:
   - id: "01"
     file: features/01-dashboard.yml
-    status: pending
+    status: ok
     bugs: 0
     priority: P0
   - id: "02"
@@ -131,9 +131,9 @@ sections:
 
 totals:
   sections: 24
-  ok: 1
+  ok: 2
   partial: 0
   broken: 0
   missing: 0
-  pending: 23
+  pending: 22
   bugs: 0
