@@ -97,50 +97,50 @@ export const housekeepingRoutes: FastifyPluginAsync = async (app) => {
 
     // Stayover clean
     for (const room of occupiedRooms) {
-      try {
-        await app.db.insert(hkTasks).values({
+      const inserted = await app.db
+        .insert(hkTasks)
+        .values({
           propertyId,
           roomId: room.id,
           businessDateId: bizDate.id,
           taskType: "stayover_clean",
-        });
-        created++;
-      } catch (err: any) {
-        if (err.code !== "23505") throw err;
-      }
+        })
+        .onConflictDoNothing()
+        .returning({ id: hkTasks.id });
+      if (inserted.length > 0) created++;
     }
 
     // Checkout clean
     for (const b of departureRooms) {
       if (!b.roomId) continue;
-      try {
-        await app.db.insert(hkTasks).values({
+      const inserted = await app.db
+        .insert(hkTasks)
+        .values({
           propertyId,
           roomId: b.roomId,
           businessDateId: bizDate.id,
           taskType: "checkout_clean",
-        });
-        created++;
-      } catch (err: any) {
-        if (err.code !== "23505") throw err;
-      }
+        })
+        .onConflictDoNothing()
+        .returning({ id: hkTasks.id });
+      if (inserted.length > 0) created++;
     }
 
     // VIP inspection
     for (const b of vipArrivals) {
       if (!b.roomId) continue;
-      try {
-        await app.db.insert(hkTasks).values({
+      const inserted = await app.db
+        .insert(hkTasks)
+        .values({
           propertyId,
           roomId: b.roomId,
           businessDateId: bizDate.id,
           taskType: "inspection",
           priority: 1,
-        });
-        created++;
-      } catch (err: any) {
-        if (err.code !== "23505") throw err;
-      }
+        })
+        .onConflictDoNothing()
+        .returning({ id: hkTasks.id });
+      if (inserted.length > 0) created++;
     }
 
     return { created, businessDate: bizDate.date };
