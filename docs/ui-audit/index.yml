@@ -50,7 +50,7 @@ sections:
     priority: P1
   - id: "09"
     file: features/09-housekeeping.yml
-    status: pending
+    status: ok
     bugs: 0
     priority: P0
   - id: "10"
@@ -131,9 +131,9 @@ sections:
 
 totals:
   sections: 24
-  ok: 6
+  ok: 7
   partial: 0
   broken: 0
   missing: 0
-  pending: 18
+  pending: 17
   bugs: 2
