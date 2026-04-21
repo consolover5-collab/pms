@@ -107,6 +107,7 @@ export function PropertyForm({ property }: { property: Property }) {
 
   return (
     <form
+      data-testid="property-form"
       onSubmit={handleSubmit}
       style={{
         display: "flex",
@@ -115,9 +116,14 @@ export function PropertyForm({ property }: { property: Property }) {
         maxWidth: 640,
       }}
     >
-      {error && <ErrorDisplay error={error} onDismiss={() => setError(null)} />}
+      {error && (
+        <div data-testid="property-error-banner">
+          <ErrorDisplay error={error} onDismiss={() => setError(null)} />
+        </div>
+      )}
       {success && (
         <div
+          data-testid="property-success-banner"
           role="status"
           style={{
             padding: "10px 12px",
@@ -142,6 +148,7 @@ export function PropertyForm({ property }: { property: Property }) {
               {required}
             </label>
             <input
+              data-testid="property-field-name"
               type="text"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -155,6 +162,7 @@ export function PropertyForm({ property }: { property: Property }) {
               {required}
             </label>
             <input
+              data-testid="property-field-code"
               type="text"
               value={form.code}
               onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
@@ -168,6 +176,7 @@ export function PropertyForm({ property }: { property: Property }) {
         <div className="field">
           <label className="lab">{t(dict, "property.fld.address")}</label>
           <input
+            data-testid="property-field-address"
             type="text"
             value={form.address}
             onChange={(e) => setForm({ ...form, address: e.target.value })}
@@ -179,6 +188,7 @@ export function PropertyForm({ property }: { property: Property }) {
           <div className="field">
             <label className="lab">{t(dict, "property.fld.city")}</label>
             <input
+              data-testid="property-field-city"
               type="text"
               value={form.city}
               onChange={(e) => setForm({ ...form, city: e.target.value })}
@@ -256,6 +266,7 @@ export function PropertyForm({ property }: { property: Property }) {
         <div className="field">
           <label className="lab">{t(dict, "property.fld.taxRate")}</label>
           <input
+            data-testid="property-field-tax-rate"
             type="number"
             value={form.taxRate}
             onChange={(e) => setForm({ ...form, taxRate: e.target.value })}
@@ -279,6 +290,7 @@ export function PropertyForm({ property }: { property: Property }) {
           <div className="field">
             <label className="lab">{t(dict, "property.fld.numberOfRooms")}</label>
             <input
+              data-testid="property-field-rooms"
               type="number"
               value={form.numberOfRooms}
               onChange={(e) =>
@@ -304,7 +316,7 @@ export function PropertyForm({ property }: { property: Property }) {
       </section>
 
       <div>
-        <button type="submit" disabled={loading} className="btn primary">
+        <button data-testid="property-submit" type="submit" disabled={loading} className="btn primary">
           {loading ? t(dict, "common.saving") : t(dict, "property.saveBtn")}
         </button>
       </div>
