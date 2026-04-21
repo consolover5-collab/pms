@@ -15,8 +15,8 @@ sections:
     priority: P0
   - id: "02"
     file: features/02-bookings-list.yml
-    status: pending
-    bugs: 0
+    status: ok
+    bugs: 1
     priority: P0
   - id: "03"
     file: features/03-booking-create.yml
@@ -131,9 +131,9 @@ sections:
 
 totals:
   sections: 24
-  ok: 2
+  ok: 3
   partial: 0
   broken: 0
   missing: 0
-  pending: 22
-  bugs: 0
+  pending: 21
+  bugs: 1

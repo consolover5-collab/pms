@@ -30,6 +30,17 @@
       "fix": "Добавить sql`check(...)` в schema + Drizzle migration."
     },
     {
+      "id": "BUG-003",
+      "title": "Search form на /bookings не локализована",
+      "severity": "low",
+      "status": "open",
+      "source": "ui-audit/02-bookings-list",
+      "file": "apps/web/src/app/bookings/search-form.tsx",
+      "lines": "33, 40",
+      "description": "Placeholder и кнопка формы поиска бронирований не локализованы — хардкод английского. На RU-локали видно 'Search by guest name...' вместо 'Поиск...'.",
+      "fix": "Вынести строки в i18n-ключи bookings.search.placeholder / bookings.search.submit и локализовать."
+    },
+    {
       "id": "DEBT-002",
       "title": "OOO-валидация дублирована в POST и PATCH /rooms/:id/status",
       "severity": "medium",
