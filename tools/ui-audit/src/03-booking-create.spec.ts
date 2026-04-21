@@ -1,10 +1,14 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   auditScreenshot,
   wireErrorCollectors,
+  loginAsAdmin,
+  setLocaleAndGoto,
+  setNativeValue,
+  pickFirstSelectOption,
   API_URL,
   GBH_PROPERTY_ID,
   type ConsoleError,
@@ -45,50 +49,6 @@ const labels = {
     selectRatePlan: '— Select rate plan —',
   },
 } as const;
-
-async function loginAsAdmin(page: Page): Promise<void> {
-  const resp = await page.context().request.post('http://localhost:3000/api/auth/login', {
-    data: { username: 'admin', password: 'admin123' },
-    headers: { 'content-type': 'application/json' },
-  });
-  if (!resp.ok()) {
-    throw new Error(`Login failed: ${resp.status()} ${await resp.text()}`);
-  }
-}
-
-async function setLocaleAndGoto(page: Page, locale: 'ru' | 'en'): Promise<void> {
-  await loginAsAdmin(page);
-  await page.context().addCookies([
-    { name: 'locale', value: locale, url: 'http://localhost:3000' },
-  ]);
-  await page.goto('/bookings/new');
-  await page.waitForLoadState('networkidle');
-}
-
-/** Bypass HTML5 min attribute on date input by setting native value + dispatching events. */
-async function forceDateValue(page: Page, dateInputIndex: 0 | 1, value: string): Promise<void> {
-  await page.locator('input[type="date"]').nth(dateInputIndex).evaluate((el, val) => {
-    const proto = Object.getPrototypeOf(el);
-    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-    setter?.call(el, val);
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-  }, value);
-}
-
-async function pickFirstSelectableOption(page: Page, selectLocator: string): Promise<string> {
-  return page.locator(selectLocator).evaluate((el) => {
-    const sel = el as HTMLSelectElement;
-    for (const opt of Array.from(sel.options)) {
-      if (opt.value && opt.value.length > 0) {
-        sel.value = opt.value;
-        sel.dispatchEvent(new Event('change', { bubbles: true }));
-        return opt.value;
-      }
-    }
-    return '';
-  });
-}
 
 test.describe('03 booking-create', () => {
   test.beforeEach(async ({ page }, testInfo) => {
@@ -135,11 +95,11 @@ test.describe('03 booking-create', () => {
     const locale = testInfo.project.name as 'ru' | 'en';
     const L = labels[locale];
 
-    await setLocaleAndGoto(page, locale);
+    await setLocaleAndGoto(page, locale, '/bookings/new');
     await auditScreenshot(page, SECTION_ID, '01-empty-form', locale);
 
     // The form prefills checkInDate to today. Clear it so empty-submit truly tests required validation.
-    await forceDateValue(page, 0, '');
+    await setNativeValue(page, 'input[type="date"]', '', 0);
 
     // Click submit. Native HTML5 validation should block the submit and keep the URL.
     const submit = page.getByRole('button', { name: L.submit, exact: true });
@@ -172,17 +132,17 @@ test.describe('03 booking-create', () => {
     const locale = testInfo.project.name as 'ru' | 'en';
     const L = labels[locale];
 
-    await setLocaleAndGoto(page, locale);
+    await setLocaleAndGoto(page, locale, '/bookings/new');
     await auditScreenshot(page, SECTION_ID, '03-happy-initial', locale);
 
     // Pick guest (first non-empty option in the guest select).
-    await pickFirstSelectableOption(page, 'select[name="guestId"]');
+    await pickFirstSelectOption(page, 'select[name="guestId"]');
 
     // Dates: today (default) + 2 days. Force valid future date.
     const checkIn = '2026-04-22';
     const checkOut = '2026-04-25';
-    await forceDateValue(page, 0, checkIn);
-    await forceDateValue(page, 1, checkOut);
+    await setNativeValue(page, 'input[type="date"]', checkIn, 0);
+    await setNativeValue(page, 'input[type="date"]', checkOut, 1);
 
     // Pick first room type.
     const roomTypeSelects = page.locator('select.input').filter({ hasText: '' });
@@ -229,12 +189,12 @@ test.describe('03 booking-create', () => {
     const locale = testInfo.project.name as 'ru' | 'en';
     const L = labels[locale];
 
-    await setLocaleAndGoto(page, locale);
+    await setLocaleAndGoto(page, locale, '/bookings/new');
 
     // First set checkIn to a known future date.
-    await forceDateValue(page, 0, '2026-05-10');
+    await setNativeValue(page, 'input[type="date"]', '2026-05-10', 0);
     // Then force checkOut earlier than checkIn (bypass min attr).
-    await forceDateValue(page, 1, '2026-05-05');
+    await setNativeValue(page, 'input[type="date"]', '2026-05-05', 1);
 
     await page.waitForTimeout(200);
     await auditScreenshot(page, SECTION_ID, '06-checkout-before-checkin', locale);
@@ -258,14 +218,14 @@ test.describe('03 booking-create', () => {
     const locale = testInfo.project.name as 'ru' | 'en';
     const L = labels[locale];
 
-    await setLocaleAndGoto(page, locale);
+    await setLocaleAndGoto(page, locale, '/bookings/new');
 
     // Pick guest
-    await pickFirstSelectableOption(page, 'select[name="guestId"]');
+    await pickFirstSelectOption(page, 'select[name="guestId"]');
 
     // Dates
-    await forceDateValue(page, 0, '2026-04-22');
-    await forceDateValue(page, 1, '2026-04-25');
+    await setNativeValue(page, 'input[type="date"]', '2026-04-22', 0);
+    await setNativeValue(page, 'input[type="date"]', '2026-04-25', 1);
 
     // Set the specific roomType matching the OOS room (id=e8f25fcd-bdaf-43bb-b39f-4d9ad6d83c84)
     const oosRoomTypeId = 'e8f25fcd-bdaf-43bb-b39f-4d9ad6d83c84';
@@ -304,7 +264,7 @@ test.describe('03 booking-create', () => {
     const locale = testInfo.project.name as 'ru' | 'en';
     const L = labels[locale];
 
-    await setLocaleAndGoto(page, locale);
+    await setLocaleAndGoto(page, locale, '/bookings/new');
 
     // Click "+ Add new guest" / "+ Добавить нового гостя"
     await page.getByRole('button', { name: L.addNewGuest }).click();
@@ -341,7 +301,7 @@ test.describe('03 booking-create', () => {
   test('rate-plan-auto-rate: changing plan updates rateAmount', async ({ page }, testInfo) => {
     const locale = testInfo.project.name as 'ru' | 'en';
 
-    await setLocaleAndGoto(page, locale);
+    await setLocaleAndGoto(page, locale, '/bookings/new');
     await page.waitForTimeout(500);
 
     // Initial state: default RACK plan loaded with baseRate=5000

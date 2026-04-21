@@ -64,3 +64,58 @@ export async function waitForApi(attempts = 10): Promise<void> {
   }
   throw new Error(`API not healthy after ${attempts} attempts`);
 }
+
+export const WEB_URL = process.env.AUDIT_WEB_URL ?? 'http://localhost:3000';
+
+export async function loginAsAdmin(page: Page): Promise<void> {
+  const resp = await page.context().request.post(`${WEB_URL}/api/auth/login`, {
+    data: { username: 'admin', password: 'admin123' },
+    headers: { 'content-type': 'application/json' },
+  });
+  if (!resp.ok()) {
+    throw new Error(`Login failed: ${resp.status()} ${await resp.text()}`);
+  }
+}
+
+export async function setLocaleAndGoto(
+  page: Page,
+  locale: 'ru' | 'en',
+  urlPath: string,
+): Promise<void> {
+  await loginAsAdmin(page);
+  await page.context().addCookies([{ name: 'locale', value: locale, url: WEB_URL }]);
+  await page.goto(urlPath);
+  await page.waitForLoadState('networkidle');
+}
+
+export async function setNativeValue(
+  page: Page,
+  selector: string,
+  value: string,
+  index = 0,
+): Promise<void> {
+  await page.locator(selector).nth(index).evaluate((el, val) => {
+    const proto = Object.getPrototypeOf(el);
+    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+    setter?.call(el, val);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }, value);
+}
+
+export async function pickFirstSelectOption(
+  page: Page,
+  selector: string,
+): Promise<string> {
+  return page.locator(selector).evaluate((el) => {
+    const sel = el as HTMLSelectElement;
+    for (const opt of Array.from(sel.options)) {
+      if (opt.value && opt.value.length > 0) {
+        sel.value = opt.value;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        return opt.value;
+      }
+    }
+    return '';
+  });
+}
