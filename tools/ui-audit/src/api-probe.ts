@@ -11,10 +11,10 @@ const REQUIRED_ENDPOINTS: { path: string; expectMinTotal?: number }[] = [
   { path: `/api/rooms${PROPERTY}`, expectMinTotal: 1 },
   { path: `/api/rate-plans${PROPERTY}`, expectMinTotal: 1 },
   { path: `/api/profiles${PROPERTY}&type=individual`, expectMinTotal: 0 },
-  { path: `/api/profiles${PROPERTY}&type=company` },
-  { path: `/api/profiles${PROPERTY}&type=travel_agent` },
-  { path: `/api/profiles${PROPERTY}&type=source` },
-  { path: `/api/transaction-codes${PROPERTY}` },
+  { path: `/api/profiles${PROPERTY}&type=company`, expectMinTotal: 1 },
+  { path: `/api/profiles${PROPERTY}&type=travel_agent`, expectMinTotal: 1 },
+  { path: `/api/profiles${PROPERTY}&type=source`, expectMinTotal: 1 },
+  { path: `/api/transaction-codes${PROPERTY}`, expectMinTotal: 1 },
 ];
 
 export default async function apiProbe(): Promise<void> {
@@ -27,8 +27,10 @@ export default async function apiProbe(): Promise<void> {
         continue;
       }
       if (ep.expectMinTotal !== undefined) {
-        const body = (await res.json()) as { total?: number; length?: number };
-        const count = body.total ?? (Array.isArray(body) ? (body as unknown as unknown[]).length : 0);
+        const body = (await res.json()) as { total?: number } | unknown[];
+        const count = Array.isArray(body)
+          ? body.length
+          : (body.total ?? 0);
         if (count < ep.expectMinTotal) {
           failures.push(`${ep.path} → only ${count} items (need ≥ ${ep.expectMinTotal})`);
         }
