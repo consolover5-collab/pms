@@ -9,7 +9,8 @@
     "test:en": "playwright test --project=en",
     "install-browsers": "playwright install chromium",
     "aggregate": "tsx scripts/aggregate.ts",
-    "validate-yaml": "tsx scripts/validate-yaml.ts"
+    "validate-yaml": "tsx scripts/validate-yaml.ts",
+    "probe-state": "tsx scripts/probe-state.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",
