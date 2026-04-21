@@ -38,12 +38,14 @@ const labels = {
 // Task IDs from probe: unassigned pending tasks we can mutate
 // 00eb7a7d — room 204, stayover_clean (use for assign scenario)
 // 907ed90b — room 704, stayover_clean (use for complete scenario)
+const API_RESPONSE_TIMEOUT_MS = 15_000;
+const UI_SETTLE_TIMEOUT_MS = 8_000;
+
 const TASK_ASSIGN_ID = '00eb7a7d-1786-424f-9e06-11373aca35ee';
 const TASK_COMPLETE_ID = '907ed90b-48a5-4bd3-bd96-d212a40e6d9f';
-const TASK_ROOM_204_ID = 'd3b7a7bd-e4be-494e-9382-aa182008f914'; // roomId for task 00eb7a7d
 const TASK_ROOM_704_ID = 'd601fe24-4bfb-4e86-b936-2dee00489080'; // roomId for task 907ed90b
 
-async function fetchTask(id: string) {
+async function fetchTask(id: string): Promise<{ id: string; status: string; assignedTo: string | null } | null> {
   // The PATCH endpoint exists but not a GET; use the list and filter.
   const r = await fetch(
     `${API_URL}/api/housekeeping/tasks?propertyId=${GBH_PROPERTY_ID}`,
@@ -84,6 +86,7 @@ test.describe('09 housekeeping', () => {
     // The kanban board renders — at least one task card is visible.
     // We have 33 seed tasks so the board is never empty.
     const kcards = page.getByTestId('hk-task-card');
+    await expect(kcards.first()).toBeVisible();
     const count = await kcards.count();
     testInfo.attach('kcard-count', { body: String(count), contentType: 'text/plain' });
     expect(count).toBeGreaterThanOrEqual(1);
@@ -119,6 +122,7 @@ test.describe('09 housekeeping', () => {
     await expect(generateBtn).toBeVisible();
 
     // Ensure tasks already present before generate (kanban not empty).
+    await expect(page.getByTestId('hk-task-card').first()).toBeVisible();
     const preCount = await page.getByTestId('hk-task-card').count();
     testInfo.attach('pre-generate-kcard-count', {
       body: String(preCount),
@@ -131,7 +135,7 @@ test.describe('09 housekeeping', () => {
         (r) =>
           r.url().includes('/api/housekeeping/generate') &&
           r.request().method() === 'POST',
-        { timeout: 15_000 },
+        { timeout: API_RESPONSE_TIMEOUT_MS },
       ),
       generateBtn.click(),
     ]);
@@ -142,7 +146,7 @@ test.describe('09 housekeeping', () => {
     expect(genResp.status()).toBe(200);
 
     // Button returns to normal state after response.
-    await expect(generateBtn).toBeVisible({ timeout: 8_000 });
+    await expect(generateBtn).toBeVisible({ timeout: UI_SETTLE_TIMEOUT_MS });
     await expect(generateBtn).toBeEnabled({ timeout: 5_000 });
 
     await auditScreenshot(page, SECTION_ID, '02-generate-tasks', locale);
@@ -165,6 +169,7 @@ test.describe('09 housekeeping', () => {
 
     // Find the task card for TASK_ASSIGN_ID using room number 204.
     const kcards = page.getByTestId('hk-task-card');
+    await expect(kcards.first()).toBeVisible();
     const count = await kcards.count();
     testInfo.attach('kcard-count', { body: String(count), contentType: 'text/plain' });
     expect(count).toBeGreaterThan(0);
@@ -191,7 +196,7 @@ test.describe('09 housekeeping', () => {
         (r) =>
           r.url().includes(`/api/housekeeping/tasks/${TASK_ASSIGN_ID}`) &&
           r.request().method() === 'PATCH',
-        { timeout: 15_000 },
+        { timeout: API_RESPONSE_TIMEOUT_MS },
       ),
       maidInput.blur(),
     ]);
@@ -208,7 +213,7 @@ test.describe('09 housekeeping', () => {
           const t = await fetchTask(TASK_ASSIGN_ID);
           return t?.assignedTo;
         },
-        { timeout: 8_000 },
+        { timeout: UI_SETTLE_TIMEOUT_MS },
       )
       .toBe(newAttendant);
 
@@ -256,7 +261,7 @@ test.describe('09 housekeeping', () => {
         (r) =>
           r.url().includes(`/api/housekeeping/tasks/${TASK_COMPLETE_ID}`) &&
           r.request().method() === 'PATCH',
-        { timeout: 15_000 },
+        { timeout: API_RESPONSE_TIMEOUT_MS },
       ),
       doneBtn.click(),
     ]);
@@ -273,7 +278,7 @@ test.describe('09 housekeeping', () => {
           const t = await fetchTask(TASK_COMPLETE_ID);
           return t?.status;
         },
-        { timeout: 8_000 },
+        { timeout: UI_SETTLE_TIMEOUT_MS },
       )
       .toBe('completed');
 
