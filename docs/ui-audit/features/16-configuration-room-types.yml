@@ -1,0 +1,186 @@
+id: 16-configuration-room-types
+title: "Configuration: Room Types"
+route: /configuration/room-types
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  list_page:
+    server_component: apps/web/src/app/configuration/room-types/page.tsx
+    client_component: apps/web/src/app/configuration/room-types/room-types-list.tsx
+    note: "Fully i18n'd via t(dict, 'roomTypes.*'). No hardcoded English. Clean."
+    testids:
+      - { id: room-types-title,  element: h1,                  added: true }
+      - { id: room-types-add,    element: "Link (Add button)",  added: true }
+      - { id: room-types-list,   element: "table.t",            added: true }
+      - { id: room-type-row,     element: "tbody tr",           added: true, note: "also data-room-type-id={id}" }
+      - { id: room-type-code,    element: "td (code)",          added: true }
+      - { id: room-type-name,    element: "Link (name)",        added: true }
+      - { id: room-type-rooms,   element: "Link (roomCount)",   added: true }
+      - { id: room-type-edit,    element: "Link (Edit)",        added: true }
+      - { id: room-type-delete,  element: "button (Delete)",    added: true }
+      - { id: room-type-empty,   element: "div (empty state)",  added: true }
+
+  form:
+    component: apps/web/src/app/configuration/room-types/room-type-form.tsx
+    note: "Fully i18n'd. Shared between /new and /[id]/edit. Client component."
+    testids:
+      - { id: room-type-form,                 element: "form",              added: true }
+      - { id: room-type-field-code,           element: "input[text]",       added: true }
+      - { id: room-type-field-name,           element: "input[text]",       added: true }
+      - { id: room-type-field-max-occupancy,  element: "input[number]",     added: true }
+      - { id: room-type-field-description,    element: "textarea",          added: true }
+      - { id: room-type-field-sort-order,     element: "input[number]",     added: true }
+      - { id: room-type-submit,               element: "button[submit]",    added: true }
+      - { id: room-type-error-banner,         element: "div[role=alert]",   added: true }
+
+  detail_page:
+    component: apps/web/src/app/configuration/room-types/[id]/page.tsx
+    note: >
+      Hardcoded English throughout — see BUG-009. Testids added but i18n NOT fixed in this section.
+      i18n fix is BUG-009 remediation work (separate task).
+    testids:
+      - { id: room-type-detail-title,     element: h1,                  added: true }
+      - { id: room-type-detail-edit,      element: "Link (Edit Type)",  added: true }
+      - { id: room-type-detail-rooms,     element: "div (rooms section wrapper)", added: true }
+      - { id: room-type-detail-room-row,  element: "tbody tr",          added: true, note: "also data-room-id={id}" }
+      - { id: room-type-detail-empty,     element: "div (no rooms)",    added: true }
+
+seed_data:
+  property: "Grand Baltic Hotel (GBH) — ff1d9135-dfb9-4baa-be46-0e739cd26dad"
+  room_types:
+    - { code: STD,     name: "Standard Double",  maxOcc: 2, rooms: 24, id: "e8f25fcd-bdaf-43bb-b39f-4d9ad6d83c84" }
+    - { code: STD_TWN, name: "Standard Twin",    maxOcc: 2, rooms: 5,  id: "689f969c-d956-4138-8b63-0490c11e1f90" }
+    - { code: SUP,     name: "Superior",         maxOcc: 2, rooms: 15, id: "5c05d667-58c6-4add-b5b9-1ff3409f3305" }
+    - { code: PRM,     name: "Premium",          maxOcc: 2, rooms: 6,  id: "25d75a4a-2c4c-424c-b4cc-a369315e6dc1" }
+    - { code: JRS,     name: "Junior Suite",     maxOcc: 3, rooms: 2,  id: "0589e980-b720-4ba1-a29a-ad695865797f", note: "edit scenario target" }
+    - { code: STE,     name: "Suite",            maxOcc: 4, rooms: 2,  id: "9d5ffc7b-64f7-4f4a-aa58-48f3ae29a9a7" }
+  total_rooms: 54
+
+steps:
+  - id: "01-list-create"
+    status: ok
+    action: >
+      Navigate /configuration/room-types; assert 6 seed rows + all SEED_CODES visible in code column.
+      RU: read-only, screenshot, return.
+      EN: click Add → /new; fill code=AUD_TYPE, name="Audit Type (C6)", maxOcc=2,
+      description="Created by UI audit section 16 (BUG-009 screening)", sortOrder=99;
+      submit → POST /api/room-types 200/201; redirect to list; AUD_TYPE row visible; rowCount=7.
+      Capture createdTypeId for cleanup in extraAfterAll.
+    screenshots:
+      - 16-configuration-room-types-01-list-view-ru.png
+      - 16-configuration-room-types-01-list-create-en.png
+    mutation: true
+    locale_gate: mutation runs en-only; list read ru+en
+
+  - id: "02-edit"
+    status: ok
+    action: >
+      Snapshot JRS in beforeAll. Navigate /configuration/room-types/{JRS_ID}/edit.
+      Change description to "Junior suite — edited by UI audit (will be restored)".
+      Submit → PUT /api/room-types/JRS_ID 200; no error banner; redirect to list.
+      API re-GET JRS: assert description changed. Set editMutationApplied=true BEFORE assertions.
+      extraAfterAll: PUT snapshot body back; re-GET; field-by-field assert; throw CRITICAL on mismatch.
+    screenshots:
+      - 16-configuration-room-types-02-edit-saved-en.png
+    mutation: true
+    locale_gate: en-only
+    restore_mechanism: "beforeAll snapshot (JRS full fields) + extraAfterAll PUT + re-GET verify"
+
+  - id: "03-associated-rooms"
+    status: ok
+    action: >
+      Navigate /configuration/room-types/{STD_ID}. Assert room-type-detail-title contains "Standard Double".
+      Assert room-type-detail-edit visible. Assert room-type-detail-rooms visible.
+      Assert ≥20 room-type-detail-room-row elements (STD has 24). Assert first 3 rows have roomNumber matching /^#\d+/.
+      Labels NOT asserted — BUG-009 territory (all hardcoded English, but page renders).
+    screenshots:
+      - 16-configuration-room-types-03-associated-rooms-ru.png
+      - 16-configuration-room-types-03-associated-rooms-en.png
+    mutation: false
+    locale_gate: ru+en (both run; RU will see English labels — expected, BUG-009)
+
+  - id: "04-delete-blocked"
+    status: ok
+    action: >
+      Navigate list. Locate STD_TWN row via data-room-type-id. stub window.confirm→accept via page.on('dialog').
+      Click room-type-delete. Intercept DELETE /api/room-types/STD_TWN_ID.
+      Assert response 400 + body.code='HAS_DEPENDENCIES' + body.count=5.
+      NOTE: plan said 'HAS_ROOMS'; actual API code is 'HAS_DEPENDENCIES' (room-types.ts:109).
+      Assert STD_TWN row still visible. API re-GET confirms STD_TWN present.
+      No cleanup needed (400 = validation before mutation; DB unchanged).
+    screenshots:
+      - 16-configuration-room-types-04-delete-blocked-en.png
+    mutation: false
+    locale_gate: en-only
+    note: "Delete is blocked before any DB write — API validates roomCount > 0 and rejects."
+
+edge_cases:
+  - id: "detail-page-hardcoded-en"
+    description: "Detail page [id]/page.tsx is fully hardcoded English regardless of locale"
+    expected: "Should use i18n dict lookups like the list/form pages"
+    observed: >
+      Confirmed: hkLabels dict, hkColors uses Tailwind classes (bg-yellow-50 etc.) instead of CSS vars,
+      'Back to Room Types', 'Max occupancy:', 'Edit Type', 'Rooms (N)', 'All rooms →',
+      empty state text, table headers (Room #/Floor/HK Status/Occupancy/Actions),
+      occupancy labels ('Occupied'/'Vacant'), action links ('View'/'Edit') all hardcoded English.
+      Filed as BUG-009. Testids added; i18n NOT fixed in this section.
+
+  - id: "delete-validation"
+    description: "DELETE /api/room-types/:id rejects if roomCount > 0 or bookingCount > 0"
+    expected: "400 with structured error body before any DB mutation"
+    observed: >
+      Confirmed via scenario 04: STD_TWN (5 rooms) → 400 { code: 'HAS_DEPENDENCIES', count: 5, error: '...' }.
+      Plan had incorrect code 'HAS_ROOMS'; actual code is 'HAS_DEPENDENCIES' (room-types.ts line 109).
+      For bookings, separate code 'HAS_BOOKINGS' exists (line 123).
+      API validates before touching DB — room type remains intact after rejected delete.
+
+  - id: "create-cleanup"
+    description: "AUD_TYPE created in scenario 01 has no rooms → DELETE must succeed in extraAfterAll"
+    expected: "DELETE 200; final list does not contain AUD_TYPE; all 6 seed codes still present"
+    observed: "OK — AUD_TYPE has 0 rooms and 0 bookings; cleanup via DELETE in extraAfterAll succeeds."
+
+api_calls_observed:
+  - { method: GET,    path: "/api/room-types?propertyId=...", status: 200, note: "list load (server + beforeAll + extraAfterAll)" }
+  - { method: GET,    path: "/api/room-types/:id",            status: 200, note: "beforeAll JRS snapshot; scenario 02 verify; extraAfterAll verify" }
+  - { method: GET,    path: "/api/rooms?propertyId=...&roomTypeId=...", status: 200, note: "scenario 03 — STD detail rooms" }
+  - { method: POST,   path: "/api/room-types",                status: 201, note: "scenario 01 — create AUD_TYPE" }
+  - { method: PUT,    path: "/api/room-types/:id",            status: 200, note: "scenario 02 — edit JRS; extraAfterAll restore" }
+  - { method: DELETE, path: "/api/room-types/:id?propertyId=...", status: 400, note: "scenario 04 — HAS_ROOMS blocked" }
+  - { method: DELETE, path: "/api/room-types/:id?propertyId=...", status: 200, note: "extraAfterAll — AUD_TYPE cleanup" }
+
+console_errors: []
+network_errors:
+  - { method: DELETE, path: "/api/room-types/:id?propertyId=...", status: 400,
+      note: "Expected — scenario 04 HAS_ROOMS validation rejection; not a bug" }
+
+bugs:
+  - BUG-009
+
+signals:
+  l10n: partial
+  l10n_note: "List/form pages fully i18n'd; detail page fully hardcoded English (BUG-009)"
+  testids_added: true
+  testids_prefix: "room-type-*"
+  mutations_gated_to_en: true
+  risk: HIGH
+  restore_mechanism: "beforeAll JRS snapshot + extraAfterAll PUT + re-GET field-by-field verify + belt-and-suspenders seed codes check"
+
+help_rewrite_hints:
+  topic: room-types-configuration
+  actual: |
+    /configuration/room-types lists all room types with roomCount per type.
+    CRUD available: create via /new, edit via /[id]/edit, delete via list (blocked if rooms or bookings exist).
+    Detail page /[id] shows all rooms of that type with HK and occupancy status.
+    Room types are seeded at property init; currently 6 types (STD, STD_TWN, SUP, PRM, JRS, STE).
+  rewrite: |
+    Update configuration help to include room types section:
+    - What room types are and why they matter (rate plans, booking pricing, room assignment)
+    - Creating a new type (code, name, max occupancy, sort order)
+    - Editing an existing type (any field except code once rooms assigned)
+    - Deletion rules: cannot delete if rooms or bookings reference the type
+    - Detail page: drill-through to see which rooms belong to each type
+
+status: ok
+last_audited: "2026-04-21"
+screenshots_dir: docs/ui-audit/screenshots/

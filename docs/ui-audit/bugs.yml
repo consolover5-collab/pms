@@ -91,6 +91,32 @@ bugs:
       `SELECT COUNT(*) FROM rooms`. После фикса seed запустить полный reset
       (`pnpm --filter api run db:reset && pnpm --filter api run db:seed`).
 
+  - id: BUG-009
+    title: "Detail page /configuration/room-types/[id] рендерится полностью на английском"
+    severity: low
+    status: open
+    source: ui-audit/16-configuration-room-types
+    files:
+      - apps/web/src/app/configuration/room-types/[id]/page.tsx
+    lines: "22-29 (hkLabels), 59, 68, 76, 77, 82, 87-91, 96, 98, 102, 112-126, 140, 151, 159, 166"
+    description: |
+      Detail page /configuration/room-types/[id] рендерится полностью на английском, включая:
+      BackButton label='Back to Room Types', 'Max occupancy:', 'Edit Type', заголовок 'Rooms (N)',
+      'All rooms →', empty-state ('No rooms assigned to this type', 'To assign a room...',
+      'Go to Rooms'), табличные заголовки (Room #, Floor, HK Status, Occupancy, Actions),
+      hkLabels dict со всеми 6 HK-состояниями ('Clean', 'Dirty', 'Pickup', 'Inspected',
+      'Out of Order', 'Out of Service'), occupancy labels ('Occupied'/'Vacant'),
+      action labels ('View', 'Edit'). Также использует tailwind-like классы
+      (bg-yellow-50, text-gray-500) inconsistent с основным codebase, где используются
+      CSS variables (var(--accent) и т.д.). Аналогичный паттерн как BUG-005/006/007.
+    fix: |
+      Добавить ключи roomTypes.detail.* в apps/web/src/i18n/dictionaries/{ru,en}.ts:
+      backToList, maxOccupancy, editType, rooms, allRooms, emptyTitle, emptyHint, emptyAction,
+      colRoomNumber, colFloor, colHkStatus, colOccupancy, colActions, viewRoom, editRoom.
+      Создать функцию getHkStatusLabel(dict, status) для hkLabels.
+      Перевести hkColors в CSS classes соответствующие rest of codebase (badge-clean / badge-dirty / etc).
+      Подтянуть через server-side getDict() в [id]/page.tsx.
+
   - id: BUG-007
     title: "Room detail page частично локализована — hkStatusLabels и вспомогательные лейблы захардкожены"
     severity: low

@@ -73,6 +73,7 @@ export function RoomTypeForm({
   return (
     <form
       onSubmit={handleSubmit}
+      data-testid="room-type-form"
       style={{
         display: "flex",
         flexDirection: "column",
@@ -83,6 +84,7 @@ export function RoomTypeForm({
       {error && (
         <div
           role="alert"
+          data-testid="room-type-error-banner"
           style={{
             padding: "10px 12px",
             background: "var(--cancelled-bg)",
@@ -110,6 +112,7 @@ export function RoomTypeForm({
             maxLength={10}
             className="input"
             placeholder={t(dict, "roomTypes.ph.code")}
+            data-testid="room-type-field-code"
           />
         </div>
         <div className="field">
@@ -124,6 +127,7 @@ export function RoomTypeForm({
             required
             className="input"
             placeholder={t(dict, "roomTypes.ph.name")}
+            data-testid="room-type-field-name"
           />
         </div>
       </div>
@@ -144,6 +148,7 @@ export function RoomTypeForm({
           max={10}
           className="input tnum"
           style={{ maxWidth: 140 }}
+          data-testid="room-type-field-max-occupancy"
         />
       </div>
 
@@ -156,6 +161,7 @@ export function RoomTypeForm({
           className="input"
           style={{ resize: "vertical", minHeight: 72 }}
           placeholder={t(dict, "roomTypes.ph.description")}
+          data-testid="room-type-field-description"
         />
       </div>
 
@@ -170,12 +176,13 @@ export function RoomTypeForm({
           min={0}
           className="input tnum"
           style={{ maxWidth: 140 }}
+          data-testid="room-type-field-sort-order"
         />
         <span className="hint">{t(dict, "roomTypes.fld.sortOrderHint")}</span>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-        <button type="submit" disabled={loading} className="btn primary">
+        <button type="submit" disabled={loading} className="btn primary" data-testid="room-type-submit">
           {loading
             ? t(dict, "common.saving")
             : isEdit

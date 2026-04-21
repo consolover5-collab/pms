@@ -60,7 +60,7 @@ export default async function RoomTypeDetailPage({
 
       <div className="mt-2 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">
+          <h1 className="text-2xl font-bold" data-testid="room-type-detail-title">
             {roomType.name}{" "}
             <span className="font-mono text-gray-500 text-lg">({roomType.code})</span>
           </h1>
@@ -72,12 +72,13 @@ export default async function RoomTypeDetailPage({
         <Link
           href={`/configuration/room-types/${id}/edit`}
           className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200"
+          data-testid="room-type-detail-edit"
         >
           Edit Type
         </Link>
       </div>
 
-      <div className="mt-8">
+      <div className="mt-8" data-testid="room-type-detail-rooms">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold">
             Rooms{" "}
@@ -92,7 +93,7 @@ export default async function RoomTypeDetailPage({
         </div>
 
         {rooms.length === 0 ? (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center" data-testid="room-type-detail-empty">
             <p className="text-gray-700 font-medium mb-2">No rooms assigned to this type</p>
             <p className="text-sm text-gray-500 mb-4">
               To assign a room to this type, go to Rooms, open a room, and click &ldquo;Edit Room&rdquo; to change its type.
@@ -128,7 +129,7 @@ export default async function RoomTypeDetailPage({
               </thead>
               <tbody className="divide-y">
                 {rooms.map((room) => (
-                  <tr key={room.id} className="hover:bg-gray-50">
+                  <tr key={room.id} className="hover:bg-gray-50" data-testid="room-type-detail-room-row" data-room-id={room.id}>
                     <td className="px-4 py-3 font-mono font-medium">#{room.roomNumber}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {room.floor ?? "—"}

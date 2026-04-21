@@ -33,9 +33,9 @@ export default async function RoomTypesPage() {
       </div>
 
       <div className="page-head">
-        <h1 className="page-title">{t(dict, "roomTypes.title")}</h1>
+        <h1 className="page-title" data-testid="room-types-title">{t(dict, "roomTypes.title")}</h1>
         <div className="actions">
-          <Link href="/configuration/room-types/new" className="btn sm primary">
+          <Link href="/configuration/room-types/new" className="btn sm primary" data-testid="room-types-add">
             <Icon name="plus" size={12} />
             {t(dict, "roomTypes.add")}
           </Link>

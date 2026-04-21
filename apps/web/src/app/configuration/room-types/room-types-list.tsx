@@ -54,6 +54,7 @@ export function RoomTypesList({
       <div className="card-body" style={{ padding: 0 }}>
         {roomTypes.length === 0 ? (
           <div
+            data-testid="room-type-empty"
             style={{
               padding: 24,
               textAlign: "center",
@@ -64,7 +65,7 @@ export function RoomTypesList({
             {t(dict, "roomTypes.empty")}
           </div>
         ) : (
-          <table className="t">
+          <table className="t" data-testid="room-types-list">
             <thead>
               <tr>
                 <th style={{ width: 80 }}>{t(dict, "roomTypes.colCode")}</th>
@@ -80,12 +81,13 @@ export function RoomTypesList({
             </thead>
             <tbody>
               {roomTypes.map((rt) => (
-                <tr key={rt.id}>
-                  <td className="tnum">{rt.code}</td>
+                <tr key={rt.id} data-testid="room-type-row" data-room-type-id={rt.id}>
+                  <td className="tnum" data-testid="room-type-code">{rt.code}</td>
                   <td>
                     <Link
                       href={`/configuration/room-types/${rt.id}`}
                       style={{ color: "var(--fg)", fontWeight: 500 }}
+                      data-testid="room-type-name"
                     >
                       {rt.name}
                     </Link>
@@ -98,6 +100,7 @@ export function RoomTypesList({
                     <Link
                       href={`/configuration/room-types/${rt.id}`}
                       style={{ color: "var(--accent)" }}
+                      data-testid="room-type-rooms"
                     >
                       {rt.roomCount}
                     </Link>
@@ -107,6 +110,7 @@ export function RoomTypesList({
                       <Link
                         href={`/configuration/room-types/${rt.id}/edit`}
                         className="btn xs ghost"
+                        data-testid="room-type-edit"
                       >
                         {t(dict, "roomTypes.edit")}
                       </Link>
@@ -115,6 +119,7 @@ export function RoomTypesList({
                         onClick={() => handleDelete(rt.id)}
                         disabled={deleting === rt.id}
                         className="btn xs danger"
+                        data-testid="room-type-delete"
                       >
                         {deleting === rt.id ? t(dict, "roomTypes.deleting") : t(dict, "roomTypes.delete")}
                       </button>
