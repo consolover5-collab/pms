@@ -79,8 +79,8 @@ export function RatePlansList({
             </thead>
             <tbody>
               {ratePlans.map((rp) => (
-                <tr key={rp.id}>
-                  <td className="tnum">{rp.code}</td>
+                <tr key={rp.id} data-testid="rate-plan-row">
+                  <td className="tnum" data-testid="rate-plan-code">{rp.code}</td>
                   <td>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <Link
@@ -90,7 +90,7 @@ export function RatePlansList({
                         {rp.name}
                       </Link>
                       {rp.isDefault && (
-                        <span className="badge confirmed">
+                        <span className="badge confirmed" data-testid="rate-plan-default-badge">
                           <span className="dot" />
                           {t(dict, "ratePlans.base")}
                         </span>

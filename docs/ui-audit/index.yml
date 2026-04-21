@@ -90,7 +90,7 @@ sections:
     priority: P1
   - id: "17"
     file: features/17-configuration-rate-plans.yml
-    status: pending
+    status: ok
     bugs: 0
     priority: P0
   - id: "18"
@@ -131,9 +131,9 @@ sections:
 
 totals:
   sections: 24
-  ok: 8
+  ok: 9
   partial: 0
   broken: 0
   missing: 0
-  pending: 16
+  pending: 15
   bugs: 2
