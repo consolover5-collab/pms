@@ -90,13 +90,22 @@ export default async function RoomDetailPage({
 
       <div className="mt-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold font-mono">#{room.roomNumber}</h1>
+          <h1
+            data-testid="room-detail-number"
+            className="text-3xl font-bold font-mono"
+          >
+            #{room.roomNumber}
+          </h1>
           <span
+            data-testid="room-detail-hk-badge"
+            data-hk-status={room.housekeepingStatus}
             className={`text-xs px-2 py-1 rounded ${hkStatusColors[room.housekeepingStatus]}`}
           >
             {hkStatusLabels[room.housekeepingStatus]}
           </span>
           <span
+            data-testid="room-detail-occ-badge"
+            data-occ-status={room.occupancyStatus}
             className={`text-xs px-2 py-1 rounded ${
               room.occupancyStatus === "occupied"
                 ? "bg-blue-100 text-blue-800"
@@ -118,7 +127,10 @@ export default async function RoomDetailPage({
 
       {/* Current guest info when occupied */}
       {activeBooking && (
-        <div className="mt-4 border border-blue-200 bg-blue-50 rounded-lg p-4">
+        <div
+          data-testid="room-detail-current-guest-card"
+          className="mt-4 border border-blue-200 bg-blue-50 rounded-lg p-4"
+        >
           <h3 className="text-sm font-semibold text-blue-800 mb-2">
             Current Guest
           </h3>

@@ -75,6 +75,19 @@
       "fix": "Добавить ключи roomsList.* (title, stat.total/vacant/occupied/clean/dirty, filter.hkLabel/occLabel, filter.all, filter.hk.clean/dirty/inspected/pickup, filter.occ.vacant/occupied, floor, emptyFiltered) в apps/web/src/lib/i18n/locales/{ru,en}.ts и переключить hkStatusLabels на i18n-lookup через server-side getDictionary (как на dashboard)."
     },
     {
+      "id": "BUG-007",
+      "title": "Room detail page частично локализована — hkStatusLabels и вспомогательные лейблы захардкожены",
+      "severity": "low",
+      "status": "open",
+      "source": "ui-audit/08-room-detail",
+      "files": [
+        "apps/web/src/app/rooms/[id]/page.tsx",
+        "apps/web/src/app/rooms/[id]/room-status-actions.tsx"
+      ],
+      "description": "Страница /rooms/[id] покрыта i18n-словарями только частично, что опаснее, чем полный хардкод (BUG-006): на RU беглым взглядом видно локализованные надписи (например, 'Статус уборки', 'Установить Out of Order', 'Вернуть в работу'), но рядом на той же странице остаются английские. В page.tsx константа hkStatusLabels содержит английские значения для всех 6 HK-состояний ('Clean', 'Dirty', 'Pickup', 'Inspected', 'Out of Order', 'Out of Service') — используется и в HK-бейдже. Также захардкожены occupancy-чипы 'Occupied'/'Vacant', лейблы полей карточки 'Room Type'/'Floor'/'Max Occupancy'/'Description', блок 'Current Guest' ('Guest:', 'Confirmation:', 'Check-out:'), заголовок OOO-карточки 'Out of Order / Out of Service' в room-status-actions.tsx, и BackButton label='Back to rooms'. Кнопки HK-переходов (Clean/Pickup/Inspected/Dirty) формируются из массива actions в room-status-actions.tsx с английскими label'ами. Частично работают только: t(dict, 'rooms.hkStatus'/'setOoo'/'returnToDirty'/'oooBlocked'/'oooFrom'/'oooTo'/'oooReturnStatus'/'confirmOoo'/'dirtyOption'/'cleanOption'/'oooPeriod'/'oooAfter'/'settingsTitle') + t(dict, 'common.cancel').",
+      "fix": "Перевести hkStatusLabels в функцию getHkStatusLabel(dict, status) и добавить ключи rooms.hk.clean/dirty/pickup/inspected/outOfOrder/outOfService в словари ru/en. Добавить ключи rooms.occupied/vacant, rooms.currentGuest/guestLabel/confirmationLabel/checkOutLabel, rooms.roomType/floor/maxOccupancy/description, rooms.backToRooms, rooms.oooCardHeading. В room-status-actions.tsx заменить action.label на lookup по ключу rooms.hk.*. BackButton принимает label как prop — вызвать через server-side getDict(locale) в page.tsx."
+    },
+    {
       "id": "DEBT-002",
       "title": "OOO-валидация дублирована в POST и PATCH /rooms/:id/status",
       "severity": "medium",

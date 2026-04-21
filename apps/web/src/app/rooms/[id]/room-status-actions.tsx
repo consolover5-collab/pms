@@ -122,6 +122,7 @@ export function RoomStatusActions({
           {actions.map((action) => (
             <button
               key={action.status}
+              data-testid={`room-detail-hk-action-${action.status}`}
               onClick={() => updateStatus(action.status)}
               disabled={loading}
               className={`px-4 py-2 text-white text-sm rounded ${action.color} disabled:opacity-50`}
@@ -136,15 +137,22 @@ export function RoomStatusActions({
       <div className="mt-4">
         {isOoo ? (
           // Room is OOO/OOS — show current period + return button
-          <div className="p-3 bg-gray-100 rounded-lg">
+          <div
+            data-testid="room-detail-ooo-banner"
+            className="p-3 bg-gray-100 rounded-lg"
+          >
             <p className="text-sm font-medium text-gray-700 mb-1">Out of Order / Out of Service</p>
             {oooFromDate && oooToDate && (
-              <p className="text-xs text-gray-500 mb-2">
+              <p
+                data-testid="room-detail-ooo-period"
+                className="text-xs text-gray-500 mb-2"
+              >
                 {t(dict, "rooms.oooPeriod", { from: oooFromDate, to: oooToDate })}
                 {returnStatus && <span className="ml-2">{t(dict, "rooms.oooAfter", { status: returnStatus })}</span>}
               </p>
             )}
             <button
+              data-testid="room-detail-ooo-restore"
               onClick={() => updateStatus("dirty")}
               disabled={loading}
               className="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50"
@@ -157,6 +165,7 @@ export function RoomStatusActions({
           <>
             {!showOooForm ? (
               <button
+                data-testid="room-detail-set-ooo"
                 onClick={() => setShowOooForm(true)}
                 disabled={loading}
                 className="px-4 py-2 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 disabled:opacity-50"
@@ -165,6 +174,7 @@ export function RoomStatusActions({
               </button>
             ) : (
               <form
+                data-testid="room-detail-ooo-form"
                 onSubmit={handleOooSubmit}
                 className="p-4 border border-gray-300 rounded-lg bg-gray-50 space-y-3 max-w-sm"
               >
@@ -173,6 +183,7 @@ export function RoomStatusActions({
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">{t(dict, "rooms.oooFrom")}</label>
                     <input
+                      data-testid="room-detail-ooo-from"
                       type="date"
                       required
                       value={oooFrom}
@@ -183,6 +194,7 @@ export function RoomStatusActions({
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">{t(dict, "rooms.oooTo")}</label>
                     <input
+                      data-testid="room-detail-ooo-to"
                       type="date"
                       required
                       value={oooTo}
@@ -194,6 +206,7 @@ export function RoomStatusActions({
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">{t(dict, "rooms.oooReturnStatus")}</label>
                   <select
+                    data-testid="room-detail-ooo-return-status"
                     value={oooReturn}
                     onChange={(e) => setOooReturn(e.target.value as "dirty" | "clean")}
                     className="w-full px-2 py-1 border rounded text-sm"
@@ -204,6 +217,7 @@ export function RoomStatusActions({
                 </div>
                 <div className="flex gap-2">
                   <button
+                    data-testid="room-detail-ooo-submit"
                     type="submit"
                     disabled={loading || !oooFrom || !oooTo}
                     className="px-4 py-2 bg-gray-700 text-white text-sm rounded hover:bg-gray-800 disabled:opacity-50"
@@ -211,6 +225,7 @@ export function RoomStatusActions({
                     {loading ? "..." : t(dict, "rooms.confirmOoo")}
                   </button>
                   <button
+                    data-testid="room-detail-ooo-cancel"
                     type="button"
                     onClick={() => setShowOooForm(false)}
                     disabled={loading}
@@ -226,7 +241,10 @@ export function RoomStatusActions({
       </div>
 
       {occupancyStatus === "occupied" && (
-        <p className="mt-3 text-sm text-yellow-700 bg-yellow-50 p-2 rounded">
+        <p
+          data-testid="room-detail-occupied-warning"
+          className="mt-3 text-sm text-yellow-700 bg-yellow-50 p-2 rounded"
+        >
           {t(dict, "rooms.oooBlocked")}
         </p>
       )}
