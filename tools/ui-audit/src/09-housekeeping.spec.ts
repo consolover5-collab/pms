@@ -81,19 +81,19 @@ test.describe('09 housekeeping', () => {
     // Page title is present.
     await expect(page.getByRole('heading', { name: labels[locale].title })).toBeVisible();
 
-    // The kanban board renders — at least one .kcard (task card) is visible.
+    // The kanban board renders — at least one task card is visible.
     // We have 33 seed tasks so the board is never empty.
-    const kcards = page.locator('.kcard');
+    const kcards = page.getByTestId('hk-task-card');
     const count = await kcards.count();
     testInfo.attach('kcard-count', { body: String(count), contentType: 'text/plain' });
     expect(count).toBeGreaterThanOrEqual(1);
 
     // KPI row: 6 status columns (dirty, pickup, clean, inspected, ooo, oos).
-    const kpiVals = page.locator('.kpi .val');
+    const kpiVals = page.getByTestId('hk-kpi-value');
     await expect(kpiVals).toHaveCount(6);
 
     // Status filter select is visible with "All statuses" option.
-    const statusSelect = page.locator('select.select').first();
+    const statusSelect = page.getByTestId('hk-status-select');
     await expect(statusSelect).toBeVisible();
     await expect(statusSelect).toHaveValue('all');
 
@@ -119,7 +119,7 @@ test.describe('09 housekeeping', () => {
     await expect(generateBtn).toBeVisible();
 
     // Ensure tasks already present before generate (kanban not empty).
-    const preCount = await page.locator('.kcard').count();
+    const preCount = await page.getByTestId('hk-task-card').count();
     testInfo.attach('pre-generate-kcard-count', {
       body: String(preCount),
       contentType: 'text/plain',
@@ -163,25 +163,23 @@ test.describe('09 housekeeping', () => {
 
     await setLocaleAndGoto(page, 'en', ROUTE);
 
-    // Find the kcard for TASK_ASSIGN_ID using room number 204.
-    // The card contains room number in a .rno span.
-    const kcards = page.locator('.kcard');
+    // Find the task card for TASK_ASSIGN_ID using room number 204.
+    const kcards = page.getByTestId('hk-task-card');
     const count = await kcards.count();
     testInfo.attach('kcard-count', { body: String(count), contentType: 'text/plain' });
     expect(count).toBeGreaterThan(0);
 
-    // Find the card with room 204. Iterate to be safe.
-    let card204 = page.locator('.kcard').filter({ has: page.locator('.rno', { hasText: '204' }) });
-    const card204Count = await card204.count();
-    testInfo.attach('card-204-count', { body: String(card204Count), contentType: 'text/plain' });
-    expect(card204Count).toBeGreaterThanOrEqual(1);
+    // Find the card with room 204.
+    const card204 = page.getByTestId('hk-task-card').filter({ has: page.getByTestId('hk-room-no').filter({ hasText: '204' }) });
+    testInfo.attach('card-204-count', { body: String(await card204.count()), contentType: 'text/plain' });
+    await expect(card204).toHaveCount(1);
 
     // Use the first matching card.
     const targetCard = card204.first();
     await expect(targetCard).toBeVisible();
 
     // The assignedTo input inside the card.
-    const maidInput = targetCard.locator('input.input');
+    const maidInput = targetCard.getByTestId('hk-assign-input');
     await expect(maidInput).toBeVisible();
 
     const newAttendant = 'AuditBot';
@@ -241,16 +239,16 @@ test.describe('09 housekeeping', () => {
     await setLocaleAndGoto(page, 'en', ROUTE);
 
     // Find card for room 704.
-    const card704 = page.locator('.kcard').filter({ has: page.locator('.rno', { hasText: '704' }) });
-    const card704Count = await card704.count();
-    testInfo.attach('card-704-count', { body: String(card704Count), contentType: 'text/plain' });
-    expect(card704Count).toBeGreaterThanOrEqual(1);
+    const card704 = page.getByTestId('hk-task-card').filter({ has: page.getByTestId('hk-room-no').filter({ hasText: '704' }) });
+    testInfo.attach('card-704-count', { body: String(await card704.count()), contentType: 'text/plain' });
+    await expect(card704).toHaveCount(1);
 
     const targetCard = card704.first();
     await expect(targetCard).toBeVisible();
 
     // The "Done" button should be present for a pending task.
     const doneBtn = targetCard.getByRole('button', { name: labels.en.actionDone, exact: true });
+    await expect(doneBtn).toHaveCount(1);
     await expect(doneBtn).toBeVisible();
 
     const [patchResp] = await Promise.all([

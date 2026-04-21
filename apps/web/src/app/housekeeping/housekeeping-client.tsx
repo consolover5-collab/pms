@@ -119,7 +119,7 @@ export function HousekeepingClient({
                 />
                 {t(dict, c.labelKey)}
               </div>
-              <div className="val" style={{ fontSize: 20 }}>
+              <div className="val" data-testid="hk-kpi-value" style={{ fontSize: 20 }}>
                 {n}
               </div>
             </div>
@@ -134,6 +134,7 @@ export function HousekeepingClient({
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="select"
+            data-testid="hk-status-select"
             style={{ width: "auto" }}
           >
             <option value="all">{t(dict, "hk.filterAllStatuses")}</option>
@@ -185,9 +186,9 @@ export function HousekeepingClient({
                 <span className="n">{col.tasks.length}</span>
               </h4>
               {col.tasks.map((task) => (
-                <div key={task.id} className="kcard">
+                <div key={task.id} className="kcard" data-testid="hk-task-card">
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span className="rno">{task.room.roomNumber}</span>
+                    <span className="rno" data-testid="hk-room-no">{task.room.roomNumber}</span>
                     {task.priority === 1 && (
                       <span
                         style={{
@@ -214,6 +215,7 @@ export function HousekeepingClient({
                     }}
                     disabled={updating === task.id}
                     className="input"
+                    data-testid="hk-assign-input"
                     style={{ padding: "3px 8px", fontSize: 11 }}
                   />
                   <div className="tags">
