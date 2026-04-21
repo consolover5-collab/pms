@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from "fastify";
+import type { FastifyPluginAsync, FastifyInstance } from "fastify";
 import {
   folioTransactions,
   transactionCodes,
@@ -9,6 +9,35 @@ import {
 import { eq, and, desc } from "drizzle-orm";
 import { calculateFolioBalance } from "@pms/domain";
 import { isValidUuid } from "../lib/validation";
+
+// Resolve folio window for a booking: validate explicit id belongs to booking,
+// or fall back to the primary window when none given.
+async function resolveFolioWindowId(
+  app: FastifyInstance,
+  bookingId: string,
+  requested: string | undefined,
+): Promise<string | null> {
+  if (requested) {
+    if (!isValidUuid(requested)) return null;
+    const [win] = await app.db
+      .select({ id: folioWindows.id })
+      .from(folioWindows)
+      .where(
+        and(
+          eq(folioWindows.id, requested),
+          eq(folioWindows.bookingId, bookingId),
+        ),
+      );
+    return win?.id ?? null;
+  }
+  const [primary] = await app.db
+    .select({ id: folioWindows.id })
+    .from(folioWindows)
+    .where(eq(folioWindows.bookingId, bookingId))
+    .orderBy(folioWindows.windowNumber)
+    .limit(1);
+  return primary?.id ?? null;
+}
 
 export const folioRoutes: FastifyPluginAsync = async (app) => {
   // Get folio for a booking
@@ -115,13 +144,14 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
       transactionCodeId: string;
       amount: number;
       description?: string;
+      folioWindowId?: string;
     };
   }>("/api/bookings/:bookingId/folio/post", async (request, reply) => {
     const { bookingId } = request.params;
     if (!isValidUuid(bookingId)) {
       return reply.status(400).send({ error: "Invalid bookingId format", code: "INVALID_BOOKING_ID" });
     }
-    const { transactionCodeId, amount, description } = request.body;
+    const { transactionCodeId, amount, description, folioWindowId } = request.body;
 
     if (!transactionCodeId || !amount || amount <= 0) {
       return reply
@@ -184,11 +214,19 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
 
     const isPayment = code.transactionType === "payment";
 
+    const resolvedWindowId = await resolveFolioWindowId(app, bookingId, folioWindowId);
+    if (!resolvedWindowId) {
+      return reply
+        .status(400)
+        .send({ error: "Invalid folio window", code: "INVALID_FOLIO_WINDOW" });
+    }
+
     const [created] = await app.db
       .insert(folioTransactions)
       .values({
         propertyId: booking.propertyId,
         bookingId,
+        folioWindowId: resolvedWindowId,
         businessDateId: bizDate.id,
         transactionCodeId,
         debit: isPayment ? "0" : String(amount),
@@ -205,13 +243,13 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
   // Post a payment
   app.post<{
     Params: { bookingId: string };
-    Body: { transactionCodeId: string; amount: number };
+    Body: { transactionCodeId: string; amount: number; folioWindowId?: string };
   }>("/api/bookings/:bookingId/folio/payment", async (request, reply) => {
     const { bookingId } = request.params;
     if (!isValidUuid(bookingId)) {
       return reply.status(400).send({ error: "Invalid bookingId format", code: "INVALID_BOOKING_ID" });
     }
-    const { transactionCodeId, amount } = request.body;
+    const { transactionCodeId, amount, folioWindowId } = request.body;
 
     if (!transactionCodeId || !amount || amount <= 0) {
       return reply
@@ -263,11 +301,19 @@ export const folioRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "No open business date", code: "NO_OPEN_BUSINESS_DATE" });
     }
 
+    const resolvedWindowId = await resolveFolioWindowId(app, bookingId, folioWindowId);
+    if (!resolvedWindowId) {
+      return reply
+        .status(400)
+        .send({ error: "Invalid folio window", code: "INVALID_FOLIO_WINDOW" });
+    }
+
     const [created] = await app.db
       .insert(folioTransactions)
       .values({
         propertyId: booking.propertyId,
         bookingId,
+        folioWindowId: resolvedWindowId,
         businessDateId: bizDate.id,
         transactionCodeId,
         debit: "0",
