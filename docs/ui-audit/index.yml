@@ -60,7 +60,7 @@ sections:
     priority: P0
   - id: "11"
     file: features/11-profiles.yml
-    status: pending
+    status: ok
     bugs: 0
     priority: P1
   - id: "12"
@@ -131,9 +131,9 @@ sections:
 
 totals:
   sections: 24
-  ok: 12
+  ok: 13
   partial: 0
   broken: 0
   missing: 0
-  pending: 12
+  pending: 11
   bugs: 5

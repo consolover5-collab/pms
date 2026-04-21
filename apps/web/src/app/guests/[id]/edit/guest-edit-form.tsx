@@ -148,6 +148,7 @@ export function GuestEditForm({ guest }: { guest: Guest }) {
             required
             defaultValue={guest.firstName}
             className="input"
+            data-testid="guest-form-first-name"
           />
         </div>
         <div className="field">
@@ -161,6 +162,7 @@ export function GuestEditForm({ guest }: { guest: Guest }) {
             required
             defaultValue={guest.lastName}
             className="input"
+            data-testid="guest-form-last-name"
           />
         </div>
       </div>
@@ -173,6 +175,7 @@ export function GuestEditForm({ guest }: { guest: Guest }) {
             type="email"
             defaultValue={guest.email || ""}
             className="input"
+            data-testid="guest-form-email"
           />
         </div>
         <div className="field">
@@ -291,7 +294,12 @@ export function GuestEditForm({ guest }: { guest: Guest }) {
       </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-        <button type="submit" disabled={saving} className="btn primary">
+        <button
+          type="submit"
+          disabled={saving}
+          className="btn primary"
+          data-testid="guest-form-submit"
+        >
           {saving ? t(dict, "common.saving") : t(dict, "guests.updateBtn")}
         </button>
         <Link href={`/guests/${guest.id}`} className="btn ghost">

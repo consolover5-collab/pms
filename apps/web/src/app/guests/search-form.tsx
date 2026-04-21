@@ -61,9 +61,10 @@ export function SearchForm() {
           placeholder={t(dict, "profiles.search")}
           className="input"
           style={{ paddingLeft: 32, width: "100%" }}
+          data-testid="guests-search-input"
         />
       </div>
-      <button type="submit" className="btn sm">
+      <button type="submit" className="btn sm" data-testid="guests-search-submit">
         {t(dict, "profiles.searchBtn")}
       </button>
     </form>

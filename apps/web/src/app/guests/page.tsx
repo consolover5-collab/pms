@@ -96,10 +96,10 @@ export default async function GuestsPage({
   return (
     <>
       <div className="page-head">
-        <h1 className="page-title">{t(dict, "guests.title")}</h1>
+        <h1 className="page-title" data-testid="guests-title">{t(dict, "guests.title")}</h1>
         <span className="page-sub">{t(dict, "guests.subtitle")}</span>
         <div className="actions">
-          <Link href="/guests/new" className="btn sm primary">
+          <Link href="/guests/new" className="btn sm primary" data-testid="guests-new-button">
             <Icon name="plus" size={12} />
             {t(dict, "guests.newGuest")}
           </Link>
@@ -109,7 +109,7 @@ export default async function GuestsPage({
       <SearchForm />
 
       {q && (
-        <div style={{ fontSize: 12, color: "var(--muted)" }}>
+        <div style={{ fontSize: 12, color: "var(--muted)" }} data-testid="guests-search-summary">
           {t(dict, "guests.searchResults", { q, total: String(total) })}
         </div>
       )}
@@ -117,7 +117,10 @@ export default async function GuestsPage({
       <div className="card">
         <div className="card-head">
           <div className="card-title">
-            {t(dict, "guests.title")} <span className="count">{total}</span>
+            {t(dict, "guests.title")}{" "}
+            <span className="count" data-testid="guests-total-count">
+              {total}
+            </span>
           </div>
         </div>
         <div className="card-body" style={{ padding: 0 }}>
@@ -129,6 +132,7 @@ export default async function GuestsPage({
                 color: "var(--muted)",
                 fontSize: 13,
               }}
+              data-testid="guests-empty"
             >
               {q ? t(dict, "guests.notFound") : t(dict, "guests.empty")}
             </div>
@@ -145,18 +149,25 @@ export default async function GuestsPage({
               </thead>
               <tbody>
                 {guests.map((guest) => (
-                  <tr key={guest.id}>
+                  <tr key={guest.id} data-testid="guests-row" data-guest-id={guest.id}>
                     <td>
                       <Link
                         href={`/guests/${guest.id}`}
                         style={{ color: "var(--fg)", fontWeight: 500 }}
+                        data-testid="guests-row-name"
                       >
                         {guest.lastName || guest.name}
                         {guest.firstName ? `, ${guest.firstName}` : ""}
                       </Link>
                     </td>
-                    <td style={{ color: "var(--muted)" }}>{guest.email || "—"}</td>
-                    <td style={{ color: "var(--muted)" }} className="tnum">
+                    <td style={{ color: "var(--muted)" }} data-testid="guests-row-email">
+                      {guest.email || "—"}
+                    </td>
+                    <td
+                      style={{ color: "var(--muted)" }}
+                      className="tnum"
+                      data-testid="guests-row-phone"
+                    >
                       {guest.phone || "—"}
                     </td>
                     <td>{guest.nationality || "—"}</td>

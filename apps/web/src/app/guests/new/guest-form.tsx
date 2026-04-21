@@ -96,21 +96,36 @@ export function GuestForm({ propertyId }: { propertyId: string }) {
             {t(dict, "guests.fld.firstName")}
             {required}
           </label>
-          <input name="firstName" required className="input" />
+          <input
+            name="firstName"
+            required
+            className="input"
+            data-testid="guest-form-first-name"
+          />
         </div>
         <div className="field">
           <label className="lab">
             {t(dict, "guests.fld.lastName")}
             {required}
           </label>
-          <input name="lastName" required className="input" />
+          <input
+            name="lastName"
+            required
+            className="input"
+            data-testid="guest-form-last-name"
+          />
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div className="field">
           <label className="lab">{t(dict, "guests.fld.email")}</label>
-          <input name="email" type="email" className="input" />
+          <input
+            name="email"
+            type="email"
+            className="input"
+            data-testid="guest-form-email"
+          />
         </div>
         <div className="field">
           <label className="lab">{t(dict, "guests.fld.phone")}</label>
@@ -189,7 +204,12 @@ export function GuestForm({ propertyId }: { propertyId: string }) {
       </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-        <button type="submit" disabled={saving} className="btn primary">
+        <button
+          type="submit"
+          disabled={saving}
+          className="btn primary"
+          data-testid="guest-form-submit"
+        >
           {saving ? t(dict, "common.saving") : t(dict, "guests.createBtn")}
         </button>
         <Link href="/guests" className="btn ghost">

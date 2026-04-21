@@ -75,7 +75,11 @@ export default async function GuestDetailPage({
           {initials.toUpperCase()}
         </div>
         <div>
-          <h1 className="page-title" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <h1
+            className="page-title"
+            style={{ display: "flex", alignItems: "center", gap: 10 }}
+            data-testid="guest-detail-name"
+          >
             {guest.firstName} {guest.lastName}
             {guest.vipStatus != null && (
               <span className="badge no-show">
@@ -89,14 +93,18 @@ export default async function GuestDetailPage({
           </span>
         </div>
         <div className="actions">
-          <Link href={`/guests/${guest.id}/edit`} className="btn sm primary">
+          <Link
+            href={`/guests/${guest.id}/edit`}
+            className="btn sm primary"
+            data-testid="guest-detail-edit-button"
+          >
             <Icon name="settings" size={12} />
             {t(dict, "guests.editGuest")}
           </Link>
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" data-testid="guest-detail-personal">
         <div className="card-head">
           <div className="card-title">{t(dict, "profiles.section.personal")}</div>
         </div>
@@ -104,8 +112,12 @@ export default async function GuestDetailPage({
           className="card-body"
           style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}
         >
-          <LabVal label={t(dict, "guests.fld.email")} value={guest.email} />
-          <LabVal label={t(dict, "guests.fld.phone")} value={guest.phone} />
+          <div data-testid="guest-detail-email">
+            <LabVal label={t(dict, "guests.fld.email")} value={guest.email} />
+          </div>
+          <div data-testid="guest-detail-phone">
+            <LabVal label={t(dict, "guests.fld.phone")} value={guest.phone} />
+          </div>
           <LabVal label={t(dict, "guests.fld.nationality")} value={guest.nationality} />
           <LabVal
             label={t(dict, "guests.fld.gender")}
