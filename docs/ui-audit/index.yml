@@ -25,7 +25,7 @@ sections:
     priority: P0
   - id: "04"
     file: features/04-booking-detail.yml
-    status: pending
+    status: ok
     bugs: 0
     priority: P0
   - id: "05"
@@ -131,9 +131,9 @@ sections:
 
 totals:
   sections: 24
-  ok: 3
+  ok: 4
   partial: 0
   broken: 0
   missing: 0
-  pending: 21
+  pending: 20
   bugs: 1
