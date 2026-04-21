@@ -1,35 +1,29 @@
 import { test, expect } from '@playwright/test';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   auditScreenshot,
-  wireErrorCollectors,
+  registerSectionHooks,
   setLocaleAndGoto,
   API_URL,
   GBH_PROPERTY_ID,
-  type ConsoleError,
-  type NetworkError,
 } from './shared.ts';
 import { SEED } from './seed-refs.ts';
-import { ensureActiveBusinessDate } from './fixtures.ts';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import {
+  cleanupAuditBookings,
+  createConfirmedBooking,
+  ensureActiveBusinessDate,
+  fetchCheckedInBooking,
+  fetchTransactionCode,
+  getBookingStatus,
+  getFolioBalance,
+  postFolioPayment,
+} from './fixtures.ts';
 
 const SECTION_ID = '06-checkin-checkout';
+const AUDIT_MARKER = 'audit-section-06';
 
 const DIRTY_ROOM_ID = 'e3413f3d-a212-495e-b606-5410929e6d37'; // №206, dirty/vacant, STD
 const OOS_ROOM_ID = SEED.room.oos; // №205, out_of_service
 const OOS_ROOM_NUMBER = '205';
-
-const errorsByProject: Record<
-  string,
-  Record<string, { console: ConsoleError[]; network: NetworkError[] }>
-> = {};
-const apiCallsByProject: Record<
-  string,
-  { method: string; path: string; status: number }[]
-> = {};
 
 const labels = {
   ru: {
@@ -58,93 +52,10 @@ let BK_B = ''; // dirty-room force-check-in (scenario 02)
 let BK_C = ''; // no-room check-in for room-picker (scenario 03)
 let BK_E = ''; // existing checked-in booking with balance > 0 (scenario 05)
 
-async function fetchGuestProfileId(): Promise<string> {
-  const r = await fetch(
-    `${API_URL}/api/profiles?propertyId=${GBH_PROPERTY_ID}&type=individual&limit=1`,
-  );
-  const page = (await r.json()) as { data: { id: string }[] };
-  if (!page.data?.length) throw new Error('No individual profiles available');
-  return page.data[0].id;
-}
-
-async function createConfirmedBooking(opts: {
-  roomId: string | null;
-  bizDate: string;
-  nights?: number;
-}): Promise<string> {
-  const guestProfileId = await fetchGuestProfileId();
-  const nights = opts.nights ?? 1;
-  const checkOutDate = new Date(opts.bizDate);
-  checkOutDate.setUTCDate(checkOutDate.getUTCDate() + nights);
-  const body = {
-    propertyId: GBH_PROPERTY_ID,
-    guestProfileId,
-    roomTypeId: SEED.roomType.standardDouble,
-    ...(opts.roomId ? { roomId: opts.roomId } : {}),
-    checkInDate: opts.bizDate,
-    checkOutDate: checkOutDate.toISOString().slice(0, 10),
-  };
-  const r = await fetch(`${API_URL}/api/bookings`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) {
-    throw new Error(`POST /api/bookings failed: ${r.status} ${await r.text()}`);
-  }
-  const created = (await r.json()) as { id: string };
-  return created.id;
-}
-
-async function getBookingStatus(id: string): Promise<{ status: string; roomId: string | null }> {
-  const r = await fetch(`${API_URL}/api/bookings/${id}`);
-  const b = (await r.json()) as { status: string; room?: { id: string | null } | null };
-  return { status: b.status, roomId: b.room?.id ?? null };
-}
-
-async function getFolioBalance(bookingId: string): Promise<number> {
-  const r = await fetch(`${API_URL}/api/bookings/${bookingId}/folio`);
-  const d = (await r.json()) as { balance: number };
-  return d.balance;
-}
-
-async function fetchPayCashCodeId(): Promise<string> {
-  const r = await fetch(`${API_URL}/api/transaction-codes?propertyId=${GBH_PROPERTY_ID}`);
-  const codes = (await r.json()) as { id: string; code: string; transactionType: string }[];
-  const pay = codes.find((c) => c.code === 'PAY_CASH' && c.transactionType === 'payment');
-  if (!pay) throw new Error('PAY_CASH transaction code not found');
-  return pay.id;
-}
-
-async function postCashPayment(bookingId: string, amount: number): Promise<void> {
-  const transactionCodeId = await fetchPayCashCodeId();
-  const r = await fetch(`${API_URL}/api/bookings/${bookingId}/folio/payment`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ transactionCodeId, amount }),
-  });
-  if (!r.ok) {
-    throw new Error(`POST folio/payment failed: ${r.status} ${await r.text()}`);
-  }
-}
-
-async function fetchCheckedInBookingWithBalance(
-  excludeIds: string[] = [],
-): Promise<{ bookingId: string; balance: number } | null> {
-  const r = await fetch(
-    `${API_URL}/api/bookings?propertyId=${GBH_PROPERTY_ID}&status=checked_in&limit=20`,
-  );
-  const page = (await r.json()) as { data: { id: string }[] };
-  for (const b of page.data ?? []) {
-    if (excludeIds.includes(b.id)) continue;
-    const bal = await getFolioBalance(b.id);
-    if (bal > 0) return { bookingId: b.id, balance: bal };
-  }
-  return null;
-}
-
 test.describe('06 checkin-checkout', () => {
   test.describe.configure({ mode: 'serial' });
+
+  registerSectionHooks(SECTION_ID);
 
   async function reserveCleanRoomBooking(bizDate: string): Promise<string> {
     const cleanRoomsRes = await fetch(
@@ -156,7 +67,11 @@ test.describe('06 checkin-checkout', () => {
     let lastErr: string | null = null;
     for (const room of cleanRooms) {
       try {
-        return await createConfirmedBooking({ roomId: room.id, bizDate });
+        return await createConfirmedBooking({
+          roomId: room.id,
+          bizDate,
+          marker: AUDIT_MARKER,
+        });
       } catch (err) {
         lastErr = (err as Error).message;
         if (!lastErr.includes('ROOM_CONFLICT')) throw err;
@@ -166,86 +81,35 @@ test.describe('06 checkin-checkout', () => {
   }
 
   test.beforeAll(async () => {
-    const bizDate = await ensureActiveBusinessDate();
+    // Sweep orphan confirmed bookings left by prior interrupted runs of this spec.
+    // cleanupAuditBookings matches booking.notes against the AUDIT_MARKER prefix —
+    // all audit-created bookings now carry that marker (see createConfirmedBooking
+    // calls with `marker: AUDIT_MARKER`). This replaces the old confirmationNumber
+    // >= 210 heuristic that assumed a seed cut-off.
+    await cleanupAuditBookings(AUDIT_MARKER);
 
-    // Free up rooms held by orphan confirmed bookings left over by prior failed/interrupted
-    // runs of this spec. We heuristically identify them as confirmed bookings whose
-    // confirmationNumber > GBH-000209 (i.e. created after the pilot cut-off) and notes
-    // left empty. Real seed bookings stop at GBH-000209 in the current dataset; everything
-    // beyond is audit-created. Safe because the backfill bound is a low-water mark — if
-    // real-world seed grows, we'd cancel at most a handful of legit bookings on an
-    // already-test-instance DB.
-    const conflictsRes = await fetch(
-      `${API_URL}/api/bookings?propertyId=${GBH_PROPERTY_ID}&status=confirmed&limit=100`,
-    );
-    const conflicts = (await conflictsRes.json()) as {
-      data: { id: string; confirmationNumber: string; room?: { id?: string } | null }[];
-    };
-    for (const b of conflicts.data ?? []) {
-      const suffix = parseInt((b.confirmationNumber ?? '').split('-')[1] ?? '0', 10);
-      if (suffix >= 210) {
-        await fetch(`${API_URL}/api/bookings/${b.id}/cancel`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ reason: 'audit-section-06-cleanup' }),
-        });
-      }
-    }
+    const bizDate = await ensureActiveBusinessDate();
 
     // BK_C (no-room booking) is exercised by scenario 03 on both ru and en — cheap,
     // no room to hold, so create eagerly. BK_A and BK_B are allocated lazily inside
     // their en-only mutation scenarios (see reserveCleanRoomBooking / createConfirmedBooking
     // calls below) so that a skipped-on-ru project does not waste a clean or dirty room
     // that the en re-run of beforeAll would then fail to reserve again (ROOM_CONFLICT).
-    BK_C = await createConfirmedBooking({ roomId: null, bizDate });
+    BK_C = await createConfirmedBooking({
+      roomId: null,
+      bizDate,
+      marker: AUDIT_MARKER,
+    });
 
     // BK_E: find an existing checked_in booking with balance > 0. Not tied to our rooms.
-    const existing = await fetchCheckedInBookingWithBalance([BK_C]);
+    const existing = await fetchCheckedInBooking({
+      balancePredicate: 'positive',
+      excludeIds: [BK_C],
+    });
     if (!existing) {
       throw new Error('No checked_in booking with balance > 0 found for scenario 05');
     }
     BK_E = existing.bookingId;
-  });
-
-  test.beforeEach(async ({ page }, testInfo) => {
-    const proj = testInfo.project.name;
-    const testName = testInfo.title;
-    const errors = wireErrorCollectors(page);
-    errorsByProject[proj] ??= {};
-    errorsByProject[proj][testName] = { console: errors.console, network: errors.network };
-
-    apiCallsByProject[proj] ??= [];
-    page.on('response', (res) => {
-      const url = new URL(res.url());
-      if (url.pathname.startsWith('/api/')) {
-        apiCallsByProject[proj].push({
-          method: res.request().method(),
-          path: url.pathname + (url.search || ''),
-          status: res.status(),
-        });
-      }
-    });
-  });
-
-  test.afterAll(async () => {
-    // Safety net: if mutating scenarios left any of our owned bookings in a non-final state,
-    // leave them — test spec asserts exact progression. This hook only flushes error logs.
-    const out = path.resolve(__dirname, `../audit-data/${SECTION_ID}-errors.json`);
-    fs.mkdirSync(path.dirname(out), { recursive: true });
-    let existing: { errors: typeof errorsByProject; api: typeof apiCallsByProject } = {
-      errors: {},
-      api: {},
-    };
-    try {
-      existing = JSON.parse(fs.readFileSync(out, 'utf8'));
-    } catch {
-      /* first run */
-    }
-    const merged = {
-      errors: { ...existing.errors, ...errorsByProject },
-      api: { ...existing.api, ...apiCallsByProject },
-    };
-    fs.writeFileSync(out, JSON.stringify(merged, null, 2));
   });
 
   test('01-checkin-clean-room: confirmed + clean room → status becomes checked_in', async ({ page }, testInfo) => {
@@ -290,7 +154,11 @@ test.describe('06 checkin-checkout', () => {
 
     // Lazy init: reserve the dirty room (single-instance) now, same rationale as BK_A.
     const bizDate = await ensureActiveBusinessDate();
-    BK_B = await createConfirmedBooking({ roomId: DIRTY_ROOM_ID, bizDate });
+    BK_B = await createConfirmedBooking({
+      roomId: DIRTY_ROOM_ID,
+      bizDate,
+      marker: AUDIT_MARKER,
+    });
 
     await setLocaleAndGoto(page, 'en', `/bookings/${BK_B}`);
     await page.waitForSelector('h1');
@@ -401,7 +269,8 @@ test.describe('06 checkin-checkout', () => {
       contentType: 'text/plain',
     });
     if (balance > 0) {
-      await postCashPayment(BK_A, balance);
+      const payCode = await fetchTransactionCode('payment', 'PAY_CASH');
+      await postFolioPayment(BK_A, { transactionCodeId: payCode.id, amount: balance });
       const after = await getFolioBalance(BK_A);
       expect(after).toBe(0);
     }

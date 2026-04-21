@@ -1,29 +1,18 @@
 import { test, expect } from '@playwright/test';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   auditScreenshot,
-  wireErrorCollectors,
+  registerSectionHooks,
   setLocaleAndGoto,
   API_URL,
   GBH_PROPERTY_ID,
-  type ConsoleError,
-  type NetworkError,
 } from './shared.ts';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import {
+  fetchCheckedInBooking,
+  fetchTransactionCode,
+  getFolio,
+} from './fixtures.ts';
 
 const SECTION_ID = '10-folio';
-
-const errorsByProject: Record<
-  string,
-  Record<string, { console: ConsoleError[]; network: NetworkError[] }>
-> = {};
-const apiCallsByProject: Record<
-  string,
-  { method: string; path: string; status: number }[]
-> = {};
 
 const labels = {
   ru: {
@@ -54,173 +43,52 @@ let INITIAL_BALANCE = 0; // balance captured before scenario 02 posts a charge
 let BK_MULTI = ''; // booking with >=2 windows for scenario 01
 let BK_POS = ''; // different booking with positive balance for scenario 05 (excluded: BK_FOLIO)
 
-type FolioWindow = {
-  id: string;
-  windowNumber: number;
-  label: string;
-  balance: number;
-  totalCharges: number;
-  totalPayments: number;
-};
-
-type FolioData = {
-  balance: number;
-  transactions: { id: string; folioWindowId: string }[];
-  summary: { totalCharges: number; totalPayments: number };
-  windows: FolioWindow[];
-};
-
-type TxnCode = {
-  id: string;
-  code: string;
-  transactionType: string;
-  isManualPostAllowed: boolean;
-};
-
-async function getFolio(bookingId: string): Promise<FolioData> {
-  const r = await fetch(`${API_URL}/api/bookings/${bookingId}/folio`);
-  if (!r.ok) {
-    throw new Error(`GET /folio failed: ${r.status} ${await r.text()}`);
-  }
-  return (await r.json()) as FolioData;
-}
-
-async function getFolioBalance(bookingId: string): Promise<number> {
-  const f = await getFolio(bookingId);
-  return f.balance;
-}
-
-async function fetchTransactionCode(
-  type: 'charge' | 'payment',
-  preferCode?: string,
-): Promise<{ id: string; code: string }> {
-  const r = await fetch(`${API_URL}/api/transaction-codes?propertyId=${GBH_PROPERTY_ID}`);
-  if (!r.ok) {
-    throw new Error(`GET /transaction-codes failed: ${r.status} ${await r.text()}`);
-  }
-  const codes = (await r.json()) as TxnCode[];
-  const eligible = codes.filter(
-    (c) => c.transactionType === type && c.isManualPostAllowed === true,
-  );
-  if (!eligible.length) {
-    throw new Error(`No manual-postable ${type} transaction codes available`);
-  }
-  if (preferCode) {
-    const found = eligible.find((c) => c.code === preferCode);
-    if (found) return { id: found.id, code: found.code };
-  }
-  return { id: eligible[0].id, code: eligible[0].code };
-}
-
-async function fetchCheckedInBookingWithWindows(
-  minWindows: number,
-  excludeIds: string[] = [],
-): Promise<{ bookingId: string; windows: FolioWindow[]; balance: number }> {
-  const r = await fetch(
-    `${API_URL}/api/bookings?propertyId=${GBH_PROPERTY_ID}&status=checked_in&limit=20`,
-  );
-  if (!r.ok) {
-    throw new Error(`GET /bookings failed: ${r.status} ${await r.text()}`);
-  }
-  const page = (await r.json()) as { data: { id: string }[] };
-  for (const b of page.data ?? []) {
-    if (excludeIds.includes(b.id)) continue;
-    const f = await getFolio(b.id);
-    if (f.windows.length >= minWindows) {
-      return { bookingId: b.id, windows: f.windows, balance: f.balance };
-    }
-  }
-  throw new Error(
-    `No checked_in booking with >= ${minWindows} windows found (excluded ${excludeIds.length})`,
-  );
-}
-
-async function fetchCheckedInBookingWithPositiveBalance(
-  excludeIds: string[] = [],
-): Promise<{ bookingId: string; balance: number; windows: FolioWindow[] }> {
-  const r = await fetch(
-    `${API_URL}/api/bookings?propertyId=${GBH_PROPERTY_ID}&status=checked_in&limit=20`,
-  );
-  if (!r.ok) {
-    throw new Error(`GET /bookings failed: ${r.status} ${await r.text()}`);
-  }
-  const page = (await r.json()) as { data: { id: string }[] };
-  for (const b of page.data ?? []) {
-    if (excludeIds.includes(b.id)) continue;
-    const f = await getFolio(b.id);
-    if (f.balance > 0) {
-      return { bookingId: b.id, balance: f.balance, windows: f.windows };
-    }
-  }
-  throw new Error('No checked_in booking with balance > 0 found');
-}
-
 test.describe('10 folio', () => {
   test.describe.configure({ mode: 'serial' });
 
+  registerSectionHooks(SECTION_ID);
+
   test.beforeAll(async () => {
     // Pick BK_MULTI (2+ windows) for scenario 01.
-    const multi = await fetchCheckedInBookingWithWindows(2);
+    const multi = await fetchCheckedInBooking({ minWindows: 2 });
+    if (!multi) {
+      throw new Error('No checked_in booking with >= 2 windows found');
+    }
     BK_MULTI = multi.bookingId;
 
     // Pick BK_FOLIO — the booking we mutate in scenarios 02/03. Prefer a single-window
     // booking so scenario 04's zero-balance observation is unambiguous (overall balance
-    // == zero only if every window is zero). Fall back to any checked_in booking.
-    const single = await fetchCheckedInBookingWithWindows(1, [BK_MULTI]).catch(() => null);
+    // == zero only if every window is zero). Fall back to any checked_in booking other
+    // than BK_MULTI. The two-step try mirrors the pre-refactor semantics where the
+    // first fetch could return null (no match) without aborting the setup.
+    const single = await fetchCheckedInBooking({
+      minWindows: 1,
+      excludeIds: [BK_MULTI],
+    });
     if (single && single.windows.length === 1) {
       BK_FOLIO = single.bookingId;
       WIN_A = single.windows[0].id;
       INITIAL_BALANCE = single.balance;
+    } else if (single) {
+      // Matched a booking but it has multiple windows — use window 1 for mutations.
+      BK_FOLIO = single.bookingId;
+      WIN_A = single.windows[0].id;
+      INITIAL_BALANCE = single.windows[0].balance;
     } else {
-      // Fall back to a different multi-window booking; target window 1 for mutations.
-      const alt = await fetchCheckedInBookingWithWindows(1, [BK_MULTI]);
-      BK_FOLIO = alt.bookingId;
-      WIN_A = alt.windows[0].id;
-      INITIAL_BALANCE = alt.windows[0].balance;
+      throw new Error(
+        'No checked_in booking available for BK_FOLIO (excluded BK_MULTI)',
+      );
     }
 
     // Pick BK_POS — a positive-balance booking distinct from BK_FOLIO (which en-run zeroes).
-    const pos = await fetchCheckedInBookingWithPositiveBalance([BK_FOLIO]);
-    BK_POS = pos.bookingId;
-  });
-
-  test.beforeEach(async ({ page }, testInfo) => {
-    const proj = testInfo.project.name;
-    const testName = testInfo.title;
-    const errors = wireErrorCollectors(page);
-    errorsByProject[proj] ??= {};
-    errorsByProject[proj][testName] = { console: errors.console, network: errors.network };
-
-    apiCallsByProject[proj] ??= [];
-    page.on('response', (res) => {
-      const url = new URL(res.url());
-      if (url.pathname.startsWith('/api/')) {
-        apiCallsByProject[proj].push({
-          method: res.request().method(),
-          path: url.pathname + (url.search || ''),
-          status: res.status(),
-        });
-      }
+    const pos = await fetchCheckedInBooking({
+      balancePredicate: 'positive',
+      excludeIds: [BK_FOLIO],
     });
-  });
-
-  test.afterAll(async () => {
-    const out = path.resolve(__dirname, `../audit-data/${SECTION_ID}-errors.json`);
-    fs.mkdirSync(path.dirname(out), { recursive: true });
-    let existing: { errors: typeof errorsByProject; api: typeof apiCallsByProject } = {
-      errors: {},
-      api: {},
-    };
-    try {
-      existing = JSON.parse(fs.readFileSync(out, 'utf8'));
-    } catch {
-      /* first run */
+    if (!pos) {
+      throw new Error('No checked_in booking with balance > 0 found');
     }
-    const merged = {
-      errors: { ...existing.errors, ...errorsByProject },
-      api: { ...existing.api, ...apiCallsByProject },
-    };
-    fs.writeFileSync(out, JSON.stringify(merged, null, 2));
+    BK_POS = pos.bookingId;
   });
 
   test('01-window-stack-render: multi-window booking renders all windows stacked (not tabbed)', async ({ page }, testInfo) => {
