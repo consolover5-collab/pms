@@ -81,8 +81,11 @@ export async function ensureActiveBusinessDate(): Promise<string> {
     `${API_URL}/api/business-date?propertyId=${GBH_PROPERTY_ID}`,
   );
   if (!res.ok) {
-    throw new Error(`GET /api/business-date failed: ${res.status}`);
+    throw new Error(`GET /api/business-date failed: ${res.status} ${await res.text()}`);
   }
-  const body = (await res.json()) as { businessDate?: string; date?: string };
-  return body.businessDate ?? body.date ?? '';
+  const body = (await res.json()) as { date?: string };
+  if (!body.date) {
+    throw new Error(`GET /api/business-date returned no date: ${JSON.stringify(body)}`);
+  }
+  return body.date;
 }
