@@ -88,6 +88,7 @@ test.describe('07 rooms-list', () => {
     await expect(page.getByTestId('rooms-heading')).toBeVisible({
       timeout: UI_TIMEOUT,
     });
+    // BUG-006: both locales render "Rooms" today; remove English lock when /rooms is localized
     await expect(page.getByTestId('rooms-heading')).toHaveText('Rooms');
 
     // Stats match probe-confirmed DB state
@@ -154,6 +155,7 @@ test.describe('07 rooms-list', () => {
       'page',
     );
     // Previously-active HK-all no longer has aria-current
+    // Test starts at /rooms (no filters); assertion valid only because hk-all is the initial aria-current state
     await expect(page.getByTestId('rooms-filter-hk-all')).not.toHaveAttribute(
       'aria-current',
       'page',
