@@ -1,0 +1,132 @@
+id: 12-night-audit
+title: "Night Audit"
+route: /night-audit
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "Night Audit"
+    en: "Night Audit"
+  required_fields: []
+  optional_fields: []
+  buttons:
+    previewNightAudit:
+      ru: "Предпросмотр ночного аудита"
+      en: "Preview Night Audit"
+      note: "Visible in idle step; dispatches POST /api/night-audit/preview (read-only compute)"
+    runNightAudit:
+      ru: "Выполнить Night Audit"
+      en: "Run Night Audit"
+      note: "Visible in preview step only; INTENTIONALLY UNTESTED (no DB snapshot harness)"
+    cancel:
+      ru: "Отмена"
+      en: "Cancel"
+      note: "Returns from preview step to idle"
+
+steps:
+  - id: "01-idle-initial-load"
+    action: "Load /night-audit as admin in ru+en; wizard step 1 active; Preview button visible and enabled"
+    screenshots:
+      - 12-night-audit-01-idle-initial-load-ru.png
+      - 12-night-audit-01-idle-initial-load-en.png
+    note: "businessDate chip shows 2026-04-20 in page-sub after preview; idle state shows description text"
+
+  - id: "02-preview-summary"
+    action: "Click 'Preview Night Audit'; POST /api/night-audit/preview fires; counters match probe values"
+    screenshots:
+      - 12-night-audit-02-preview-summary-ru.png
+      - 12-night-audit-02-preview-summary-en.png
+    note: >
+      Page auto-runs preview only when button clicked (not on mount). Verified counters:
+      businessDate=2026-04-20, overdueDueOuts=0, dueToday=0, pendingNoShows=0,
+      roomsToCharge=33, estimatedRevenue=168984.
+
+  - id: "03-preflight-checklist"
+    action: "After preview, 4 KPI tiles visible; overdueDueOuts=0, dueToday=0, estimatedRevenue present; no blocking banner"
+    screenshots:
+      - 12-night-audit-03-preflight-checklist-ru.png
+      - 12-night-audit-03-preflight-checklist-en.png
+    note: >
+      Clean-state happy path: all 3 blocking counters are 0. The blocking-audit
+      alert banner ('blocking audit' / 'блокируют аудит') is correctly absent.
+      Room Charges Breakdown table renders with 33 rows.
+
+  - id: "04-run-button-state"
+    action: "After clean preflight, Run Night Audit button is present, enabled, has correct accessible name. NOT clicked."
+    screenshots:
+      - 12-night-audit-04-run-button-state-ru.png
+      - 12-night-audit-04-run-button-state-en.png
+    note: >
+      IMPORTANT: Run button click intentionally omitted — no DB snapshot harness.
+      Preflight clean (overdueDueOuts=0, dueToday=0, pendingNoShows=0) → button enabled.
+      Accessible name matches i18n: 'Выполнить Night Audit' (ru) / 'Run Night Audit' (en).
+
+edge_cases:
+  - id: overdue-due-out-clean-state
+    description: "overdueDueOuts=0 — KPI renders '0' without error styling; blocking banner absent"
+    expected: "Value rendered, no red color applied (color override only when > 0)"
+    observed: "OK — scenario 03 confirmed; no blocking banner visible"
+
+  - id: orphan-bookings-rateAmount-zero
+    description: "7 of 33 roomDetails rows have rateAmount=0 (Phase 1.5 Task B artefact — Alexander Fedorov bookings)"
+    expected: "NOT a preflight blocker; rows still render in Room Charges Breakdown table with '0 ₽'"
+    observed: >
+      Confirmed by direct API probe: roomsToCharge=33 includes the 7 zero-rate rows.
+      estimatedRevenue=168984 (correctly excludes zero-rate rooms from revenue sum).
+      No warnings[] entry generated for these rows.
+    status: known_data_issue
+    reference: "Phase 1.5 Task B commit f61df81 — orphan bookings without rate plan"
+
+  - id: wizard-step-label-duplicate
+    description: "Wizard step label and sidebar card-title share the same text (e.g. 'Night Audit Preview')"
+    expected: "getByText resolves to 2 elements; spec must use .first() to avoid strict-mode violation"
+    observed: "Confirmed in test run; fixed with .first() selector — no UI bug"
+
+  - id: run-button-unclickable-by-design
+    description: "Run Night Audit button is ENABLED in clean preflight state but must not be tested for click"
+    expected: "Button enabled, accessible, correct name; no click in read-only audit mode"
+    observed: "OK — scenario 04 confirmed presence, enabled state, and label. Click deferred."
+
+api_calls_observed:
+  - { method: GET,  path: "/api/auth/me", status: 200 }
+  - { method: GET,  path: "/api/properties", status: 200 }
+  - { method: POST, path: "/api/night-audit/preview", status: 200, note: "read-only compute — does not advance date" }
+
+console_errors: []
+network_errors: []
+
+bugs: []
+
+help_rewrite_hints:
+  topic: null
+  current: ""
+  actual: |
+    /night-audit route exists and renders a full 4-step wizard: Preview → Review/Preflight
+    → Run → Done. No help-content.tsx file found under apps/web/src/lib/help/ — help system
+    appears to be a separate route (/help/[topic]). No night-audit topic key exists.
+  rewrite: |
+    Add a help article "night-audit" covering: what Night Audit does (closes business date,
+    posts room charges, marks no-shows, opens next date), the 4-step wizard flow,
+    preflight blockers (overdue check-outs, due-today guests, pending no-shows),
+    no-show decision workflow (no_show vs cancel), and the irreversibility warning.
+
+notes: >
+  IMPORTANT: Audit execution (Run button click) intentionally untested — requires
+  DB snapshot harness to safely revert business date advancement and room charge postings.
+  Read-only coverage: 4 scenarios covering idle state, preview compute, preflight KPIs,
+  and run button state assertion. Status: ok (all 4 target scenarios passed 8/8).
+
+retro:
+  time_minutes: 35
+  unblocker_fixes:
+    - "Wizard step label and sidebar card-title share identical text — getByText strict mode; fixed with .first()"
+    - "KPI labels appear twice (main grid + sidebar summary) — same .first() fix required"
+    - "Preview button triggers POST on click (not on mount) — correct pattern; no adaptation needed"
+  methodology_deltas:
+    - "Read-only constraint enforced: run button asserted enabled but NOT clicked — explicit inline comment in spec"
+    - "Direct API probe (curl) confirmed preview state before writing spec — faster than running probe-state script"
+
+status: ok
+last_audited: "2026-04-21"
+screenshots_dir: docs/ui-audit/screenshots/
