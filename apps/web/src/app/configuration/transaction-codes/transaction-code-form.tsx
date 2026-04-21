@@ -83,6 +83,7 @@ export function TransactionCodeForm({
 
   return (
     <form
+      data-testid="tx-code-form"
       onSubmit={handleSubmit}
       style={{
         display: "flex",
@@ -93,6 +94,7 @@ export function TransactionCodeForm({
     >
       {error && (
         <div
+          data-testid="tx-code-error-banner"
           role="alert"
           style={{
             padding: "10px 12px",
@@ -111,6 +113,7 @@ export function TransactionCodeForm({
         <div className="field">
           <label className="lab">{t(dict, "txCodes.form.labelCode")}</label>
           <input
+            data-testid="tx-code-field-code"
             type="text"
             value={form.code}
             onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
@@ -124,6 +127,7 @@ export function TransactionCodeForm({
         <div className="field">
           <label className="lab">{t(dict, "txCodes.form.labelSortOrder")}</label>
           <input
+            data-testid="tx-code-field-sort-order"
             type="number"
             value={form.sortOrder}
             onChange={(e) => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })}
@@ -136,6 +140,7 @@ export function TransactionCodeForm({
       <div className="field">
         <label className="lab">{t(dict, "txCodes.form.labelDescription")}</label>
         <input
+          data-testid="tx-code-field-description"
           type="text"
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -149,6 +154,7 @@ export function TransactionCodeForm({
         <div className="field">
           <label className="lab">{t(dict, "txCodes.form.labelType")}</label>
           <select
+            data-testid="tx-code-field-type"
             value={form.transactionType}
             onChange={(e) => handleTypeChange(e.target.value)}
             className="select"
@@ -160,6 +166,7 @@ export function TransactionCodeForm({
         <div className="field">
           <label className="lab">{t(dict, "txCodes.form.labelGroup")}</label>
           <select
+            data-testid="tx-code-field-group"
             value={form.groupCode}
             onChange={(e) => setForm({ ...form, groupCode: e.target.value })}
             className="select"
@@ -182,6 +189,7 @@ export function TransactionCodeForm({
           }}
         >
           <input
+            data-testid="tx-code-field-manual-post"
             type="checkbox"
             checked={form.isManualPostAllowed}
             onChange={(e) => setForm({ ...form, isManualPostAllowed: e.target.checked })}
@@ -199,6 +207,7 @@ export function TransactionCodeForm({
             }}
           >
             <input
+              data-testid="tx-code-field-active"
               type="checkbox"
               checked={form.isActive}
               onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
@@ -209,7 +218,7 @@ export function TransactionCodeForm({
       </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-        <button type="submit" disabled={loading} className="btn primary">
+        <button data-testid="tx-code-submit" type="submit" disabled={loading} className="btn primary">
           {loading
             ? t(dict, "txCodes.form.saving")
             : isEdit

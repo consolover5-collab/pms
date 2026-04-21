@@ -43,7 +43,7 @@ export default async function EditTransactionCodePage({
       </div>
 
       <div className="page-head">
-        <h1 className="page-title">{t(dict, "txCodes.editTitle")}</h1>
+        <h1 className="page-title" data-testid="tx-code-edit-title">{t(dict, "txCodes.editTitle")}</h1>
         <span className="page-sub">{tc.code}</span>
       </div>
 

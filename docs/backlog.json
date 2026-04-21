@@ -101,6 +101,20 @@
       "fix": "Добавить ключи roomTypes.detail.* в apps/web/src/i18n/dictionaries/{ru,en}.ts (backToList, maxOccupancy, editType, rooms, allRooms, emptyTitle, emptyHint, emptyAction, colRoomNumber/Floor/HkStatus/Occupancy/Actions, viewRoom, editRoom). Создать функцию getHkStatusLabel(dict, status) для hkLabels. Перевести hkColors в CSS classes соответствующие rest of codebase (badge-clean / badge-dirty / etc). Подтянуть через server-side getDict() в [id]/page.tsx."
     },
     {
+      "id": "BUG-010",
+      "title": "Transaction codes: badge-text и group-code options показываются hardcoded (не локализованы)",
+      "severity": "low",
+      "status": "open",
+      "source": "ui-audit/18-configuration-transaction-codes",
+      "files": [
+        "apps/web/src/app/configuration/transaction-codes/page.tsx",
+        "apps/web/src/app/configuration/transaction-codes/transaction-code-form.tsx"
+      ],
+      "lines": "page.tsx:84,128 (badge text); transaction-code-form.tsx:167-169 (group code options)",
+      "description": "Два i18n-лика: (a) badge-text 'charge'/'payment' в page.tsx захардкожен — не проходит через i18n-словарь, на RU видно английские значения; (b) CHARGE_GROUP_CODES в форме рендерит опции select как сырые snake_case-строки (room_charge, tax, minibar и т.д.) вместо человекочитаемых локализованных меток. Аналогичный паттерн BUG-005/006/007/009.",
+      "fix": "(a) Заменить хардкод на t(dict, 'txCodes.badge.charge') / t(dict, 'txCodes.badge.payment') + добавить ключи в словари. (b) Добавить txCodes.groupCode.{room_charge,tax,minibar,...} в dictionaries/{ru,en}.ts и использовать lookup в select options."
+    },
+    {
       "id": "BUG-008",
       "title": "Property form не может сохранить форму при оригинальном seed (numberOfRooms mismatch)",
       "severity": "medium",

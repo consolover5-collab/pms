@@ -38,9 +38,9 @@ export default async function TransactionCodesPage() {
       </div>
 
       <div className="page-head">
-        <h1 className="page-title">{t(dict, "txCodes.title")}</h1>
+        <h1 className="page-title" data-testid="tx-codes-title">{t(dict, "txCodes.title")}</h1>
         <div className="actions">
-          <Link href="/configuration/transaction-codes/new" className="btn sm primary">
+          <Link href="/configuration/transaction-codes/new" className="btn sm primary" data-testid="tx-codes-new">
             <Icon name="plus" size={12} />
             {t(dict, "txCodes.newCode")}
           </Link>
@@ -48,14 +48,14 @@ export default async function TransactionCodesPage() {
       </div>
 
       {allCodes.length === 0 ? (
-        <div className="card">
+        <div className="card" data-testid="tx-codes-empty">
           <div className="card-body" style={{ textAlign: "center", color: "var(--muted)", padding: 28 }}>
             {t(dict, "txCodes.empty")}
           </div>
         </div>
       ) : (
         <>
-          <div className="card">
+          <div className="card" data-testid="tx-codes-charges-card">
             <div className="card-head">
               <div className="card-title">
                 {t(dict, "txCodes.charges", { count: String(chargeCodes.length) })}
@@ -74,12 +74,12 @@ export default async function TransactionCodesPage() {
                 </thead>
                 <tbody>
                   {chargeCodes.map((c) => (
-                    <tr key={c.id}>
-                      <td className="tnum">{c.code}</td>
-                      <td>{c.description}</td>
-                      <td style={{ color: "var(--muted)" }}>{c.groupCode}</td>
+                    <tr key={c.id} data-testid="tx-code-row" data-tx-code-id={c.id}>
+                      <td className="tnum" data-testid="tx-code-code">{c.code}</td>
+                      <td data-testid="tx-code-description">{c.description}</td>
+                      <td style={{ color: "var(--muted)" }} data-testid="tx-code-group">{c.groupCode}</td>
                       <td>
-                        <span className="badge confirmed">
+                        <span className="badge confirmed" data-testid="tx-code-type-badge">
                           <span className="dot" />
                           charge
                         </span>
@@ -88,6 +88,7 @@ export default async function TransactionCodesPage() {
                         <Link
                           href={`/configuration/transaction-codes/${c.id}/edit`}
                           className="btn xs ghost"
+                          data-testid="tx-code-edit"
                         >
                           {t(dict, "txCodes.edit")}
                         </Link>
@@ -99,7 +100,7 @@ export default async function TransactionCodesPage() {
             </div>
           </div>
 
-          <div className="card">
+          <div className="card" data-testid="tx-codes-payments-card">
             <div className="card-head">
               <div className="card-title">
                 {t(dict, "txCodes.payments", { count: String(paymentCodes.length) })}
@@ -118,12 +119,12 @@ export default async function TransactionCodesPage() {
                 </thead>
                 <tbody>
                   {paymentCodes.map((c) => (
-                    <tr key={c.id}>
-                      <td className="tnum">{c.code}</td>
-                      <td>{c.description}</td>
-                      <td style={{ color: "var(--muted)" }}>{c.groupCode}</td>
+                    <tr key={c.id} data-testid="tx-code-row" data-tx-code-id={c.id}>
+                      <td className="tnum" data-testid="tx-code-code">{c.code}</td>
+                      <td data-testid="tx-code-description">{c.description}</td>
+                      <td style={{ color: "var(--muted)" }} data-testid="tx-code-group">{c.groupCode}</td>
                       <td>
-                        <span className="badge checked-in">
+                        <span className="badge checked-in" data-testid="tx-code-type-badge">
                           <span className="dot" />
                           payment
                         </span>
@@ -132,6 +133,7 @@ export default async function TransactionCodesPage() {
                         <Link
                           href={`/configuration/transaction-codes/${c.id}/edit`}
                           className="btn xs ghost"
+                          data-testid="tx-code-edit"
                         >
                           {t(dict, "txCodes.edit")}
                         </Link>

@@ -117,6 +117,30 @@ bugs:
       Перевести hkColors в CSS classes соответствующие rest of codebase (badge-clean / badge-dirty / etc).
       Подтянуть через server-side getDict() в [id]/page.tsx.
 
+  - id: BUG-010
+    title: "Transaction codes: badge-text и group-code options показываются hardcoded (не локализованы)"
+    severity: low
+    status: open
+    source: ui-audit/18-configuration-transaction-codes
+    files:
+      - apps/web/src/app/configuration/transaction-codes/page.tsx
+      - apps/web/src/app/configuration/transaction-codes/transaction-code-form.tsx
+    lines: "page.tsx:84,128 (badge text); transaction-code-form.tsx:167-169 (group code options)"
+    description: |
+      Два i18n-лика на странице /configuration/transaction-codes:
+      (a) Бейджи типа транзакции: page.tsx строки 84 и 128 рендерят литеральные строки "charge"
+      и "payment" внутри <span className="badge"> вместо обращения к i18n-словарю.
+      На RU-локали пользователь видит английские "charge"/"payment" вместо локализованных значений.
+      (b) CHARGE_GROUP_CODES в форме: transaction-code-form.tsx строки 167-169 рендерят опции
+      select как {g} — сырые snake_case-идентификаторы (room_charge, tax, minibar, restaurant,
+      spa, laundry, phone, parking, misc). Пользователи видят технические строки вместо
+      человекочитаемых меток. Аналогичный паттерн как BUG-005/006/007/009.
+    fix: |
+      (a) Заменить хардкод badge-text на t(dict, 'txCodes.badge.charge') / t(dict, 'txCodes.badge.payment').
+      Добавить ключи txCodes.badge.charge / txCodes.badge.payment в dictionaries/{ru,en}.ts.
+      (b) Добавить ключи txCodes.groupCode.{room_charge,tax,minibar,restaurant,spa,laundry,phone,parking,misc}
+      в dictionaries/{ru,en}.ts и использовать lookup в select options вместо сырой строки {g}.
+
   - id: BUG-007
     title: "Room detail page частично локализована — hkStatusLabels и вспомогательные лейблы захардкожены"
     severity: low
