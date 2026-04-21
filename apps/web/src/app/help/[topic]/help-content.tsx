@@ -12,7 +12,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
     titleRu: "Быстрый старт",
     titleEn: "Quick Start",
     contentRu: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>Первый вход в систему</h2>
         <ol>
           <li>Откройте браузер и перейдите по адресу системы</li>
@@ -72,7 +72,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
       </div>
     ),
     contentEn: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>First Login</h2>
         <ol>
           <li>Open your browser and navigate to the system URL</li>
@@ -137,7 +137,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
     titleRu: "Dashboard",
     titleEn: "Dashboard",
     contentRu: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>Главный экран</h2>
         <p>
           Dashboard &mdash; стартовая страница системы. Показывает состояние отеля
@@ -189,7 +189,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
       </div>
     ),
     contentEn: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>Main Screen</h2>
         <p>
           The Dashboard is the system&apos;s home page. It shows the hotel status
@@ -244,7 +244,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
     titleRu: "Бронирования",
     titleEn: "Bookings",
     contentRu: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>Список бронирований</h2>
         <p>Страница <strong>Bookings</strong> показывает все бронирования с фильтрацией.</p>
 
@@ -314,7 +314,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
       </div>
     ),
     contentEn: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>Booking List</h2>
         <p>The <strong>Bookings</strong> page shows all reservations with filtering.</p>
 
@@ -389,7 +389,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
     titleRu: "Заезд и выезд",
     titleEn: "Check-in / Check-out",
     contentRu: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>Check-in (Заселение)</h2>
 
         <h3>Требования для заселения</h3>
@@ -454,7 +454,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
       </div>
     ),
     contentEn: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>Check-in</h2>
 
         <h3>Requirements for Check-in</h3>
@@ -524,7 +524,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
     titleRu: "Номера",
     titleEn: "Rooms",
     contentRu: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>Управление номерами</h2>
         <p>
           Страница <strong>Rooms</strong> показывает все номера отеля в виде сетки
@@ -597,7 +597,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
       </div>
     ),
     contentEn: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>Room Management</h2>
         <p>
           The <strong>Rooms</strong> page shows all hotel rooms in a grid
@@ -675,7 +675,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
     titleRu: "Гости",
     titleEn: "Guests",
     contentRu: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>Профили гостей</h2>
         <p>
           Страница <strong>Guests</strong> содержит базу профилей гостей.
@@ -735,7 +735,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
       </div>
     ),
     contentEn: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>Guest Profiles</h2>
         <p>
           The <strong>Guests</strong> page contains the guest profile database.
@@ -800,7 +800,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
     titleRu: "Фолио / Касса",
     titleEn: "Folio / Cashiering",
     contentRu: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>Что такое фолио</h2>
         <p>
           <strong>Фолио</strong> &mdash; это счёт гостя, привязанный к бронированию.
@@ -854,7 +854,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
       </div>
     ),
     contentEn: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>What is a Folio</h2>
         <p>
           A <strong>folio</strong> is a guest&apos;s account linked to a booking.
@@ -913,7 +913,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
     titleRu: "Ночной аудит",
     titleEn: "Night Audit",
     contentRu: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>Что такое Night Audit</h2>
         <p>
           <strong>Night Audit</strong> &mdash; процедура закрытия бизнес-дня.
@@ -978,7 +978,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
       </div>
     ),
     contentEn: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>What is Night Audit</h2>
         <p>
           <strong>Night Audit</strong> is the end-of-day closing procedure.
@@ -1048,7 +1048,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
     titleRu: "Конфигурация",
     titleEn: "Configuration",
     contentRu: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>Настройки системы</h2>
         <p>Раздел <strong>Settings</strong> (Настройки) доступен администраторам и менеджерам.</p>
 
@@ -1093,7 +1093,7 @@ export const HelpContentDict: Record<string, HelpContent> = {
       </div>
     ),
     contentEn: (
-      <div className="prose max-w-none">
+      <div className="help-prose">
         <h2>System Configuration</h2>
         <p>The <strong>Settings</strong> section is accessible to Admins and Managers.</p>
 
