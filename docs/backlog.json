@@ -1,6 +1,6 @@
 {
   "project": "pms",
-  "updated": "2026-04-11",
+  "updated": "2026-04-21",
   "note": "Только подтверждённые проблемы — проверены по реальному коду, не по планам",
   "items": [
     {
@@ -159,6 +159,23 @@
       "status": "resolved",
       "resolved_date": "2026-04-10",
       "resolve_note": "Вынесена в apps/api/src/lib/business-date.ts, используется из bookings.ts, dashboard.ts, night-audit.ts"
+    },
+    {
+      "id": "FEAT-011",
+      "title": "User Activity Log — журнал действий пользователя",
+      "severity": "medium",
+      "status": "open",
+      "reported_date": "2026-04-21",
+      "reported_by": "user (000128 cancel/restore flow)",
+      "description": "Сейчас при отмене брони причина записывается в bookings.notes. После восстановления (reinstate) бронь возвращается в статус confirmed, но причина предыдущей отмены остаётся в notes — висит как мусор без привязки к действию. Нужен отдельный модуль аудита/истории: кто, когда, какое действие, с какими параметрами (в т.ч. причина отмены, сумма платежа, смена статуса номера и т.п.).",
+      "scope": [
+        "Новая таблица activity_log: id, property_id, user_id, entity_type (booking|folio|room|profile), entity_id, action (cancel|reinstate|check_in|check_out|status_change|folio_post|payment), payload JSONB, created_at",
+        "API: писать событие из всех мутирующих handler'ов (bookings, folio, rooms, night-audit)",
+        "API: GET /api/activity-log?entityType=booking&entityId=... — история для конкретной сущности",
+        "Web UI: вкладка 'History' на странице бронирования + отдельный экран глобальной ленты",
+        "Миграция: убрать запись причины отмены в notes, писать её только в activity_log.payload.reason"
+      ],
+      "notes": "Прецедент: бронь 000128 отменили с причиной, восстановили — причина застряла в notes."
     }
   ]
 }
