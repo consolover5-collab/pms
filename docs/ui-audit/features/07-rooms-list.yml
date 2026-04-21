@@ -1,0 +1,200 @@
+id: 07-rooms-list
+title: "Rooms List"
+route: /rooms
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "Rooms"
+    en: "Rooms"
+  notes: |
+    Page is fully server-rendered (no client components). All labels are
+    hardcoded English — no i18n dictionary lookup. RU locale shows the same
+    English strings ("Rooms", "Total", "Vacant", "Occupied", "Clean", "Dirty",
+    "HK:", "Occ:", "All", "Floor N", "No rooms found matching filters").
+    See bugs[] → BUG-006.
+
+    Filter UI exposes only subset of API-supported filter params:
+      - HK filter: 4 of 6 states (clean, dirty, inspected, pickup).
+        Missing: out_of_order, out_of_service. Seed has 1 OOO and 1 OOS room
+        that are visible via All filter but have no dedicated link.
+      - Occ filter: 2 states (vacant, occupied).
+      - Room-type filter: NOT EXPOSED in UI. The page accepts ?type=<id> via
+        URL and the API filters correctly — see scenarios.03-filter-room-type.
+  required_fields: []
+  optional_fields: []
+  buttons:
+    filterHkAll:     { ru: "All",       en: "All",       note: "Link /rooms; aria-current='page' when hk unset" }
+    filterHkClean:   { ru: "Clean",     en: "Clean",     note: "Link /rooms?hk=clean; preserves occ param" }
+    filterHkDirty:   { ru: "Dirty",     en: "Dirty",     note: "Link /rooms?hk=dirty; preserves occ param" }
+    filterHkInspected: { ru: "Inspected", en: "Inspected", note: "Link /rooms?hk=inspected; preserves occ param" }
+    filterHkPickup:  { ru: "Pickup",    en: "Pickup",    note: "Link /rooms?hk=pickup; preserves occ param" }
+    filterOccAll:    { ru: "All",       en: "All",       note: "Link /rooms (or /rooms?hk=...); aria-current='page' when occ unset" }
+    filterOccVacant: { ru: "Vacant",    en: "Vacant",    note: "Link /rooms?occ=vacant; preserves hk param" }
+    filterOccOccupied: { ru: "Occupied", en: "Occupied", note: "Link /rooms?occ=occupied; preserves hk param" }
+
+steps:
+  - id: "01-list-render"
+    action: >
+      Load /rooms; heading 'Rooms' visible; stats grid shows total=54,
+      vacant=21, occupied=33, clean=39, dirty=6; 6 floor groups (floors 2..7)
+      render; 54 room cards total (no filter); HK-all and Occ-all links have
+      aria-current='page'.
+    screenshots:
+      - 07-rooms-list-01-list-render-ru.png
+      - 07-rooms-list-01-list-render-en.png
+    note: >
+      Probe (2026-04-21): 54 total rooms across 6 floors. Stats computed from
+      allRooms (full property) — ignore filter state. Card ordering sorts by
+      roomNumber numerically via localeCompare(..., {numeric: true}).
+
+  - id: "02-filter-hk-dirty"
+    action: >
+      Click HK→Dirty link; URL becomes /rooms?hk=dirty; active filter link has
+      aria-current='page'; previously-active HK-all link loses aria-current;
+      filtered card count is exactly 6; stats grid remains property-wide
+      (total=54, dirty=6).
+    screenshots:
+      - 07-rooms-list-02-filter-hk-dirty-ru.png
+      - 07-rooms-list-02-filter-hk-dirty-en.png
+    note: >
+      Active-filter state tested via aria-current='page' (accessibility-aligned,
+      added to page.tsx in same commit). No CSS-class coupling. Stats tiles
+      intentionally compute from unfiltered allRooms — this is by design per
+      page.tsx.
+
+  - id: "03-filter-room-type"
+    action: >
+      URL-driven (plan drift adaptation). Navigate to /rooms?type=<STD_ID>;
+      URL retains ?type=<id>; exactly 24 cards render (probe-confirmed count
+      for Standard Double). All rendered cards have data-room-type-id
+      attribute equal to Standard Double roomTypeId.
+    screenshots:
+      - 07-rooms-list-03-filter-room-type-ru.png
+      - 07-rooms-list-03-filter-room-type-en.png
+    note: >
+      Plan spec asked for UI room-type filter, but the UI exposes no such
+      control. The server component accepts ?type=<id> query and the API
+      correctly filters via roomTypeId. This scenario tests the server-side
+      filter by URL navigation. data-room-type-id added to card <Link> for
+      deterministic verification without DOM-text parsing.
+
+  - id: "04-click-navigate"
+    action: >
+      Click the first room card; URL becomes /rooms/<uuid>; the final URL
+      path matches the card's href exactly; the uuid segment is a valid v4 UUID.
+    screenshots:
+      - 07-rooms-list-04-click-navigate-ru.png
+      - 07-rooms-list-04-click-navigate-en.png
+    note: >
+      Card is a plain next/link Link; click triggers client-side navigation.
+      Destination route (/rooms/[id]) is audited in section 08.
+
+edge_cases:
+  - id: room-type-filter-ui-gap
+    description: >
+      Plan spec calls for a "room-type filter" UI control. The actual UI has
+      no such control — only HK and Occ filters are exposed as clickable
+      links. The page.tsx server component does read ?type=<id> from URL and
+      passes it to the API, which filters correctly.
+    expected: "UI provides a room-type filter control visible to the user"
+    observed: >
+      No UI control exists. Test adapts by URL-driving the filter
+      (/rooms?type=<STD>). UX gap — see bugs[] for BUG-006 (this gap is
+      about i18n, room-type-filter is not yet filed as a separate bug;
+      implementer deferred filing pending UX design input on whether the
+      feature should be added).
+
+  - id: hk-filter-incomplete-states
+    description: >
+      HK filter UI exposes 4 states (clean, dirty, inspected, pickup) out of
+      6 actual housekeeping statuses in the API (adds out_of_order,
+      out_of_service). Seed has 1 OOO and 1 OOS room with no dedicated filter.
+    expected: "All 6 HK states filterable via UI, or at least discoverable"
+    observed: >
+      Only 4 filter links exposed. OOO/OOS rooms visible only via All filter.
+      hkStatusLabels map defines labels for all 6 states; only 4 are rendered
+      as filter links (page.tsx:157). Not blocking — documented for backlog.
+
+  - id: stats-ignore-filter
+    description: >
+      The 5 stats tiles (total, vacant, occupied, clean, dirty) compute from
+      allRooms (the full property), not the filtered list.
+    expected: "By design — stats are property-wide, not filter-contextual"
+    observed: >
+      Confirmed: stats remain constant regardless of hk/occ/type filter.
+      Tests assert this in scenario 02 (dirty filter → stats still 54/6).
+
+  - id: aria-current-active-filter
+    description: >
+      Accessibility affordance — active filter link (and only that link)
+      carries aria-current="page". Added in same commit as the spec (page.tsx
+      edit). Before this change, filter-active state was expressed only via
+      CSS classes (bg-blue-600 text-white) — untestable without CSS coupling.
+    expected: "Active link has aria-current='page'; inactive links omit it"
+    observed: "Confirmed in scenario 02 for HK filter; same pattern for Occ."
+
+  - id: empty-state-not-reached
+    description: >
+      The rooms-empty-state testid ("No rooms found matching filters") only
+      renders when rooms.length === 0. No test scenario triggers this — the
+      seed always has ≥1 room in any filter combo tested.
+    expected: "Not reached in audit; testid added defensively for future use"
+    observed: "Not hit. Skipped as not_applicable with current seed."
+
+api_calls_observed:
+  - { method: GET, path: "/api/auth/me",        status: 200 }
+  - { method: GET, path: "/api/properties",     status: 200 }
+  - { method: GET, path: "/api/business-date",  status: 200 }
+  - { method: GET, path: "/api/rooms?propertyId=:id",                      status: 200, note: "unfiltered (for allRooms + default view)" }
+  - { method: GET, path: "/api/rooms?propertyId=:id&housekeepingStatus=dirty", status: 200, note: "scenario 02" }
+  - { method: GET, path: "/api/rooms?propertyId=:id&roomTypeId=:typeId",   status: 200, note: "scenario 03 URL-driven filter" }
+  - { method: GET, path: "/api/room-types?propertyId=:id",                 status: 200 }
+
+console_errors: []
+network_errors: []
+
+bugs:
+  - id: BUG-006
+    severity: low
+    scenario: "01-list-render"
+    observed: >
+      /rooms page renders identically in RU and EN — all labels are hardcoded
+      English. No useI18n()/getDictionary() calls. No "rooms.*" i18n keys for
+      the list page (keys exist only for the room edit subpage).
+    screenshot: 07-rooms-list-01-list-render-ru.png
+
+help_rewrite_hints:
+  topic: rooms
+  current: ""
+  actual: |
+    Route /rooms exists as a server-rendered dashboard:
+    - 5 stats tiles (Total, Vacant, Occupied, Clean, Dirty) computed from the
+      full property and visible regardless of filter state.
+    - HK filter (All/Clean/Dirty/Inspected/Pickup) and Occ filter
+      (All/Vacant/Occupied) via URL query params; preserves cross-filter state.
+    - Rooms grouped by floor (ascending), cards sorted by roomNumber
+      (numeric). Each card links to /rooms/<id>.
+    - API supports ?type=<roomTypeId> but UI has no control for it.
+    No i18n — page is English-only currently.
+  rewrite: |
+    Add "rooms" help article covering: stats tiles (derived from allRooms),
+    HK and Occ filters (with note on missing OOO/OOS filter UI), floor
+    grouping, click-through to room detail, and URL query conventions
+    (?hk=, ?occ=, ?type=). Mention that the room-type filter is API-only
+    and not yet exposed in UI.
+
+retro:
+  time_minutes: 20
+  unblocker_fixes:
+    - "Server restart glitch: stale next-server PID 235779 held port 3000; killed it, started 'next start' fresh and verified testids rendered in RSC payload"
+    - "Initial curl checks showed 0 testids — misread; testids are in the RSC stream, not the initial loading-placeholder HTML. Playwright sees them fine after page.waitForLoadState('networkidle') (which setLocaleAndGoto calls)"
+  methodology_deltas:
+    - "aria-current='page' pattern is the clean way to test 'active filter' state without CSS class coupling; applied to both HK and Occ filter rows"
+    - "For URL-driven filters with no UI control (like ?type=<id>), document as plan drift + adapt scenario to test server-side filter wiring via direct navigation"
+    - "data-room-type-id on link cards enables deterministic assertion on room attribute without DOM-text scraping"
+
+status: ok
+last_audited: "2026-04-21"
+screenshots_dir: docs/ui-audit/screenshots/

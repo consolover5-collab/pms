@@ -65,6 +65,16 @@
       "fix": "Добавить ключи bookings.edit.* в apps/web/src/i18n/dictionaries/{ru,en}.ts и подтянуть через useI18n() в форме. Заголовок в page.tsx вывести через server-side getDictionary."
     },
     {
+      "id": "BUG-006",
+      "title": "Rooms list page не локализована — все лейблы хардкод на английском",
+      "severity": "low",
+      "status": "open",
+      "source": "ui-audit/07-rooms-list",
+      "file": "apps/web/src/app/rooms/page.tsx",
+      "description": "Страница /rooms рендерится полностью на английском независимо от locale-cookie. В page.tsx захардкожены: заголовок 'Rooms', лейблы статов 'Total'/'Vacant'/'Occupied'/'Clean'/'Dirty', префиксы фильтров 'HK:'/'Occ:', кнопки 'All'/'Clean'/'Dirty'/'Inspected'/'Pickup'/'Vacant'/'Occupied', заголовок 'Floor N' и empty-state 'No rooms found matching filters'. Константа hkStatusLabels содержит английские значения 'Clean'/'Dirty'/'Pickup'/'Inspected'/'Out of Order'/'Out of Service'. Ключи rooms.* в i18n-локалях существуют только для edit-подстраницы комнаты (rooms.editTitle и т.п.), не для списка. Аналогичный паттерн BUG-003/BUG-005.",
+      "fix": "Добавить ключи roomsList.* (title, stat.total/vacant/occupied/clean/dirty, filter.hkLabel/occLabel, filter.all, filter.hk.clean/dirty/inspected/pickup, filter.occ.vacant/occupied, floor, emptyFiltered) в apps/web/src/lib/i18n/locales/{ru,en}.ts и переключить hkStatusLabels на i18n-lookup через server-side getDictionary (как на dashboard)."
+    },
+    {
       "id": "DEBT-002",
       "title": "OOO-валидация дублирована в POST и PATCH /rooms/:id/status",
       "severity": "medium",

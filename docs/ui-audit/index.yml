@@ -40,8 +40,8 @@ sections:
     priority: P0
   - id: "07"
     file: features/07-rooms-list.yml
-    status: pending
-    bugs: 0
+    status: ok
+    bugs: 1
     priority: P1
   - id: "08"
     file: features/08-room-detail.yml
@@ -131,9 +131,9 @@ sections:
 
 totals:
   sections: 24
-  ok: 10
+  ok: 11
   partial: 0
   broken: 0
   missing: 0
-  pending: 14
-  bugs: 3
+  pending: 13
+  bugs: 4

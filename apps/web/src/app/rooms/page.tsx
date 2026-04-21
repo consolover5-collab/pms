@@ -117,28 +117,28 @@ export default async function RoomsPage({
 
   return (
     <main className="p-8">
-      <h1 className="text-2xl font-bold mb-6">Rooms</h1>
+      <h1 data-testid="rooms-heading" className="text-2xl font-bold mb-6">Rooms</h1>
 
       {/* Stats */}
       <div className="grid grid-cols-5 gap-4 mb-6">
         <div className="bg-gray-50 p-4 rounded-lg text-center">
-          <div className="text-2xl font-bold">{stats.total}</div>
+          <div data-testid="rooms-stat-total" className="text-2xl font-bold">{stats.total}</div>
           <div className="text-xs text-gray-500">Total</div>
         </div>
         <div className="bg-green-50 p-4 rounded-lg text-center">
-          <div className="text-2xl font-bold text-green-700">{stats.vacant}</div>
+          <div data-testid="rooms-stat-vacant" className="text-2xl font-bold text-green-700">{stats.vacant}</div>
           <div className="text-xs text-gray-500">Vacant</div>
         </div>
         <div className="bg-blue-50 p-4 rounded-lg text-center">
-          <div className="text-2xl font-bold text-blue-700">{stats.occupied}</div>
+          <div data-testid="rooms-stat-occupied" className="text-2xl font-bold text-blue-700">{stats.occupied}</div>
           <div className="text-xs text-gray-500">Occupied</div>
         </div>
         <div className="bg-green-50 p-4 rounded-lg text-center">
-          <div className="text-2xl font-bold text-green-700">{stats.clean}</div>
+          <div data-testid="rooms-stat-clean" className="text-2xl font-bold text-green-700">{stats.clean}</div>
           <div className="text-xs text-gray-500">Clean</div>
         </div>
         <div className="bg-red-50 p-4 rounded-lg text-center">
-          <div className="text-2xl font-bold text-red-700">{stats.dirty}</div>
+          <div data-testid="rooms-stat-dirty" className="text-2xl font-bold text-red-700">{stats.dirty}</div>
           <div className="text-xs text-gray-500">Dirty</div>
         </div>
       </div>
@@ -149,7 +149,9 @@ export default async function RoomsPage({
           <span className="text-sm text-gray-500">HK:</span>
           <div className="flex gap-1">
             <Link
+              data-testid="rooms-filter-hk-all"
               href="/rooms"
+              aria-current={!hk ? "page" : undefined}
               className={`px-3 py-1 rounded text-sm ${!hk ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
             >
               All
@@ -157,7 +159,9 @@ export default async function RoomsPage({
             {["clean", "dirty", "inspected", "pickup"].map((key) => (
               <Link
                 key={key}
+                data-testid={`rooms-filter-hk-${key}`}
                 href={`/rooms?hk=${key}${occ ? `&occ=${occ}` : ""}`}
+                aria-current={hk === key ? "page" : undefined}
                 className={`px-3 py-1 rounded text-sm ${hk === key ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
               >
                 {hkStatusLabels[key]}
@@ -169,19 +173,25 @@ export default async function RoomsPage({
           <span className="text-sm text-gray-500">Occ:</span>
           <div className="flex gap-1">
             <Link
+              data-testid="rooms-filter-occ-all"
               href={`/rooms${hk ? `?hk=${hk}` : ""}`}
+              aria-current={!occ ? "page" : undefined}
               className={`px-3 py-1 rounded text-sm ${!occ ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
             >
               All
             </Link>
             <Link
+              data-testid="rooms-filter-occ-vacant"
               href={`/rooms?occ=vacant${hk ? `&hk=${hk}` : ""}`}
+              aria-current={occ === "vacant" ? "page" : undefined}
               className={`px-3 py-1 rounded text-sm ${occ === "vacant" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
             >
               Vacant
             </Link>
             <Link
+              data-testid="rooms-filter-occ-occupied"
               href={`/rooms?occ=occupied${hk ? `&hk=${hk}` : ""}`}
+              aria-current={occ === "occupied" ? "page" : undefined}
               className={`px-3 py-1 rounded text-sm ${occ === "occupied" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
             >
               Occupied
@@ -194,7 +204,7 @@ export default async function RoomsPage({
       {Object.entries(roomsByFloor)
         .sort(([a], [b]) => Number(a) - Number(b))
         .map(([floor, floorRooms]) => (
-          <div key={floor} className="mb-6">
+          <div key={floor} data-testid="rooms-floor-group" className="mb-6">
             <h2 className="text-lg font-semibold mb-3">Floor {floor}</h2>
             <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-2">
               {floorRooms
@@ -206,6 +216,8 @@ export default async function RoomsPage({
                 .map((room) => (
                   <Link
                     key={room.id}
+                    data-testid="rooms-card"
+                    data-room-type-id={room.roomTypeId}
                     href={`/rooms/${room.id}`}
                     className={`relative p-3 rounded-lg border-2 hover:shadow-md transition-shadow ${
                       room.occupancyStatus === "occupied"
@@ -225,7 +237,7 @@ export default async function RoomsPage({
                       aria-label={room.occupancyStatus === "occupied" ? "Occupied" : "Vacant"}
                       role="img"
                     />
-                    <div className="font-mono font-bold text-sm">
+                    <div data-testid="rooms-card-number" className="font-mono font-bold text-sm">
                       {room.roomNumber}
                     </div>
                     <div className="text-xs text-gray-500">
@@ -233,6 +245,7 @@ export default async function RoomsPage({
                     </div>
                     <div className="mt-1">
                       <span
+                        data-testid="rooms-hk-badge"
                         className={`text-xs px-1 rounded ${hkStatusColors[room.housekeepingStatus]}`}
                         aria-label={`Housekeeping: ${hkStatusLabels[room.housekeepingStatus] || "Unknown"}`}
                       >
@@ -247,7 +260,7 @@ export default async function RoomsPage({
         ))}
 
       {rooms.length === 0 && (
-        <div className="text-center text-gray-500 py-8">
+        <div data-testid="rooms-empty-state" className="text-center text-gray-500 py-8">
           No rooms found matching filters
         </div>
       )}
