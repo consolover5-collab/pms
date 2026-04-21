@@ -2,13 +2,14 @@ import { Page } from '@playwright/test';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { SEED } from './seed-refs.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const SCREENSHOTS_DIR = path.resolve(__dirname, '../../../docs/ui-audit/screenshots');
 export const API_URL = process.env.AUDIT_API_URL ?? 'http://localhost:3001';
 export const WEB_URL = process.env.AUDIT_WEB_URL ?? 'http://localhost:3000';
-export const GBH_PROPERTY_ID = 'ff1d9135-dfb9-4baa-be46-0e739cd26dad';
+export const GBH_PROPERTY_ID = SEED.property.GBH;
 
 export async function auditScreenshot(
   page: Page,
