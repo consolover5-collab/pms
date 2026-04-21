@@ -7,6 +7,7 @@ import { SEED } from './seed-refs.ts';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const SCREENSHOTS_DIR = path.resolve(__dirname, '../../../docs/ui-audit/screenshots');
+export const AUDIT_DATA_DIR = path.resolve(__dirname, '../audit-data');
 export const API_URL = process.env.AUDIT_API_URL ?? 'http://localhost:3001';
 export const WEB_URL = process.env.AUDIT_WEB_URL ?? 'http://localhost:3000';
 export const GBH_PROPERTY_ID = SEED.property.GBH;
@@ -122,13 +123,17 @@ export async function pickFirstSelectOption(
 
 /**
  * Attaches the standard per-section beforeEach (error collectors + /api/* call
- * log) and afterAll (JSON dump into ../audit-data/${sectionId}-errors.json)
+ * log) and afterAll (JSON dump into AUDIT_DATA_DIR/${sectionId}-errors.json)
  * hooks. Must be called from inside a `test.describe(...)` callback so the
  * hooks are scoped to that describe block.
  *
  * `options.extraAfterAll` runs BEFORE the JSON dump inside afterAll; it is
  * wrapped in a try/catch that logs to console without re-throwing so that a
  * failing safety-net never prevents the audit-data file from being written.
+ *
+ * The read-modify-write on the errors JSON assumes playwright.config.ts pins
+ * `workers: 1` and `fullyParallel: false`. Relax either setting and the file
+ * needs per-project keying or a lockfile to avoid last-writer-wins races.
  */
 export function registerSectionHooks(
   sectionId: string,
@@ -173,16 +178,23 @@ export function registerSectionHooks(
       }
     }
 
-    const out = path.resolve(__dirname, `../audit-data/${sectionId}-errors.json`);
-    fs.mkdirSync(path.dirname(out), { recursive: true });
+    const out = path.join(AUDIT_DATA_DIR, `${sectionId}-errors.json`);
+    fs.mkdirSync(AUDIT_DATA_DIR, { recursive: true });
     let existing: { errors: typeof errorsByProject; api: typeof apiCallsByProject } = {
       errors: {},
       api: {},
     };
     try {
       existing = JSON.parse(fs.readFileSync(out, 'utf8'));
-    } catch {
-      /* first run */
+    } catch (err) {
+      const e = err as NodeJS.ErrnoException;
+      if (e.code !== 'ENOENT') {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[registerSectionHooks:${sectionId}] existing audit-data unreadable, discarding:`,
+          e.message ?? e,
+        );
+      }
     }
     const merged = {
       errors: { ...existing.errors, ...errorsByProject },
