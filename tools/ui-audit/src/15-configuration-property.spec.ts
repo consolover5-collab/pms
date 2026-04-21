@@ -15,12 +15,13 @@
  *   currency: RUB
  *   checkInTime: 14:00:00
  *   checkOutTime: 12:00:00
- *   numberOfRooms: 50
+ *   numberOfRooms: 54 (normalized from seed 50 to match actual rooms count — see BUG-008)
  *   numberOfFloors: 7
  *   taxRate: "20.00"
  *
  *   Actual room count in DB: 54 (rooms table rows).
- *   So numberOfRooms=50 < 54 actual — good: setting to 49 triggers INVALID_ROOM_COUNT.
+ *   Pre-run seed value was 50 (< 54 actual) — API rejected all PUTs; corrected to 54 in spec run.
+ *   Setting to 49 triggers INVALID_ROOM_COUNT (scenario 03).
  *
  * Scenarios:
  *   01 — load-view: Navigate to /configuration/property; form visible; inputs
@@ -31,7 +32,7 @@
  *   03 — validation-rooms-count: Set numberOfRooms to 49 (below actual 54);
  *        submit; API returns 400 INVALID_ROOM_COUNT; error banner visible.
  *        en-only; API validates BEFORE mutating — no actual change. extraAfterAll
- *        verifies numberOfRooms still 50 as belt-and-suspenders.
+ *        verifies numberOfRooms still = ACTUAL_ROOM_COUNT (54) as belt-and-suspenders.
  */
 
 import { test, expect } from '@playwright/test';

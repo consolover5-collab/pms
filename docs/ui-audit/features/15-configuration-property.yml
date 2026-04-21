@@ -88,7 +88,7 @@ steps:
 
   - id: "03-validation-rooms-count"
     status: ok
-    action: "Fill numberOfRooms=49 (below actual DB count=54); submit; PUT returns 400 INVALID_ROOM_COUNT; property-error-banner visible; API re-GET confirms numberOfRooms still=50"
+    action: "Fill numberOfRooms=49 (below actual DB count=54); submit; PUT returns 400 INVALID_ROOM_COUNT; property-error-banner visible; API re-GET confirms numberOfRooms still = ACTUAL_ROOM_COUNT (54) — see BUG-008"
     screenshots:
       - 15-configuration-property-03-validation-rooms-count-en.png
     note: >
@@ -96,7 +96,7 @@ steps:
       actual rooms table count BEFORE applying the update. With 54 actual rooms and
       the stored field at 50, setting 49 triggers validation rejection.
       No restore needed for this scenario — API guarantees no mutation on 400.
-      extraAfterAll still verifies numberOfRooms=50 as belt-and-suspenders.
+      extraAfterAll still verifies numberOfRooms = ACTUAL_ROOM_COUNT (54) as belt-and-suspenders — see BUG-008.
 
 edge_cases:
   - id: property-is-singleton
@@ -153,8 +153,10 @@ network_errors:
   - { method: PUT, path: "/api/properties/:id", status: 400,
       note: "Expected — scenario 03 validation rejection; not a bug" }
 
-bugs: []
+bugs:
+  - BUG-008
 # property-form.tsx is fully i18n'd via t(dict, ...) — no hardcoded English. No bug candidates.
+# BUG-008: seed inconsistency (numberOfRooms=50 < 54 actual rooms) — see docs/ui-audit/bugs.yml
 
 signals:
   l10n: full

@@ -68,6 +68,29 @@ bugs:
       filterAll, filterOccupancy, filterHousekeeping, chips для occ/hk статусов, empty, footer)
       и подтянуть через server-side getDictionary() в page.tsx.
 
+  - id: BUG-008
+    title: "Property form не может сохранить форму при оригинальном seed (numberOfRooms mismatch)"
+    severity: medium
+    status: open
+    source: ui-audit/15-configuration-property
+    files:
+      - apps/api/src/routes/properties.ts
+      - packages/db/src/seed.ts
+    lines: "40-49 (routes/properties.ts INVALID_ROOM_COUNT validation)"
+    description: |
+      Seed устанавливает property.numberOfRooms=50, но в таблице rooms 54 записи.
+      API PUT /api/properties/:id валидирует numberOfRooms >= actual room count и
+      отклоняет любой запрос с numberOfRooms=50 как 400 INVALID_ROOM_COUNT.
+      Следствие: /configuration/property рендерит форму, которая НЕ МОЖЕТ сохранить
+      ни одно изменение (name, address, timezone, taxRate и пр.) без ручного
+      увеличения numberOfRooms до 54+ — это обнаружено только через mutation
+      scenario в section 15 UI audit.
+    fix: |
+      В seed-файле установить property.numberOfRooms равным фактическому числу
+      rooms (сейчас 54), либо заполнять numberOfRooms динамически на основании
+      `SELECT COUNT(*) FROM rooms`. После фикса seed запустить полный reset
+      (`pnpm --filter api run db:reset && pnpm --filter api run db:seed`).
+
   - id: BUG-007
     title: "Room detail page частично локализована — hkStatusLabels и вспомогательные лейблы захардкожены"
     severity: low

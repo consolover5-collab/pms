@@ -88,6 +88,19 @@
       "fix": "Перевести hkStatusLabels в функцию getHkStatusLabel(dict, status) и добавить ключи rooms.hk.clean/dirty/pickup/inspected/outOfOrder/outOfService в словари ru/en. Добавить ключи rooms.occupied/vacant, rooms.currentGuest/guestLabel/confirmationLabel/checkOutLabel, rooms.roomType/floor/maxOccupancy/description, rooms.backToRooms, rooms.oooCardHeading. В room-status-actions.tsx заменить action.label на lookup по ключу rooms.hk.*. BackButton принимает label как prop — вызвать через server-side getDict(locale) в page.tsx."
     },
     {
+      "id": "BUG-008",
+      "title": "Property form не может сохранить форму при оригинальном seed (numberOfRooms mismatch)",
+      "severity": "medium",
+      "status": "open",
+      "source": "ui-audit/15-configuration-property",
+      "files": [
+        "apps/api/src/routes/properties.ts",
+        "packages/db/src/seed.ts"
+      ],
+      "description": "Seed устанавливает property.numberOfRooms=50, но в таблице rooms 54 записи. API PUT /api/properties/:id валидирует numberOfRooms >= actual room count и отклоняет любой запрос с numberOfRooms=50 как 400 INVALID_ROOM_COUNT — форма не может сохранить ни одно изменение без ручного увеличения numberOfRooms до 54+.",
+      "fix": "В seed-файле установить property.numberOfRooms равным фактическому числу rooms (сейчас 54) или заполнять numberOfRooms динамически через SELECT COUNT(*) FROM rooms."
+    },
+    {
       "id": "DEBT-002",
       "title": "OOO-валидация дублирована в POST и PATCH /rooms/:id/status",
       "severity": "medium",
