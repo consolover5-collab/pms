@@ -1,29 +1,13 @@
 import { test, expect } from '@playwright/test';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   auditScreenshot,
-  wireErrorCollectors,
+  registerSectionHooks,
   setLocaleAndGoto,
   API_URL,
   GBH_PROPERTY_ID,
-  type ConsoleError,
-  type NetworkError,
 } from './shared.ts';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 const SECTION_ID = '01-dashboard';
-
-const errorsByProject: Record<
-  string,
-  Record<string, { console: ConsoleError[]; network: NetworkError[] }>
-> = {};
-const apiCallsByProject: Record<
-  string,
-  { method: string; path: string; status: number }[]
-> = {};
 
 const labels = {
   ru: {
@@ -49,44 +33,7 @@ const labels = {
 } as const;
 
 test.describe('01 dashboard', () => {
-  test.beforeEach(async ({ page }, testInfo) => {
-    const proj = testInfo.project.name;
-    const testName = testInfo.title;
-    const errors = wireErrorCollectors(page);
-    errorsByProject[proj] ??= {};
-    errorsByProject[proj][testName] = { console: errors.console, network: errors.network };
-
-    apiCallsByProject[proj] ??= [];
-    page.on('response', (res) => {
-      const url = new URL(res.url());
-      if (url.pathname.startsWith('/api/')) {
-        apiCallsByProject[proj].push({
-          method: res.request().method(),
-          path: url.pathname + (url.search || ''),
-          status: res.status(),
-        });
-      }
-    });
-  });
-
-  test.afterAll(async () => {
-    const out = path.resolve(__dirname, `../audit-data/${SECTION_ID}-errors.json`);
-    fs.mkdirSync(path.dirname(out), { recursive: true });
-    let existing: { errors: typeof errorsByProject; api: typeof apiCallsByProject } = {
-      errors: {},
-      api: {},
-    };
-    try {
-      existing = JSON.parse(fs.readFileSync(out, 'utf8'));
-    } catch {
-      /* first run */
-    }
-    const merged = {
-      errors: { ...existing.errors, ...errorsByProject },
-      api: { ...existing.api, ...apiCallsByProject },
-    };
-    fs.writeFileSync(out, JSON.stringify(merged, null, 2));
-  });
+  registerSectionHooks(SECTION_ID);
 
   test('empty-state-happy-path: kpi and cards render', async ({ page }, testInfo) => {
     const locale = testInfo.project.name as 'ru' | 'en';

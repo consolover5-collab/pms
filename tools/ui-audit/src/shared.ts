@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import { Page, test } from '@playwright/test';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -117,5 +117,77 @@ export async function pickFirstSelectOption(
       }
     }
     return '';
+  });
+}
+
+/**
+ * Attaches the standard per-section beforeEach (error collectors + /api/* call
+ * log) and afterAll (JSON dump into ../audit-data/${sectionId}-errors.json)
+ * hooks. Must be called from inside a `test.describe(...)` callback so the
+ * hooks are scoped to that describe block.
+ *
+ * `options.extraAfterAll` runs BEFORE the JSON dump inside afterAll; it is
+ * wrapped in a try/catch that logs to console without re-throwing so that a
+ * failing safety-net never prevents the audit-data file from being written.
+ */
+export function registerSectionHooks(
+  sectionId: string,
+  options?: { extraAfterAll?: () => Promise<void> },
+): void {
+  const errorsByProject: Record<
+    string,
+    Record<string, { console: ConsoleError[]; network: NetworkError[] }>
+  > = {};
+  const apiCallsByProject: Record<
+    string,
+    { method: string; path: string; status: number }[]
+  > = {};
+
+  test.beforeEach(async ({ page }, testInfo) => {
+    const proj = testInfo.project.name;
+    const testName = testInfo.title;
+    const errors = wireErrorCollectors(page);
+    errorsByProject[proj] ??= {};
+    errorsByProject[proj][testName] = { console: errors.console, network: errors.network };
+
+    apiCallsByProject[proj] ??= [];
+    page.on('response', (res) => {
+      const url = new URL(res.url());
+      if (url.pathname.startsWith('/api/')) {
+        apiCallsByProject[proj].push({
+          method: res.request().method(),
+          path: url.pathname + (url.search || ''),
+          status: res.status(),
+        });
+      }
+    });
+  });
+
+  test.afterAll(async () => {
+    if (options?.extraAfterAll) {
+      try {
+        await options.extraAfterAll();
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(`[registerSectionHooks:${sectionId}] extraAfterAll failed:`, err);
+      }
+    }
+
+    const out = path.resolve(__dirname, `../audit-data/${sectionId}-errors.json`);
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    let existing: { errors: typeof errorsByProject; api: typeof apiCallsByProject } = {
+      errors: {},
+      api: {},
+    };
+    try {
+      existing = JSON.parse(fs.readFileSync(out, 'utf8'));
+    } catch {
+      /* first run */
+    }
+    const merged = {
+      errors: { ...existing.errors, ...errorsByProject },
+      api: { ...existing.api, ...apiCallsByProject },
+    };
+    fs.writeFileSync(out, JSON.stringify(merged, null, 2));
   });
 }

@@ -1,29 +1,13 @@
 import { test, expect } from '@playwright/test';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   auditScreenshot,
-  wireErrorCollectors,
+  registerSectionHooks,
   setLocaleAndGoto,
   API_URL,
   GBH_PROPERTY_ID,
-  type ConsoleError,
-  type NetworkError,
 } from './shared.ts';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 const SECTION_ID = '04-booking-detail';
-
-const errorsByProject: Record<
-  string,
-  Record<string, { console: ConsoleError[]; network: NetworkError[] }>
-> = {};
-const apiCallsByProject: Record<
-  string,
-  { method: string; path: string; status: number }[]
-> = {};
 
 const labels = {
   ru: {
@@ -76,48 +60,13 @@ test.describe('04 booking-detail', () => {
     }
   });
 
-  test.beforeEach(async ({ page }, testInfo) => {
-    const proj = testInfo.project.name;
-    const testName = testInfo.title;
-    const errors = wireErrorCollectors(page);
-    errorsByProject[proj] ??= {};
-    errorsByProject[proj][testName] = { console: errors.console, network: errors.network };
-
-    apiCallsByProject[proj] ??= [];
-    page.on('response', (res) => {
-      const url = new URL(res.url());
-      if (url.pathname.startsWith('/api/')) {
-        apiCallsByProject[proj].push({
-          method: res.request().method(),
-          path: url.pathname + (url.search || ''),
-          status: res.status(),
-        });
+  registerSectionHooks(SECTION_ID, {
+    extraAfterAll: async () => {
+      const status = await getBookingStatus(BOOKING_ID);
+      if (status !== 'confirmed') {
+        await fetch(`${API_URL}/api/bookings/${BOOKING_ID}/reinstate`, { method: 'POST' });
       }
-    });
-  });
-
-  test.afterAll(async () => {
-    const status = await getBookingStatus(BOOKING_ID);
-    if (status !== 'confirmed') {
-      await fetch(`${API_URL}/api/bookings/${BOOKING_ID}/reinstate`, { method: 'POST' });
-    }
-
-    const out = path.resolve(__dirname, `../audit-data/${SECTION_ID}-errors.json`);
-    fs.mkdirSync(path.dirname(out), { recursive: true });
-    let existing: { errors: typeof errorsByProject; api: typeof apiCallsByProject } = {
-      errors: {},
-      api: {},
-    };
-    try {
-      existing = JSON.parse(fs.readFileSync(out, 'utf8'));
-    } catch {
-      /* first run */
-    }
-    const merged = {
-      errors: { ...existing.errors, ...errorsByProject },
-      api: { ...existing.api, ...apiCallsByProject },
-    };
-    fs.writeFileSync(out, JSON.stringify(merged, null, 2));
+    },
   });
 
   test('summary-tab-happy: header, status badge, confirmation number visible', async ({ page }, testInfo) => {
