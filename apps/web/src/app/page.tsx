@@ -10,7 +10,7 @@ type DashboardBooking = {
   confirmationNumber: string;
   checkOutDate: string;
   guest: { id: string; firstName: string; lastName: string };
-  room: { id: string | null; roomNumber: string | null };
+  room: { id: string | null; roomNumber: string | null } | null;
   roomType: { id: string; name: string; code: string };
 };
 
@@ -400,7 +400,7 @@ export default async function Home() {
                           </Link>
                         </td>
                         <td className="tnum">
-                          {a.room.roomNumber ?? "—"}
+                          {a.room?.roomNumber ?? "—"}
                           <span style={{ color: "var(--muted)", fontSize: 11 }}>
                             {" "}· {a.roomType.code}
                           </span>
@@ -477,7 +477,7 @@ export default async function Home() {
                         </Link>
                       </td>
                       <td className="tnum">
-                        {d.room.roomNumber ?? "—"}
+                        {d.room?.roomNumber ?? "—"}
                         <span style={{ color: "var(--muted)", fontSize: 11 }}>
                           {" "}· {d.roomType.code}
                         </span>
