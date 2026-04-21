@@ -1156,6 +1156,37 @@ Post to user:
 
 Sections: 09 housekeeping, 12 night-audit, 17 rate-plans config.
 
+## Phase 1.5 outcomes (affect all subsequent batches)
+
+Phase 1.5 (commits `aa2c39f`, `0c6895d`, `f61df81`, `b53113a`, `abbfa3e`) extracted three shared helpers that ALL Batch B/C/D sections must use — inline re-implementation is a regression:
+
+1. **`registerSectionHooks(sectionId, options?)`** from `src/shared.ts` — installs `beforeEach` error collectors + `afterAll` audit-data dump. Replaces all manual `beforeEach`/`afterAll` boilerplate. Use `options.extraAfterAll` for section-specific cleanup (e.g. state reinstate, orphan sweep).
+2. **Unified booking/folio API** in `src/fixtures.ts` — `createConfirmedBooking`, `fetchCheckedInBooking` (nullable), `fetchTransactionCode`, `postFolioCharge`, `postFolioPayment`, `getFolio`, `getBookingStatus`, `cleanupAuditBookings`. No inline fetch helpers. If a section creates bookings, pass `marker: 'audit-section-NN'` and call `cleanupAuditBookings('audit-section-NN')` via `extraAfterAll` (or `beforeAll` for belt-and-suspenders).
+3. **`scripts/probe-state.ts`** — one-shot runtime state snapshot for section prep.
+
+## Revised execution protocol (applies from Batch B onward)
+
+The Batch A retrospective (`docs/ui-audit/batch-a-retro.md`) identified three systemic issues. These revisions apply to every section brief and review from this point:
+
+### Revision 1: Pre-flight probe is mandatory
+
+Before dispatching an implementer for any section that touches mutable state (bookings, rooms, folios, HK tasks, rate plans with existing bookings), the controller MUST run `pnpm --silent --filter @pms/ui-audit probe-state` and attach the relevant fragment to the implementer brief. Rationale: every Batch A section had 2-5 plan-vs-reality drifts, nearly all caused by stale assumptions about seed state.
+
+The brief must include: counts of relevant entities in the probe, any zero-count categories that would block a scenario, and IDs / codes the implementer should use (NOT hardcoded from seed-refs if they might have been consumed).
+
+### Revision 2: Selector strategy — prefer role-based and count-based assertions
+
+The Batch A retrospective flagged CSS-class coupling (`.folio-win .totals .v.pos`, `.btn.xs.primary`, etc.) as a silent-skip risk on the `feat/design-system` branch where classes are being renamed. For all new section specs:
+
+- **Prefer** `page.getByRole('button', { name: … })`, `page.getByRole('heading', …)`, `page.getByLabel(…)` over CSS selectors.
+- **Prefer** `data-testid` attributes when roles are ambiguous — if the target element lacks one, ask the user whether to add it rather than coupling to a class name.
+- **When using locators**, assert structure via `await expect(locator).toHaveCount(N)` BEFORE clicking `.first()`. The `.first()` + `.click()` pattern silently passes when the selector matches zero nodes; `toHaveCount(N)` fails loudly.
+- **Inline CSS selectors are permitted** only for elements clearly outside the design-system rewrite scope (e.g. `input[type="date"]`, `<select>` native elements).
+
+### Revision 3: Spec reviewer must read files directly
+
+When dispatching a spec-compliance reviewer, the brief must instruct: "Open each changed file and verify symbols/signatures/call sites against the contract. Do NOT trust the implementer's self-report — the status line is informational, not evidence." Rationale: Batch A had one case where the implementer reported DONE but the review caught missing items the self-report didn't mention.
+
 ## Task B1: Section 09 — Housekeeping (`/housekeeping`)
 
 **Files:**
