@@ -1,0 +1,5 @@
+# UI Audit — найденные баги
+# Схема — см. ../ui-audit-plan.md раздел 4.
+# Каждый новый баг также дублируется в /home/oci/pms/docs/backlog.json как BUG-xxx.
+
+bugs: []

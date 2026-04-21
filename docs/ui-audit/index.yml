@@ -1,0 +1,43 @@
+# UI Audit — индекс секций
+# Обновляется по мере прохождения аудита. Каждая секция — отдельный YAML в features/.
+# Статусы: ok | partial | broken | missing | pending
+#
+# Создан: 2026-04-21. План: ../ui-audit-plan.md
+
+generated: null
+app_commit: null
+
+sections:
+  - { id: "01", file: features/01-dashboard.yml,                    status: pending, bugs: 0, priority: P0 }
+  - { id: "02", file: features/02-bookings-list.yml,                status: pending, bugs: 0, priority: P0 }
+  - { id: "03", file: features/03-booking-create.yml,               status: pending, bugs: 0, priority: P0 }
+  - { id: "04", file: features/04-booking-detail.yml,               status: pending, bugs: 0, priority: P0 }
+  - { id: "05", file: features/05-booking-edit.yml,                 status: pending, bugs: 0, priority: P1 }
+  - { id: "06", file: features/06-checkin-checkout.yml,             status: pending, bugs: 0, priority: P0 }
+  - { id: "07", file: features/07-rooms-list.yml,                   status: pending, bugs: 0, priority: P1 }
+  - { id: "08", file: features/08-room-detail.yml,                  status: pending, bugs: 0, priority: P1 }
+  - { id: "09", file: features/09-housekeeping.yml,                 status: pending, bugs: 0, priority: P0 }
+  - { id: "10", file: features/10-folio.yml,                        status: pending, bugs: 0, priority: P0 }
+  - { id: "11", file: features/11-profiles.yml,                     status: pending, bugs: 0, priority: P1 }
+  - { id: "12", file: features/12-night-audit.yml,                  status: pending, bugs: 0, priority: P0 }
+  - { id: "13", file: features/13-cashier.yml,                      status: pending, bugs: 0, priority: P2 }
+  - { id: "14", file: features/14-tape-chart.yml,                   status: pending, bugs: 0, priority: P2 }
+  - { id: "15", file: features/15-configuration-property.yml,       status: pending, bugs: 0, priority: P1 }
+  - { id: "16", file: features/16-configuration-room-types.yml,     status: pending, bugs: 0, priority: P1 }
+  - { id: "17", file: features/17-configuration-rate-plans.yml,     status: pending, bugs: 0, priority: P0 }
+  - { id: "18", file: features/18-configuration-transaction-codes.yml, status: pending, bugs: 0, priority: P1 }
+  - { id: "19", file: features/19-configuration-packages.yml,       status: pending, bugs: 0, priority: P1 }
+  - { id: "20", file: features/20-configuration-guarantee-codes.yml, status: pending, bugs: 0, priority: P2 }
+  - { id: "21", file: features/21-configuration-profiles.yml,       status: pending, bugs: 0, priority: P2 }
+  - { id: "22", file: features/22-help.yml,                         status: pending, bugs: 0, priority: P1 }
+  - { id: "23", file: features/23-login.yml,                        status: pending, bugs: 0, priority: P2 }
+  - { id: "24", file: features/24-i18n-theme.yml,                   status: pending, bugs: 0, priority: P2 }
+
+totals:
+  sections: 24
+  ok: 0
+  partial: 0
+  broken: 0
+  missing: 0
+  pending: 24
+  bugs: 0

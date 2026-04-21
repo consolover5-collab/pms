@@ -1,0 +1,36 @@
+# Шаблон файла секции. Копировать в features/<id>-<slug>.yml и заполнять.
+# Схема и пример — см. ../../ui-audit-plan.md раздел 3.
+
+id: <section.slug>
+title: "<человеческий заголовок>"
+route: /<path>
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  header: { ru: "", en: "" }
+  required_fields: []
+  optional_fields: []
+  buttons: {}
+
+steps: []
+
+edge_cases: []
+
+api_calls_observed: []
+
+console_errors: []
+network_errors: []
+
+bugs: []
+
+help_rewrite_hints:
+  topic: <help-topic-id>
+  current: ""
+  actual: ""
+  rewrite: |
+
+
+status: pending   # ok | partial | broken | missing | pending
+last_audited: null
+screenshots_dir: docs/ui-audit/screenshots/
