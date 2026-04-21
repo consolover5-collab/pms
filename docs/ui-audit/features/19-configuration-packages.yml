@@ -153,7 +153,8 @@ steps:
     screenshots:
       - 19-configuration-packages-04-delete-blocked-en.png
       - 19-configuration-packages-04-delete-happy-en.png
-    mutation: false
+    mutation: true
+    mutation_note: "Transient — net-zero persistent change: Part B creates AUD_PKG_DEL then deletes it; Part A leaves BKFST untouched."
     locale_gate: en-only
 
 missing_actions:

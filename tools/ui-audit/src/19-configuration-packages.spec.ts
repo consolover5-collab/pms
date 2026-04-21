@@ -18,7 +18,6 @@
  *   Transaction codes (reuse for create):
  *     BREAKFAST id=83b646b7-ec41-4879-965c-990e3d17b649
  *     PARKING   id=d87a8b30-df0a-4eb7-94a6-ac7462360b97
- *     MINIBAR   id=25462d33-7748-4725-bbe3-3484e53557fe
  *
  * Scenarios:
  *   01 — list-create: Navigate list; BKFST + PARK rows visible. EN: create AUD_PKG_<suffix>;
@@ -85,8 +84,10 @@ const PARKING_TC_ID   = 'd87a8b30-df0a-4eb7-94a6-ac7462360b97';
 const PARK_ORIGINAL_AMOUNT = '500.00';
 const PARK_EDITED_AMOUNT   = '550.00';
 
-// Expected BKFST link count (used only in sanity; not asserted as exact in teardown)
-const BKFST_EXPECTED_LINK_COUNT = 3;
+// Expected BKFST rate-plan link set: set-equality asserted in beforeAll and extraAfterAll.
+// Both checks sort and deepEqual the linked IDs against [RACK_ID, BAR_ID, CORP_ID] to
+// catch silent membership drift (e.g. link count stays 3 but a different plan slips in).
+const BKFST_EXPECTED_LINK_IDS = [RACK_ID, BAR_ID, CORP_ID].sort();
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Package = {
@@ -100,6 +101,8 @@ type Package = {
   amount: string;
   postingRhythm: string;
   isActive: boolean;
+  createdAt?: string;  // returned by API; optional so cast is safe without `any`
+  updatedAt?: string;  // returned by API; optional so cast is safe without `any`
 };
 
 type RatePlanLink = {
@@ -111,7 +114,8 @@ type RatePlanLink = {
 let createdPkgId: string | null = null;      // scenario 01 — cleanup
 let parkMutationApplied = false;             // scenario 02 — restore gate
 let createdAttPkgId: string | null = null;   // scenario 03 — cleanup (detach + delete)
-let createdDelPkgId: string | null = null;   // scenario 04 — already deleted; for orphan guard
+// Set+cleared within scenario 04 Part B; extraAfterAll orphan sweep is the actual safety net.
+let createdDelPkgId: string | null = null;
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 
@@ -301,19 +305,22 @@ test.describe('19 configuration-packages', () => {
         }
       }
 
-      // ── 5. Assert BKFST still has exactly 3 rate-plan links ──────────────────
+      // ── 5. Assert BKFST still has exactly the expected set of rate-plan links ──
+      // Set-equality (sorted IDs) catches membership drift even if count stays 3.
       // eslint-disable-next-line no-console
-      console.log('[19-packages] extraAfterAll: verifying BKFST link count...');
+      console.log('[19-packages] extraAfterAll: verifying BKFST link set...');
       const bkfstLinks = await fetchPackageRatePlans(BKFST_ID);
-      if (bkfstLinks.data.length !== BKFST_EXPECTED_LINK_COUNT) {
+      const actualLinkIds = bkfstLinks.data.map((l) => l.ratePlanId).sort();
+      if (JSON.stringify(actualLinkIds) !== JSON.stringify(BKFST_EXPECTED_LINK_IDS)) {
         throw new Error(
-          `CRITICAL: BKFST link count=${bkfstLinks.data.length} expected=${BKFST_EXPECTED_LINK_COUNT}. ` +
-          `ratePlanIds=${bkfstLinks.data.map((l) => l.ratePlanId).join(',')}. ` +
+          `CRITICAL: BKFST rate-plan link set mismatch. ` +
+          `expected=[${BKFST_EXPECTED_LINK_IDS.join(',')}] ` +
+          `actual=[${actualLinkIds.join(',')}]. ` +
           `Manual intervention required: PUT /api/packages/${BKFST_ID}/rate-plans`,
         );
       }
       // eslint-disable-next-line no-console
-      console.log(`[19-packages] extraAfterAll: BKFST links OK (count=${bkfstLinks.data.length})`);
+      console.log(`[19-packages] extraAfterAll: BKFST links OK (ids=${actualLinkIds.join(',')})`);
 
       // ── 6. Final state log ────────────────────────────────────────────────────
       const finalPkgs = await fetchPackageList();
@@ -340,19 +347,22 @@ test.describe('19 configuration-packages', () => {
       );
     }
 
-    // BKFST must still have 3 rate-plan links
+    // BKFST must still have exactly the expected set of rate-plan links (set-equality)
     const bkfstLinks = await fetchPackageRatePlans(BKFST_ID);
-    if (bkfstLinks.data.length !== BKFST_EXPECTED_LINK_COUNT) {
+    const prePlanIds = bkfstLinks.data.map((l) => l.ratePlanId).sort();
+    if (JSON.stringify(prePlanIds) !== JSON.stringify(BKFST_EXPECTED_LINK_IDS)) {
       throw new Error(
-        `[19-packages] pre-flight: BKFST link count=${bkfstLinks.data.length} expected=${BKFST_EXPECTED_LINK_COUNT}. ` +
-        `DB drift detected. ratePlanIds=${bkfstLinks.data.map((l) => l.ratePlanId).join(',')}`,
+        `[19-packages] pre-flight: BKFST rate-plan link set mismatch. ` +
+        `expected=[${BKFST_EXPECTED_LINK_IDS.join(',')}] ` +
+        `actual=[${prePlanIds.join(',')}]. ` +
+        `DB drift detected.`,
       );
     }
 
     // eslint-disable-next-line no-console
     console.log('[19-packages] pre-flight OK:', {
       parkAmount: parkBody.amount,
-      bkfstLinks: bkfstLinks.data.length,
+      bkfstLinkIds: prePlanIds,
     });
   });
 
