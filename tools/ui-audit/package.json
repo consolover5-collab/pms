@@ -7,11 +7,15 @@
     "test": "playwright test",
     "test:ru": "playwright test --project=ru",
     "test:en": "playwright test --project=en",
-    "install-browsers": "playwright install chromium"
+    "install-browsers": "playwright install chromium",
+    "aggregate": "tsx scripts/aggregate.ts",
+    "validate-yaml": "tsx scripts/validate-yaml.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0"
+    "tsx": "^4.21.0",
+    "typescript": "^5.0.0",
+    "yaml": "^2.8.3"
   }
 }
