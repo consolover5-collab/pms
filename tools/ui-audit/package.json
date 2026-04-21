@@ -1,0 +1,17 @@
+{
+  "name": "@pms/ui-audit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:ru": "playwright test --project=ru",
+    "test:en": "playwright test --project=en",
+    "install-browsers": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
