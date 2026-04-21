@@ -35,9 +35,11 @@
       "severity": "low",
       "status": "open",
       "source": "ui-audit/02-bookings-list",
-      "file": "apps/web/src/app/bookings/search-form.tsx",
+      "files": [
+        "apps/web/src/app/bookings/search-form.tsx"
+      ],
       "lines": "33, 40",
-      "description": "Placeholder и кнопка формы поиска бронирований не локализованы — хардкод английского. На RU-локали видно 'Search by guest name...' вместо 'Поиск...'.",
+      "description": "Placeholder и кнопка формы поиска бронирований не локализованы — хардкод английского.\nНа RU-локали видно \"Search by guest name...\" вместо \"Поиск...\".",
       "fix": "Вынести строки в i18n-ключи bookings.search.placeholder / bookings.search.submit и локализовать."
     },
     {
@@ -46,10 +48,12 @@
       "severity": "medium",
       "status": "open",
       "source": "ui-audit/06-checkin-checkout",
-      "file": "apps/api/src/routes/bookings.ts",
+      "files": [
+        "apps/api/src/routes/bookings.ts"
+      ],
       "lines": "521-530",
-      "description": "UI renders a 'Force check-in' button when hk=dirty that sends {force: true, roomId}; the check-in handler does not read the force flag and rejects with ROOM_NOT_READY regardless. Clicking the button re-opens the same dirty-warning modal, creating an infinite loop for the user.",
-      "fix": "Either honor force: true server-side (skip the hk-clean gate analogous to check-out's force path) or remove the 'Force check-in' button from the UI and require the user to clean the room first."
+      "description": "UI renders a 'Force check-in' button when hk=dirty that sends {force: true, roomId};\nthe check-in handler does not read the force flag and rejects with ROOM_NOT_READY regardless.\nClicking the button re-opens the same dirty-warning modal, creating an infinite loop for the user.",
+      "fix": "Either honor `force: true` server-side (skip the hk-clean gate analogous to check-out's force path)\nor remove the 'Force check-in' button from the UI and require the user to clean the room first."
     },
     {
       "id": "BUG-005",
@@ -61,8 +65,8 @@
         "apps/web/src/app/bookings/[id]/edit/booking-edit-form.tsx",
         "apps/web/src/app/bookings/[id]/edit/page.tsx"
       ],
-      "description": "Страница /bookings/[id]/edit рендерится полностью на английском вне зависимости от locale-cookie. page.tsx использует хардкод 'Edit Booking #{confirmationNumber}'; booking-edit-form.tsx содержит все лейблы (Guest, Room Type, Check-in, Adults, Children, Rate Plan, Notes, Save Changes, Cancel, терминальный и status-info баннеры) как английские строки без обращения к i18n-словарям. Аналогичный паттерн как BUG-003 (search-form на /bookings).",
-      "fix": "Добавить ключи bookings.edit.* в apps/web/src/i18n/dictionaries/{ru,en}.ts и подтянуть через useI18n() в форме. Заголовок в page.tsx вывести через server-side getDictionary."
+      "description": "Страница /bookings/[id]/edit рендерится полностью на английском вне зависимости от locale-cookie.\npage.tsx использует хардкод \"Edit Booking #{confirmationNumber}\"; booking-edit-form.tsx содержит\nвсе лейблы (Guest, Room Type, Check-in, Adults, Children, Rate Plan, Notes, Save Changes, Cancel,\nтерминальный и status-info баннеры) как английские строки без обращения к i18n-словарям.\nАналогичный паттерн как BUG-003 (search-form на /bookings).",
+      "fix": "Добавить ключи bookings.edit.* в apps/web/src/i18n/dictionaries/{ru,en}.ts и подтянуть через\nuseI18n() в форме. Заголовок в page.tsx вывести через server-side getDictionary."
     },
     {
       "id": "BUG-006",
@@ -70,9 +74,11 @@
       "severity": "low",
       "status": "open",
       "source": "ui-audit/07-rooms-list",
-      "file": "apps/web/src/app/rooms/page.tsx",
-      "description": "Страница /rooms рендерится полностью на английском вне зависимости от locale-cookie. В page.tsx захардкожены: заголовок 'Rooms', лейблы статов 'Total'/'Vacant'/'Occupied'/'Clean'/'Dirty', префиксы фильтров 'HK:'/'Occ:', чипы 'All'/'Clean'/'Dirty'/'Inspected'/'Pickup'/'Vacant'/'Occupied', заголовок 'Floor N' и empty-state 'No rooms found matching filters'. Константа hkStatusLabels содержит английские значения (включая 'Out of Order'/'Out of Service', которые используются как aria-label для hk-badge). Ключи rooms.* в i18n-локалях существуют только для edit-подстраницы. Аналогичный паттерн как BUG-003 (search-form на /bookings) и BUG-005 (booking edit).",
-      "fix": "Добавить ключи roomsList.* (title, stat.total/vacant/occupied/clean/dirty, filter.hkLabel/occLabel, filter.all, filter.hk.clean/dirty/inspected/pickup, filter.occ.vacant/occupied, floor, emptyFiltered) в apps/web/src/lib/i18n/locales/{ru,en}.ts и переключить hkStatusLabels на i18n-lookup через server-side getDictionary (как на dashboard)."
+      "files": [
+        "apps/web/src/app/rooms/page.tsx"
+      ],
+      "description": "Страница /rooms рендерится полностью на английском вне зависимости от locale-cookie.\nВ page.tsx захардкожены: заголовок \"Rooms\", лейблы статов \"Total\"/\"Vacant\"/\"Occupied\"/\"Clean\"/\"Dirty\",\nпрефиксы фильтров \"HK:\"/\"Occ:\", чипы \"All\"/\"Clean\"/\"Dirty\"/\"Inspected\"/\"Pickup\"/\"Vacant\"/\"Occupied\",\nзаголовок \"Floor N\" и empty-state \"No rooms found matching filters\". Константа hkStatusLabels\nсодержит английские значения (включая \"Out of Order\"/\"Out of Service\", которые используются как\naria-label для hk-badge). Ключи rooms.* в i18n-локалях существуют только для edit-подстраницы.\nАналогичный паттерн как BUG-003 (search-form на /bookings) и BUG-005 (booking edit).",
+      "fix": "Добавить ключи roomsList.* в apps/web/src/i18n/dictionaries/{ru,en}.ts (title, newRoom,\nfilterAll, filterOccupancy, filterHousekeeping, chips для occ/hk статусов, empty, footer)\nи подтянуть через server-side getDictionary() в page.tsx."
     },
     {
       "id": "BUG-007",
@@ -84,8 +90,8 @@
         "apps/web/src/app/rooms/[id]/page.tsx",
         "apps/web/src/app/rooms/[id]/room-status-actions.tsx"
       ],
-      "description": "Страница /rooms/[id] покрыта i18n-словарями только частично, что опаснее, чем полный хардкод (BUG-006): на RU беглым взглядом видно локализованные надписи (например, 'Статус уборки', 'Установить Out of Order', 'Вернуть в работу'), но рядом на той же странице остаются английские. В page.tsx константа hkStatusLabels содержит английские значения для всех 6 HK-состояний ('Clean', 'Dirty', 'Pickup', 'Inspected', 'Out of Order', 'Out of Service') — используется и в HK-бейдже. Также захардкожены occupancy-чипы 'Occupied'/'Vacant', лейблы полей карточки 'Room Type'/'Floor'/'Max Occupancy'/'Description', блок 'Current Guest' ('Guest:', 'Confirmation:', 'Check-out:'), заголовок OOO-карточки 'Out of Order / Out of Service' в room-status-actions.tsx, и BackButton label='Back to rooms'. Кнопки HK-переходов (Clean/Pickup/Inspected/Dirty) формируются из массива actions в room-status-actions.tsx с английскими label'ами. Частично работают только: t(dict, 'rooms.hkStatus'/'setOoo'/'returnToDirty'/'oooBlocked'/'oooFrom'/'oooTo'/'oooReturnStatus'/'confirmOoo'/'dirtyOption'/'cleanOption'/'oooPeriod'/'oooAfter'/'settingsTitle') + t(dict, 'common.cancel').",
-      "fix": "Перевести hkStatusLabels в функцию getHkStatusLabel(dict, status) и добавить ключи rooms.hk.clean/dirty/pickup/inspected/outOfOrder/outOfService в словари ru/en. Добавить ключи rooms.occupied/vacant, rooms.currentGuest/guestLabel/confirmationLabel/checkOutLabel, rooms.roomType/floor/maxOccupancy/description, rooms.backToRooms, rooms.oooCardHeading. В room-status-actions.tsx заменить action.label на lookup по ключу rooms.hk.*. BackButton принимает label как prop — вызвать через server-side getDict(locale) в page.tsx."
+      "description": "Страница /rooms/[id] покрыта i18n-словарями только частично, что опаснее, чем полный\nхардкод (BUG-006): на RU беглым взглядом видно локализованные надписи (например,\n\"Статус уборки\", \"Установить Out of Order\", \"Вернуть в работу\"), но рядом на той же\nстранице остаются английские. В page.tsx константа hkStatusLabels содержит английские\nзначения для всех 6 HK-состояний (\"Clean\", \"Dirty\", \"Pickup\", \"Inspected\",\n\"Out of Order\", \"Out of Service\") — используется и в HK-бейдже, и в occupancy-чипах.\nТакже захардкожены occupancy-чипы \"Occupied\"/\"Vacant\", лейблы полей карточки\n\"Room Type\"/\"Floor\"/\"Max Occupancy\"/\"Description\", блок \"Current Guest\"\n(\"Guest:\", \"Confirmation:\", \"Check-out:\"), заголовок OOO-карточки\n\"Out of Order / Out of Service\" в room-status-actions.tsx, и BackButton\nlabel=\"Back to rooms\". Кнопки HK-переходов (Clean/Pickup/Inspected/Dirty)\nформируются из массива actions в room-status-actions.tsx с английскими label'ами.\nЧастично работают только: t(dict, \"rooms.hkStatus\"/\"setOoo\"/\"returnToDirty\"/\n\"oooBlocked\"/\"oooFrom\"/\"oooTo\"/\"oooReturnStatus\"/\"confirmOoo\"/\"dirtyOption\"/\n\"cleanOption\"/\"oooPeriod\"/\"oooAfter\"/\"settingsTitle\") + t(dict, \"common.cancel\").",
+      "fix": "Перевести hkStatusLabels в функцию getHkStatusLabel(dict, status) и добавить ключи\nrooms.hk.clean/dirty/pickup/inspected/outOfOrder/outOfService в словари ru/en.\nДобавить ключи rooms.occupied/vacant, rooms.currentGuest/guestLabel/confirmationLabel/\ncheckOutLabel, rooms.roomType/floor/maxOccupancy/description, rooms.backToRooms,\nrooms.oooCardHeading. В room-status-actions.tsx заменить action.label на lookup по\nключу rooms.hk.*. BackButton принимает label как prop — вызвать через server-side\ngetDict(locale) в page.tsx."
     },
     {
       "id": "BUG-009",
@@ -97,8 +103,8 @@
         "apps/web/src/app/configuration/room-types/[id]/page.tsx"
       ],
       "lines": "22-29 (hkLabels), 59, 68, 76, 77, 82, 87-91, 96, 98, 102, 112-126, 140, 151, 159, 166",
-      "description": "Detail page /configuration/room-types/[id] рендерится полностью на английском, включая: BackButton label='Back to Room Types', 'Max occupancy:', 'Edit Type', заголовок 'Rooms (N)', 'All rooms →', empty-state ('No rooms assigned to this type', 'To assign a room...', 'Go to Rooms'), табличные заголовки (Room #, Floor, HK Status, Occupancy, Actions), hkLabels dict со всеми 6 HK-состояниями ('Clean'...'Out of Service'), occupancy labels ('Occupied'/'Vacant'), action labels ('View', 'Edit'). Также использует tailwind-like классы (bg-yellow-50, text-gray-500) inconsistent с основным codebase, где используются CSS variables (var(--accent) и т.д.). Аналогичный паттерн как BUG-005/006/007.",
-      "fix": "Добавить ключи roomTypes.detail.* в apps/web/src/i18n/dictionaries/{ru,en}.ts (backToList, maxOccupancy, editType, rooms, allRooms, emptyTitle, emptyHint, emptyAction, colRoomNumber/Floor/HkStatus/Occupancy/Actions, viewRoom, editRoom). Создать функцию getHkStatusLabel(dict, status) для hkLabels. Перевести hkColors в CSS classes соответствующие rest of codebase (badge-clean / badge-dirty / etc). Подтянуть через server-side getDict() в [id]/page.tsx."
+      "description": "Detail page /configuration/room-types/[id] рендерится полностью на английском, включая:\nBackButton label='Back to Room Types', 'Max occupancy:', 'Edit Type', заголовок 'Rooms (N)',\n'All rooms →', empty-state ('No rooms assigned to this type', 'To assign a room...',\n'Go to Rooms'), табличные заголовки (Room #, Floor, HK Status, Occupancy, Actions),\nhkLabels dict со всеми 6 HK-состояниями ('Clean', 'Dirty', 'Pickup', 'Inspected',\n'Out of Order', 'Out of Service'), occupancy labels ('Occupied'/'Vacant'),\naction labels ('View', 'Edit'). Также использует tailwind-like классы\n(bg-yellow-50, text-gray-500) inconsistent с основным codebase, где используются\nCSS variables (var(--accent) и т.д.). Аналогичный паттерн как BUG-005/006/007.",
+      "fix": "Добавить ключи roomTypes.detail.* в apps/web/src/i18n/dictionaries/{ru,en}.ts:\nbackToList, maxOccupancy, editType, rooms, allRooms, emptyTitle, emptyHint, emptyAction,\ncolRoomNumber, colFloor, colHkStatus, colOccupancy, colActions, viewRoom, editRoom.\nСоздать функцию getHkStatusLabel(dict, status) для hkLabels.\nПеревести hkColors в CSS classes соответствующие rest of codebase (badge-clean / badge-dirty / etc).\nПодтянуть через server-side getDict() в [id]/page.tsx."
     },
     {
       "id": "BUG-010",
@@ -111,18 +117,20 @@
         "apps/web/src/app/configuration/transaction-codes/transaction-code-form.tsx"
       ],
       "lines": "page.tsx:84,128 (badge text); transaction-code-form.tsx:167-169 (group code options)",
-      "description": "Два i18n-лика: (a) badge-text 'charge'/'payment' в page.tsx захардкожен — не проходит через i18n-словарь, на RU видно английские значения; (b) CHARGE_GROUP_CODES в форме рендерит опции select как сырые snake_case-строки (room_charge, tax, minibar и т.д.) вместо человекочитаемых локализованных меток. Аналогичный паттерн BUG-005/006/007/009.",
-      "fix": "(a) Заменить хардкод на t(dict, 'txCodes.badge.charge') / t(dict, 'txCodes.badge.payment') + добавить ключи в словари. (b) Добавить txCodes.groupCode.{room_charge,tax,minibar,...} в dictionaries/{ru,en}.ts и использовать lookup в select options."
+      "description": "Два i18n-лика на странице /configuration/transaction-codes:\n(a) Бейджи типа транзакции: page.tsx строки 84 и 128 рендерят литеральные строки \"charge\"\nи \"payment\" внутри <span className=\"badge\"> вместо обращения к i18n-словарю.\nНа RU-локали пользователь видит английские \"charge\"/\"payment\" вместо локализованных значений.\n(b) CHARGE_GROUP_CODES в форме: transaction-code-form.tsx строки 167-169 рендерят опции\nselect как {g} — сырые snake_case-идентификаторы (room_charge, tax, minibar, restaurant,\nspa, laundry, phone, parking, misc). Пользователи видят технические строки вместо\nчеловекочитаемых меток. Аналогичный паттерн как BUG-005/006/007/009.",
+      "fix": "(a) Заменить хардкод badge-text на t(dict, 'txCodes.badge.charge') / t(dict, 'txCodes.badge.payment').\nДобавить ключи txCodes.badge.charge / txCodes.badge.payment в dictionaries/{ru,en}.ts.\n(b) Добавить ключи txCodes.groupCode.{room_charge,tax,minibar,restaurant,spa,laundry,phone,parking,misc}\nв dictionaries/{ru,en}.ts и использовать lookup в select options вместо сырой строки {g}."
     },
     {
       "id": "BUG-011",
-      "title": "Help hub status reference: hardcoded English keywords in localized legend",
+      "title": "Help hub status-reference: hardcoded English keywords in localized legend",
       "severity": "low",
       "status": "open",
       "source": "ui-audit/22-help",
-      "file": "apps/web/src/app/help/page.tsx",
+      "files": [
+        "apps/web/src/app/help/page.tsx"
+      ],
       "lines": "103-143",
-      "description": "Status keywords ('Confirmed', 'Checked In', 'Checked Out', 'Cancelled', 'No Show', 'Clean', 'Dirty', 'Inspected', 'Out of Order') are hardcoded English strings in the hub status-reference legend, followed by a dash and an i18n-translated description. On RU locale produces mixed 'Confirmed - Подтверждено' style text. The bookings list uses fully localised bookings.status.* keys — this is a localisation gap.",
+      "description": "Status keywords (\"Confirmed\", \"Checked In\", \"Checked Out\", \"Cancelled\", \"No Show\",\n\"Clean\", \"Dirty\", \"Inspected\", \"Out of Order\") are hardcoded English strings in the\nstatus-reference legend, followed by a dash and an i18n-translated description.\nOn RU locale this produces mixed text like \"Confirmed - Подтверждено\",\n\"Checked In - Заселён\", \"Clean - Чистый\", etc.\nThe bookings list (/bookings) and rooms list (/rooms) use fully localised status labels\nvia bookings.status.* and rooms.hk.* i18n keys — confirming this is a localisation gap,\nnot intentional design.",
       "fix": "Extract status keyword strings into i18n keys:\n  help.status.confirmedLabel, help.status.checkedInLabel, help.status.checkedOutLabel,\n  help.status.cancelledLabel, help.status.noShowLabel, help.status.cleanLabel,\n  help.status.dirtyLabel, help.status.inspectedLabel, help.status.outOfOrderLabel.\nOr reuse existing bookings.status.* and rooms.hk.* keys via t(dict, 'bookings.status.confirmed').\nReplace hardcoded strings in page.tsx lines 103-143 with t(dict, ...) calls."
     },
     {
@@ -135,7 +143,7 @@
         "apps/web/src/app/bookings/[id]/booking-tabs.tsx"
       ],
       "lines": "85, 87, 129, 131-132, 136, 138, 170",
-      "description": "Файл booking-tabs.tsx рендерит детальную страницу бронирования с несколькими hardcoded-лейблами на английском, несмотря на то что большинство лейблов через t(dict, \"bookingDetail.*\") локализованы:\n(a) Guest card: LabVal label=\"Email\" (строка 85) — литеральная строка вместо i18n.\n(b) Guest card: LabVal label={t(dict, \"bookingDetail.checkInAt\")} value={booking.guest.phone} (строка 87) — ключ bookingDetail.checkInAt (\"Check-in at\") неверно используется как лейбл для phone. Должно быть t(dict, \"...phoneLabel\") или \"profile.phone\".\n(c) Stay tab: LabVal label=\"Nights\" (строка 129), LabVal label=\"Guests\" (строка 131), LabVal label=\"Room Type\" (строка 138) — три hardcoded-лейбла.\n(d) Stay tab: inline-строки в value \"Not assigned\" (строка 136), \"adults\" и \"children\" в `${booking.adults} adults${booking.children ? `, ${booking.children} children` : \"\"}` (строка 132) — даже на RU-локали пользователь видит \"2 adults, 1 children\".\n(e) Stub для tabs services/history: <div className=\"wip\">Design in progress</div> (строка 170) — placeholder текст не локализован.",
+      "description": "Файл booking-tabs.tsx рендерит детальную страницу бронирования с несколькими\nhardcoded-лейблами на английском, несмотря на то что большинство лейблов через\nt(dict, \"bookingDetail.*\") локализованы:\n(a) Guest card: LabVal label=\"Email\" (строка 85) — литеральная строка вместо i18n.\n(b) Guest card: LabVal label={t(dict, \"bookingDetail.checkInAt\")} value={booking.guest.phone}\n(строка 87) — ключ bookingDetail.checkInAt (\"Check-in at\") неверно используется как\nлейбл для phone. Должно быть t(dict, \"...phoneLabel\") или \"profile.phone\".\n(c) Stay tab: LabVal label=\"Nights\" (строка 129), LabVal label=\"Guests\" (строка 131),\nLabVal label=\"Room Type\" (строка 138) — три hardcoded-лейбла.\n(d) Stay tab: inline-строки в value \"Not assigned\" (строка 136), \"adults\" и \"children\"\nв `${booking.adults} adults${booking.children ? `, ${booking.children} children` : \"\"}`\n(строка 132) — даже на RU-локали пользователь видит \"2 adults, 1 children\".\n(e) Stub для tabs services/history: <div className=\"wip\">Design in progress</div>\n(строка 170) — placeholder текст не локализован.",
       "fix": "Добавить ключи в apps/web/src/lib/i18n/locales/{en,ru}.ts:\nbookingDetail.emailLabel, bookingDetail.phoneLabel, bookingDetail.nights,\nbookingDetail.guests, bookingDetail.roomType, bookingDetail.roomNotAssigned,\nbookingDetail.adultsUnit (с ICU-форматом \"{n, plural, one {# adult} other {# adults}}\"),\nbookingDetail.childrenUnit, bookingDetail.designInProgress.\nЗаменить в booking-tabs.tsx строках 85, 87, 129, 131-132, 136, 138, 170 все\nлитеральные строки на t(dict, \"bookingDetail.*\"). Для сборки \"N adults, M children\"\nиспользовать t(dict, \"bookingDetail.guestsSummary\", { adults, children }) или\nотдельные плюрализуемые ключи."
     },
     {
@@ -148,7 +156,7 @@
         "apps/web/src/app/housekeeping/housekeeping-client.tsx"
       ],
       "lines": "200, 202",
-      "description": "В housekeeping-client.tsx большинство лейблов локализованы через t(dict, \"hk.*\") и t(dict, \"dashboard.hk.*\"), но для задач с priority === 1 рендерится hardcoded title=\"Rush / VIP\" (строка 200) на обёртке span + визуальный текст \"● Rush\" (строка 202-204) внутри badge. На RU-локали горничная видит английский текст на иначе русифицированной Kanban-доске.",
+      "description": "В housekeeping-client.tsx большинство лейблов локализованы через t(dict, \"hk.*\")\nи t(dict, \"dashboard.hk.*\"), но для задач с priority === 1 рендерится hardcoded\ntitle=\"Rush / VIP\" (строка 200) на обёртке span + визуальный текст \"● Rush\"\n(строка 202-204) внутри badge. На RU-локали горничная видит английский текст\nна иначе русифицированной Kanban-доске.",
       "fix": "Добавить ключи в apps/web/src/lib/i18n/locales/{en,ru}.ts:\nhk.rushTitle (\"Rush / VIP\" / \"Срочно / VIP\") и hk.rushBadge (\"● Rush\" / \"● Срочно\"),\nили переиспользовать существующие hk.priority.* если такие ключи есть.\nВ housekeeping-client.tsx заменить title=\"Rush / VIP\" на title={t(dict, \"hk.rushTitle\")}\nи badge-text \"● Rush\" на {t(dict, \"hk.rushBadge\")}."
     },
     {
@@ -161,7 +169,7 @@
         "apps/web/src/app/bookings/[id]/folio-section.tsx"
       ],
       "lines": "190-191, 318",
-      "description": "Folio-window header и строки транзакций содержат несколько не локализованных строк на детальной странице /bookings/[id]:\n(a) Folio-window who-row: рендерит сырые значения `{w.payeeType ?? \"—\"}` и `{w.paymentMethod ? ` · ${w.paymentMethod}` : \"\"}` (строки 190-191). Это backend snake_case-значения вроде \"guest\", \"company\", \"travel_agent\", \"cash\", \"credit_card\" — видны как технические строки вместо человекочитаемых лейблов. На обеих локалях (EN и RU) эти значения выглядят одинаково плохо.\n(b) System-generated transaction badge: `<span ...>auto</span>` (строка 318) — hardcoded-текст \"auto\" на строках транзакций, сгенерированных night audit'ом.\nВсе остальные лейблы folio (колонки таблицы, кнопки post/payment, balance/paid/posted) уже локализованы через t(dict, \"bookingDetail.*\").",
+      "description": "Folio-window header и строки транзакций содержат несколько не локализованных\nстрок на детальной странице /bookings/[id]:\n(a) Folio-window who-row: рендерит сырые значения `{w.payeeType ?? \"—\"}` и\n`{w.paymentMethod ? ` · ${w.paymentMethod}` : \"\"}` (строки 190-191). Это backend\nsnake_case-значения вроде \"guest\", \"company\", \"travel_agent\", \"cash\", \"credit_card\" —\nвидны как технические строки вместо человекочитаемых лейблов. На обеих локалях\n(EN и RU) эти значения выглядят одинаково плохо.\n(b) System-generated transaction badge: `<span ...>auto</span>` (строка 318) —\nhardcoded-текст \"auto\" на строках транзакций, сгенерированных night audit'ом.\nВсе остальные лейблы folio (колонки таблицы, кнопки post/payment, balance/paid/posted)\nуже локализованы через t(dict, \"bookingDetail.*\").",
       "fix": "Добавить ключи в apps/web/src/lib/i18n/locales/{en,ru}.ts:\nfolio.payeeType.{guest,company,travel_agent,group,individual},\nfolio.paymentMethod.{cash,credit_card,bank_transfer,city_ledger,other},\nfolio.autoBadge (\"auto\" / \"авто\").\nСоздать helper-функции getPayeeTypeLabel(dict, type) и getPaymentMethodLabel(dict, method)\nпо аналогии с getStatusLabel / getTaskTypeLabel в housekeeping-client.tsx.\nВ folio-section.tsx строки 190-191 заменить raw-значения на lookup через helper;\nстроку 318 заменить \"auto\" на t(dict, \"folio.autoBadge\")."
     },
     {
@@ -174,8 +182,9 @@
         "apps/api/src/routes/properties.ts",
         "packages/db/src/seed.ts"
       ],
-      "description": "Seed устанавливает property.numberOfRooms=50, но в таблице rooms 54 записи. API PUT /api/properties/:id валидирует numberOfRooms >= actual room count и отклоняет любой запрос с numberOfRooms=50 как 400 INVALID_ROOM_COUNT — форма не может сохранить ни одно изменение без ручного увеличения numberOfRooms до 54+.",
-      "fix": "В seed-файле установить property.numberOfRooms равным фактическому числу rooms (сейчас 54) или заполнять numberOfRooms динамически через SELECT COUNT(*) FROM rooms."
+      "lines": "40-49 (routes/properties.ts INVALID_ROOM_COUNT validation)",
+      "description": "Seed устанавливает property.numberOfRooms=50, но в таблице rooms 54 записи.\nAPI PUT /api/properties/:id валидирует numberOfRooms >= actual room count и\nотклоняет любой запрос с numberOfRooms=50 как 400 INVALID_ROOM_COUNT.\nСледствие: /configuration/property рендерит форму, которая НЕ МОЖЕТ сохранить\nни одно изменение (name, address, timezone, taxRate и пр.) без ручного\nувеличения numberOfRooms до 54+ — это обнаружено только через mutation\nscenario в section 15 UI audit.",
+      "fix": "В seed-файле установить property.numberOfRooms равным фактическому числу\nrooms (сейчас 54), либо заполнять numberOfRooms динамически на основании\n`SELECT COUNT(*) FROM rooms`. После фикса seed запустить полный reset\n(`pnpm --filter api run db:reset && pnpm --filter api run db:seed`)."
     },
     {
       "id": "DEBT-002",
