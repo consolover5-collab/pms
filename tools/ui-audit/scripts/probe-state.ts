@@ -66,7 +66,15 @@ async function fetchJson<T>(path: string): Promise<T> {
     throw new Error(`GET ${url} threw: ${(err as Error).message}`);
   }
   if (!res.ok) {
-    throw new Error(`GET ${url} → HTTP ${res.status} ${res.statusText}`);
+    let body = '';
+    try {
+      body = (await res.text()).slice(0, 500);
+    } catch {
+      /* ignore body read failures */
+    }
+    throw new Error(
+      `GET ${url} → HTTP ${res.status} ${res.statusText}${body ? ` body=${body}` : ''}`,
+    );
   }
   return (await res.json()) as T;
 }
@@ -85,9 +93,15 @@ function balanceBucket(balance: number): string {
 }
 
 async function collectRooms() {
+  const ROOM_LIMIT = 1000;
   const rooms = await fetchJson<Room[]>(
-    `/api/rooms?propertyId=${PROPERTY_ID}&limit=1000`,
+    `/api/rooms?propertyId=${PROPERTY_ID}&limit=${ROOM_LIMIT}`,
   );
+  if (rooms.length === ROOM_LIMIT) {
+    throw new Error(
+      `Rooms response hit limit=${ROOM_LIMIT} — probe may be truncated. Paginate or raise limit.`,
+    );
+  }
   const byHkStatus: Record<string, number> = {};
   const byOccStatus: Record<string, number> = {};
   const matrix: Record<string, Record<string, number>> = {};
@@ -159,9 +173,15 @@ async function collectCheckedIn() {
 }
 
 async function collectTransactionCodes() {
+  const TXN_LIMIT = 200;
   const codes = await fetchJson<TransactionCode[]>(
-    `/api/transaction-codes?propertyId=${PROPERTY_ID}&limit=200`,
+    `/api/transaction-codes?propertyId=${PROPERTY_ID}&limit=${TXN_LIMIT}`,
   );
+  if (codes.length === TXN_LIMIT) {
+    throw new Error(
+      `TransactionCodes response hit limit=${TXN_LIMIT} — probe may be truncated. Paginate or raise limit.`,
+    );
+  }
   const byType: Record<string, number> = {};
   const chargeCodes: {
     code: string;
