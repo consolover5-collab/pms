@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 import {
   auditScreenshot,
   wireErrorCollectors,
-  loginAsAdmin,
   setLocaleAndGoto,
   setNativeValue,
   pickFirstSelectOption,
