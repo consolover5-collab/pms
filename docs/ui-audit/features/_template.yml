@@ -1,8 +1,8 @@
-# Шаблон файла секции. Копировать в features/<id>-<slug>.yml и заполнять.
-# Схема и пример — см. ../../ui-audit-plan.md раздел 3.
+# Template. Copy to features/NN-<slug>.yml and fill. Schema verified
+# against pilot (03-booking-create). Validate with `pnpm --filter @pms/ui-audit validate-yaml`.
 
 id: <section.slug>
-title: "<человеческий заголовок>"
+title: "<human-readable title>"
 route: /<path>
 depends_on: []
 locales_tested: [ru, en]
@@ -14,22 +14,58 @@ ui:
   buttons: {}
 
 steps: []
+# Example step:
+# - id: "01-empty-form"
+#   action: "Open page under admin; form renders empty"
+#   screenshots: [NN-slug-01-empty-form-ru.png, NN-slug-01-empty-form-en.png]
 
 edge_cases: []
+# Example edge case:
+# - id: empty-submit
+#   description: "Submit empty form"
+#   expected: "HTML5 required blocks submit; no POST"
+#   observed: "OK — screenshot 02"
 
 api_calls_observed: []
+# Example:
+# - { method: GET,  path: "/api/properties" }
+# - { method: POST, path: "/api/bookings", status: 201, note: "happy-path" }
 
 console_errors: []
+# Example:
+# - locale: ru
+#   scenario: room-unavailable
+#   text: "Failed to load resource: 400"
+#   verdict: expected
+
 network_errors: []
+# Example:
+# - locale: ru
+#   scenario: room-unavailable
+#   status: 400
+#   method: POST
+#   url: "http://localhost:3000/api/bookings"
+#   verdict: expected
 
 bugs: []
+# Example bug:
+# - id: BUG-042
+#   severity: low
+#   scenario: empty-submit
+#   observed: "Submit button stays enabled after click"
+#   screenshot: NN-slug-02-empty-validation-ru.png
 
 help_rewrite_hints:
-  topic: <help-topic-id>
+  # Set topic: null if no matching help topic exists for this section.
+  topic: <help-topic-id-or-null>
   current: ""
   actual: ""
   rewrite: |
 
+retro:
+  time_minutes: 0
+  unblocker_fixes: []
+  methodology_deltas: []
 
 status: pending   # ok | partial | broken | missing | pending
 last_audited: null

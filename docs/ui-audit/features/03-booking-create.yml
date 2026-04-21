@@ -176,6 +176,16 @@ help_rewrite_hints:
     **Если выбранный номер OOS / занят**, API ответит ошибкой 400, и форма
     останется открытой — выберите другой номер или снимите назначение.
 
+retro:
+  time_minutes: 90
+  unblocker_fixes: []
+  methodology_deltas:
+    - "loginAsAdmin required on feat/design-system (BUG-001 reverted)"
+    - "Pre-flight must run pnpm build to refresh .next/"
+    - "API endpoints drift from plan (/api/business-date singular; profiles paginated)"
+    - "React date inputs need setNativeValue"
+    - "errors.json must live outside outputDir"
+
 status: ok
 last_audited: 2026-04-21
 screenshots_dir: docs/ui-audit/screenshots/
