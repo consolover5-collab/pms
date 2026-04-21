@@ -144,6 +144,13 @@ bugs:
 console_errors: []
 network_errors: []
 
+edge_cases:
+  nextjs-rsc-404-http-status:
+    summary: Next.js 15 App Router with notFound() during RSC streaming renders the 404 UI but keeps the HTTP transport status at 200.
+    impact: Scenario 04 (missing-topic-404) cannot assert response.status() === 404. Adapted to content-assertion ("404" + "could not be found" text) instead.
+    status: framework_behavior
+    recommendation: If HTTP 404 is required for SEO/crawlers, implement a custom /help/not-found.tsx with explicit status code via Next.js response headers — currently out of scope.
+
 signals:
   l10n: partial
   l10n_note: >

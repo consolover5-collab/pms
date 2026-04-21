@@ -123,7 +123,7 @@
       "file": "apps/web/src/app/help/page.tsx",
       "lines": "103-143",
       "description": "Status keywords ('Confirmed', 'Checked In', 'Checked Out', 'Cancelled', 'No Show', 'Clean', 'Dirty', 'Inspected', 'Out of Order') are hardcoded English strings in the hub status-reference legend, followed by a dash and an i18n-translated description. On RU locale produces mixed 'Confirmed - Подтверждено' style text. The bookings list uses fully localised bookings.status.* keys — this is a localisation gap.",
-      "fix": "Extract status keyword strings into i18n keys (e.g. help.status.confirmedLabel) or reuse existing bookings.status.* and rooms.hk.* keys via t(dict, ...). Replace hardcoded strings in page.tsx lines 103-143."
+      "fix": "Extract status keyword strings into i18n keys:\n  help.status.confirmedLabel, help.status.checkedInLabel, help.status.checkedOutLabel,\n  help.status.cancelledLabel, help.status.noShowLabel, help.status.cleanLabel,\n  help.status.dirtyLabel, help.status.inspectedLabel, help.status.outOfOrderLabel.\nOr reuse existing bookings.status.* and rooms.hk.* keys via t(dict, 'bookings.status.confirmed').\nReplace hardcoded strings in page.tsx lines 103-143 with t(dict, ...) calls."
     },
     {
       "id": "BUG-008",

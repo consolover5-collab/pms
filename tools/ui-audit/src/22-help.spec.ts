@@ -53,6 +53,7 @@ type TopicId = typeof TOPIC_IDS[number];
 
 // ── Test suite ─────────────────────────────────────────────────────────────────
 test.describe('22 help', () => {
+  // serial mode kept for consistency with other sections; scenarios have no state dependencies
   test.describe.configure({ mode: 'serial' });
 
   // No extraAfterAll — zero mutations, nothing to restore
@@ -82,9 +83,13 @@ test.describe('22 help', () => {
       const cards = page.getByTestId('help-topic-card');
       await expect(cards).toHaveCount(9, { timeout: UI_TIMEOUT });
 
-      // Each card must have a visible title and non-empty description
+      // Each card must have a visible icon, title, and non-empty description
       for (let i = 0; i < 9; i++) {
         const card = cards.nth(i);
+        // Assert icon span renders non-empty (emoji characters)
+        const iconSpan = card.getByTestId('help-topic-card-icon');
+        await expect(iconSpan).toBeVisible({ timeout: UI_TIMEOUT });
+        await expect(iconSpan).not.toBeEmpty();
         await expect(card.getByTestId('help-topic-card-title')).toBeVisible({ timeout: UI_TIMEOUT });
         const desc = card.getByTestId('help-topic-card-desc');
         await expect(desc).toBeVisible({ timeout: UI_TIMEOUT });
@@ -154,7 +159,7 @@ test.describe('22 help', () => {
 
       // Iterate all 9 topic IDs
       for (const topicId of TOPIC_IDS) {
-        await setLocaleAndGoto(page, locale, `/help/${topicId}`);
+        await setLocaleAndGoto(page, locale, `${HUB_ROUTE}/${topicId}`);
 
         // URL must match
         expect(page.url()).toContain(`/help/${topicId}`);
@@ -173,7 +178,7 @@ test.describe('22 help', () => {
       }
 
       // Screenshot of representative sample: 5th topic (rooms, index 4)
-      await setLocaleAndGoto(page, locale, `/help/rooms`);
+      await setLocaleAndGoto(page, locale, `${HUB_ROUTE}/rooms`);
       await expect(page.getByTestId('help-topic-content')).toBeVisible({ timeout: UI_TIMEOUT });
       await auditScreenshot(page, SECTION_ID, '03-all-topics-rooms-sample', locale);
     },
@@ -192,7 +197,7 @@ test.describe('22 help', () => {
     async ({ page }, testInfo) => {
       const locale = testInfo.project.name as 'ru' | 'en';
 
-      await setLocaleAndGoto(page, locale, '/help/nonexistent-topic-xyz');
+      await setLocaleAndGoto(page, locale, `${HUB_ROUTE}/nonexistent-topic-xyz`);
 
       // URL must still contain the bad slug (no redirect to a 200 page)
       expect(page.url()).toContain('/help/nonexistent-topic-xyz');
@@ -202,6 +207,7 @@ test.describe('22 help', () => {
       //   <h1>404</h1><h2>This page could not be found.</h2>
       const body = page.locator('body');
       await expect(body).toContainText('404', { timeout: UI_TIMEOUT });
+      // Next.js default 404 page renders English text regardless of app locale
       await expect(body).toContainText('could not be found', { timeout: UI_TIMEOUT });
 
       await auditScreenshot(page, SECTION_ID, '04-missing-topic-404', locale);

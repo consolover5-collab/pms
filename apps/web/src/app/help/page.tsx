@@ -74,7 +74,7 @@ export default async function HelpPage() {
             className="block p-4 bg-white border rounded-lg hover:shadow-md transition-shadow"
           >
             <div className="flex items-start gap-3">
-              <span className="text-2xl">{topic.icon}</span>
+              <span data-testid="help-topic-card-icon" className="text-2xl">{topic.icon}</span>
               <div>
                 <h3 data-testid="help-topic-card-title" className="font-semibold">
                   {t(dict, `help.topic.${topic.id}.title` as DictionaryKey)}
