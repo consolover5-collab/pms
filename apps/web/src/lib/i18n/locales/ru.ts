@@ -83,7 +83,7 @@ export const ru: Dictionary = {
   "dashboard.status.checkedIn": "Заехал",
   "dashboard.status.checkedOut": "Выехал",
   "dashboard.status.noShow": "No-show",
-  "dashboard.status.dueOut": "К выезду",
+  "dashboard.status.dueOut": "На выезде",
 
   // Booking actions
   "booking.checkIn": "Check In",
@@ -342,7 +342,7 @@ export const ru: Dictionary = {
   "bookings.col.action": "Действие",
   "bookings.empty": "Бронирования не найдены",
   "bookings.dueIn": "К заезду",
-  "bookings.dueOut": "К выезду",
+  "bookings.dueOut": "На выезде",
   "bookings.status.confirmed": "Подтверждено",
   "bookings.status.checkedIn": "Заселён",
   "bookings.status.checkedOut": "Выехал",
