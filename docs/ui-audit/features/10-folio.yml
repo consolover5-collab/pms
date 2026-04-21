@@ -1,0 +1,222 @@
+id: booking.folio
+title: "Фолио бронирования — окна, начисления, платежи"
+route: /bookings/[id] (FolioSection)
+depends_on:
+  - auth.login
+  - property.select
+  - business-date
+  - booking.create
+  - booking.detail
+  - transaction-codes
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "FolioSection под вкладкой Финансы: окна .folio-win с формами начисления/платежа, таблицей транзакций, строкой totals, + карточка 'Итого по брони' снизу"
+    en: "FolioSection under Folio tab: .folio-win windows with charge/payment forms, transactions table, totals row, + 'Booking total' card below"
+  required_fields: []
+  optional_fields:
+    - { id: windowHeader, label: { ru: "Окно {A/B/…} · {label}", en: "Window {A/B/…} · {label}" }, kind: "heading", note: "windowLetter(windowNumber) + w.label; класс .folio-win > .fh > .ti" }
+    - { id: windowPayee, label: { ru: "тип плательщика · метод оплаты", en: "payee type · payment method" }, kind: "text", note: ".fh > .who — отображает payeeType и paymentMethod через · разделитель; null → '—'" }
+    - { id: chargeButton, label: { ru: "Начисление", en: "Charge" }, kind: "button", note: ".btn.xs; разворачивает inline <form> внутри окна" }
+    - { id: paymentButton, label: { ru: "Платёж", en: "Payment" }, kind: "button", note: ".btn.xs; toggle-поведение: повторный клик закрывает форму" }
+    - { id: codeSelect, label: { ru: "Код операции", en: "Transaction code" }, kind: "select", note: "select[name=codeId]; список отфильтрован по transactionType=charge|payment и isManualPostAllowed=true" }
+    - { id: amountInput, label: { ru: "Сумма", en: "Amount" }, kind: "number", note: "input[name=amount]; type=number, step=0.01, min=0.01, required" }
+    - { id: descriptionInput, label: { ru: "Описание", en: "Description" }, kind: "text", note: "input[name=description]; опциональное" }
+    - { id: transactionsTable, label: { ru: "Таблица операций", en: "Transactions table" }, kind: "table", note: "table.t — колонки Date, Code, Description, Debit, Credit, By; credit окрашен .checked-in color" }
+    - { id: noTransactionsEmpty, label: { ru: "Операций нет", en: "No transactions" }, kind: "empty-state", note: "показывается если winTxns.length===0 в окне" }
+    - { id: totalsRow, label: { ru: "Начислено / Оплачено / Баланс", en: "Posted / Paid / Balance" }, kind: "row", note: ".totals с тремя .t: totalCharges, totalPayments, balance; balance имеет класс .v.pos/.v.neg/.v.zero" }
+    - { id: bookingTotalCard, label: { ru: "Итого по брони", en: "Booking total" }, kind: "card", note: "список .leg по окнам + строка 'Due on checkout / К оплате при выезде'" }
+    - { id: acceptPaymentButton, label: { ru: "Принять платёж", en: "Accept payment" }, kind: "button", note: ".btn.sm.primary; видна только при folio.balance>0; открывает форму payment на activeWin" }
+  buttons:
+    charge: { ru: "Начисление", en: "Charge" }
+    payment: { ru: "Платёж", en: "Payment" }
+    submit: { ru: "Внести начисление / Провести платёж", en: "Post Charge / Record Payment" }
+    cancelForm: { ru: "Отмена", en: "Cancel" }
+    acceptPayment: { ru: "Принять платёж", en: "Accept payment" }
+
+steps:
+  - id: "01-window-stack-render"
+    action: "ru + en observation: открыть checked_in бронь с windows.length>=2. Все .folio-win видны одновременно (НЕ табнутое представление). Шапка первого окна содержит windowLetter(windowNumber)+label"
+    screenshots:
+      - 10-folio-01-window-stack-render-ru.png
+      - 10-folio-01-window-stack-render-en.png
+  - id: "02-post-charge"
+    action: "en only: бронь BK_FOLIO в checked_in, window_A выбрано динамически. Клик Charge → форма появляется → select[name=codeId]=ADJ_ROOM, amount=1000, description='audit-charge'. Submit → POST /api/bookings/{id}/folio/post=201 → новая строка в таблице, balance окна +1000"
+    screenshots:
+      - 10-folio-02-post-charge-en.png
+  - id: "03-post-payment"
+    action: "en only: продолжение scenario 02. Клик Payment → форма → select PAY_CASH, amount=outstanding balance. Submit → POST /api/bookings/{id}/folio/payment=201 → folio.balance=0"
+    screenshots:
+      - 10-folio-03-post-payment-en.png
+  - id: "04-zero-balance-window"
+    action: "ru + en observation: после scenario 03 en-прогона BK_FOLIO.window_A имеет balance=0. Под en используем BK_FOLIO. Под ru — сканируем все checked_in брони, ищем окно с balance===0 (если его нет — skip). Проверяем, что .folio-win .totals .v.zero отрендерен хотя бы в одном окне. Attachment empty-state-count фиксирует, виден ли 'No transactions' / 'Операций нет' empty-state"
+    screenshots:
+      - 10-folio-04-zero-balance-window-ru.png
+      - 10-folio-04-zero-balance-window-en.png
+  - id: "05-positive-balance-highlight"
+    action: "ru + en observation: открыть checked_in бронь с balance>0 (BK_POS, отличная от BK_FOLIO). Проверяем наличие класса .folio-win .totals .v.pos хотя бы у одного окна; 'Итого по брони' карточка видна"
+    screenshots:
+      - 10-folio-05-positive-balance-highlight-ru.png
+      - 10-folio-05-positive-balance-highlight-en.png
+
+edge_cases:
+  - id: multi-window-stacked
+    description: "Окна фолио рендерятся стеком, не табнутые"
+    expected: "Все .folio-win одновременно видны; нет UI для переключения окон кроме активации формы charge/payment"
+    observed: "OK — folio-section.tsx:179 делает folio.windows.map(), без табов. 2/2 локали; empirically multi-window-count=2, per-window-visible=[true,true]. Скриншот 01"
+  - id: charge-post-happy-path
+    description: "Manual-post charge через UI"
+    expected: "POST /folio/post=201, новая строка появляется, balance окна растёт ровно на amount (если выбранный код без auto-tax)"
+    observed: "OK — en only, ADJ_ROOM (charge, isManualPostAllowed=true) выбран динамически через GET /transaction-codes. POST /folio/post=201 (attachment post-charge-response). preRowCount инкрементировался на 1 (polled), delta balance=+1000 ровно. Скриншот 02. Примечание: код ROOM имеет isManualPostAllowed=false и системой отклонён бы кодом SYSTEM_ONLY_CODE — поэтому используем ADJ_ROOM"
+  - id: payment-post-happy-path
+    description: "Manual-post payment (PAY_CASH) через UI зануляет баланс"
+    expected: "POST /folio/payment=201, folio.balance → 0"
+    observed: "OK — en only, amount=текущему outstanding, polled до balance==0. Скриншот 03"
+  - id: zero-balance-highlight
+    description: "Когда window.balance===0, элемент .totals .v имеет класс .zero"
+    expected: "Хотя бы один .folio-win .totals .v.zero виден"
+    observed: "OK — en: window_A BK_FOLIO zeroed scenario 03 (attachment en-zero-precondition); ru: сканирование нашло кандидата среди checked_in броней (attachment ru-zero-window-candidate=GBH-000089 — одно из окон имеет balance=0). Класс .v.zero рендерится из folio-section.tsx:345 тернарным выражением. Скриншоты 04"
+  - id: positive-balance-highlight
+    description: "Когда window.balance>0, элемент .totals .v имеет класс .pos"
+    expected: "Хотя бы один .folio-win .totals .v.pos виден на бронях с balance>0"
+    observed: "OK — 2/2 локали. 20/20 checked_in броней seed имеют balance>0, так что кандидат всегда есть. Скриншот 05"
+  - id: empty-window-rendering
+    description: "Пустое окно фолио (transactions.length===0) показывает empty-state 'Операций нет'/'No transactions'"
+    expected: "Если window без транзакций — рендерится empty-state блок вместо table.t"
+    observed: "Нестабильно в seed: attachment empty-state-count=0 на scenario 04 (BK_FOLIO имеет транзакции даже после payment). Empty-state виден только на свежесозданных бронях до первой транзакции, или на окнах с payeeType != primary (routing/sharing). Сам рендер существует в folio-section.tsx:279-289 и локализован корректно, но эмпирически в запуске не сработал — нужна свежая бронь без charges. Помечено как observation-gap, не баг"
+  - id: accept-payment-button-visibility
+    description: "Кнопка 'Accept payment' внизу 'Booking total' видна только при folio.balance>0"
+    expected: "balance>0 → кнопка видна; balance===0 → кнопка скрыта"
+    observed: "OK — folio-section.tsx:405 гейт 'folio.balance > 0'. На скриншоте 02 (balance=1000) кнопка видна; на скриншоте 03 (balance=0) — исчезла. На скриншоте 05 (balance>0) — видна"
+  - id: form-toggle-behavior
+    description: "Повторный клик по Charge/Payment кнопке закрывает форму; клик между окнами переключает активное окно"
+    expected: "postFormMode toggles null↔charge↔payment; activeWindowId всегда = кликнутому окну"
+    observed: "OK — код folio-section.tsx:200 и 212 реализуют toggle. Сценарий 02/03 открывают форму один раз и сабмитят, закрытие через toggle не тестируется напрямую, но UI стабилен"
+  - id: mutation-locale-split
+    description: "Отличие от плана: мутирующие сценарии (02, 03) запускаются только под en"
+    expected: "2 локали × 5 сценариев = 10 тестов"
+    observed: "Фактически: observation-сценарии (01, 04, 05) — оба локали; мутирующие (02, 03) — en only. 8 passed + 2 skipped. Обоснование: idempotent-семантика мутаций дорогая (потребовала бы voids), а i18n-лейблы (Начисление/Charge, Платёж/Payment) проверены через read-only selector с exact-name и видны в стек-скриншотах 01/04/05 обеих локалей"
+
+api_calls_observed:
+  - { method: GET,  path: "/api/auth/me",                                            status: 200, note: "web middleware auth guard" }
+  - { method: GET,  path: "/api/properties",                                         status: 200, note: "server-side render + client-side code fetch" }
+  - { method: GET,  path: "/api/business-date?propertyId={propertyId}",              status: 200 }
+  - { method: GET,  path: "/api/bookings?propertyId=...&status=checked_in&limit=20", status: 200, note: "beforeAll поиск кандидатов + scenario 04 ru-сканирование" }
+  - { method: GET,  path: "/api/bookings/{id}",                                                   note: "server-side apiFetch в page.tsx (не в browser network)" }
+  - { method: GET,  path: "/api/bookings/{id}/folio",                                status: 200, note: "clientside fetch в FolioSection.useEffect + refetch после успешного POST" }
+  - { method: GET,  path: "/api/transaction-codes?propertyId={propertyId}",          status: 200, note: "разрешение кодов ADJ_ROOM/PAY_CASH на лету" }
+  - { method: POST, path: "/api/bookings/{BK_FOLIO}/folio/post",                     status: 201, note: "scenario 02 — ADJ_ROOM +1000" }
+  - { method: POST, path: "/api/bookings/{BK_FOLIO}/folio/payment",                  status: 201, note: "scenario 03 — PAY_CASH зануляет баланс" }
+
+console_errors: []
+
+network_errors: []
+
+bugs: []
+
+help_rewrite_hints:
+  topic: null
+  current: |
+    В help-content.tsx нет статьи про фолио бронирования. Существующие темы:
+    quick-start, check-in-out, night-audit. Раздел /bookings в quick-start упоминает
+    создание бронирования и заселение/выселение, но не объясняет устройство
+    вкладки Folio: окна, начисления, платежи, разделение баланса по плательщикам.
+  actual: |
+    FolioSection (apps/web/src/app/bookings/[id]/folio-section.tsx) под вкладкой Folio
+    состоит из:
+
+    **Окна фолио** (.folio-win, рендерятся стеком через folio.windows.map):
+    - Заголовок: 'Window A · {label}' + payeeType + paymentMethod (серой строкой).
+    - Две кнопки: Charge (начисление, зелёный '+') и Payment (платёж, иконка cash).
+    - Инлайн-форма при клике по любой из них: select transactionCode (отфильтрован
+      isManualPostAllowed=true), amount, description. Submit → POST
+      /api/bookings/{id}/folio/post (charge) или /folio/payment (payment).
+    - Таблица транзакций (table.t): Date, Code, Description, Debit, Credit, By.
+      Credit подсвечен зелёным (var(--checked-in)). 'auto' подпись рядом с
+      системно-сгенерированными записями (isSystemGenerated=true).
+    - Строка totals: Posted (totalCharges), Paid (totalPayments), Balance. Balance
+      имеет класс .v.pos / .v.neg / .v.zero в зависимости от знака — визуально
+      красный / зелёный / серый.
+
+    **Карточка 'Booking total'** (снизу, всегда присутствует):
+    - Список .leg по каждому окну с его балансом.
+    - Строка 'Due on checkout' (суммарный folio.balance).
+    - Кнопка 'Accept payment' (видна только при balance>0) — открывает форму
+      payment на активном окне.
+
+    **Контракт API:**
+    - GET /api/bookings/{id}/folio → { balance, transactions, summary, windows[] }.
+    - POST .../folio/post — charges; требует transactionType=charge &&
+      isManualPostAllowed=true, иначе 400 SYSTEM_ONLY_CODE. Также нужен
+      booking.status ∈ {confirmed, checked_in}, иначе 400 INVALID_BOOKING_STATUS.
+    - POST .../folio/payment — payments; аналогично, transactionType=payment.
+
+    **Важное:**
+    - Код ROOM (Room Charge) имеет isManualPostAllowed=false — это системная
+      операция, начисляется ночной проверкой. Через UI руками вносится
+      ADJ_ROOM / EXTRA_BED и другие manual-allowed коды.
+    - Нет UI для void/correction: воидить запись нельзя через веб, только
+      POST компенсирующей записи.
+  rewrite: |
+    ## Фолио бронирования (вкладка «Финансы»)
+
+    Вкладка отображает финансовое состояние бронирования: что начислено, что
+    получено, остаток к оплате. Состоит из одного или нескольких **окон фолио**
+    и сводной карточки снизу.
+
+    ### Окна фолио
+
+    Каждая бронь имеет минимум одно окно (Window A — основной плательщик).
+    Дополнительные окна (Window B, C…) открываются, если часть расходов
+    переносится на компанию, турагента или другого гостя (routing).
+
+    В заголовке окна видны:
+    - **Буква и метка окна** (Window A · Peter Petrov).
+    - **Тип плательщика** и метод оплаты (если известен).
+
+    Две кнопки **+ Charge** (начисление) и **Payment** (платёж) открывают форму:
+    - **Код операции** — список ограничен кодами, которые разрешено проводить
+      вручную. Системные коды (напр. ROOM Charge из ночного аудита) в списке
+      отсутствуют.
+    - **Сумма** — с двумя знаками после запятой, минимум 0.01.
+    - **Описание** — свободный текст, необязательно.
+
+    После отправки таблица обновляется и баланс пересчитывается.
+
+    ### Строка итогов
+
+    Внизу окна:
+    - **Начислено / Posted** — сумма всех debit-операций.
+    - **Оплачено / Paid** — сумма всех credit-операций (зелёный).
+    - **Баланс / Balance** — разница; красный при долге, серый при нуле.
+
+    ### Карточка «Итого по брони»
+
+    Показывает баланс по каждому окну и **«К оплате при выезде»** — общую сумму,
+    которую гость должен закрыть перед check-out. Кнопка **«Принять платёж»**
+    появляется только при положительном балансе и открывает форму платежа на
+    активном окне.
+
+    > **Ограничение:** void/коррекция записи в веб-интерфейсе пока не реализован.
+    > Для обратной проводки вносите компенсирующую запись (например, ADJ_ROOM
+    > на отрицательную сумму через сверку).
+
+retro:
+  time_minutes: 40
+  unblocker_fixes:
+    - "Выбор charge-кода ADJ_ROOM вместо ROOM: через GET /api/transaction-codes видно, что ROOM имеет isManualPostAllowed=false и API вернул бы 400 SYSTEM_ONLY_CODE. План описывал 'prefer ROOM' — скорректировано на 'prefer ADJ_ROOM' как единственный стабильно-постимый ROOM-group код"
+    - "Scenario 04 ru-ветка: в seed нет бронирований с folio.balance===0, но есть окна с windows[i].balance===0 (мульти-оконные брони разделяют баланс по окнам — primary holds full, secondary=0). Используем .windows.some(w=>w.balance===0) вместо f.balance===0 для поиска кандидата. В итоге реальным попаданием стал BK_FOLIO после en-прогона, но scan робастен и найдёт secondary window в multi-оконных сценариях"
+    - "BK_FOLIO выбирается с предпочтением single-window (чтобы scenario 04 однозначно наблюдал zero-balance), но fallback на multi-window есть — первая windows[0] в обоих случаях используется как WIN_A"
+  methodology_deltas:
+    - "Inline fixture helpers (getFolio, getFolioBalance, fetchTransactionCode, fetchCheckedInBookingWithWindows, fetchCheckedInBookingWithPositiveBalance) повторяют паттерн из секции 06 — это второй раз подряд, когда мы дублируем хелперы вокруг /folio и /transaction-codes. Сигнал для Batch A retro: вынести в shared fixture-слой. В секции 06 уже назван кандидат (fetchPayCashCodeId) — теперь добавлен более общий fetchTransactionCode(type, prefer)"
+    - "В seed НЕТ бронирований с folio.balance===0 — scenario 04 'zero-state' наблюдается только ПОСЛЕ мутации (scenario 03) или на окнах с windowNumber>1 (они стартуют с 0). Это не баг UI, а свойство seed-fixture. Для read-only observation был бы нужен свеже-созданный booking без charges, что само по себе мутация"
+    - "Endpoints /folio/post (charges) и /folio/payment (payments) — ДВА разных пути, не один с дискриминатором. UI роутит через postFormMode === 'payment' ? ...payment : ...post. План audit plan подразумевал единый endpoint — исправлено"
+    - "Класс .v.pos/.v.neg/.v.zero применяется к .totals .v ВНУТРИ .folio-win, не к самому .folio-win. Важно для scenario 05 — первый вариант селектора '.folio-win.pos' не сработал бы"
+    - "Empty-state 'No transactions' рендерится, но не встречается в запуске (attachment empty-state-count=0): seed не содержит окон без транзакций, а мутации добавляют, не удаляют. Покрытие этого empty-state нужно отдельно через booking.create fixture без auto-room-charges, что выходит за рамки секции 10"
+    - "Scenario 02/03 надёжно работают через delta-проверки (preRowCount+1, deltaBalance=+1000) вместо absolute — позволяет повторные прогоны на shared state. На скриншоте видно, что BK_FOLIO накопил аудит-следы от прошлых запусков (несколько ADJ_ROOM audit-charge строк) — тест всё равно зелёный"
+    - "Playwright selectOption через <select> работает с uuid value напрямую, никакого setNativeValue не потребовалось (в отличие от некоторых проверок на editable-date полях)"
+
+status: ok
+last_audited: 2026-04-21
+screenshots_dir: docs/ui-audit/screenshots/
