@@ -12,7 +12,7 @@ export default defineConfig({
   retries: 0,
   timeout: 60_000,
   reporter: [['line']],
-  globalSetup: './src/build-gate.ts',
+  globalSetup: './src/global-setup.ts',
   use: {
     baseURL: webUrl,
     headless: true,
