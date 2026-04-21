@@ -115,6 +115,17 @@
       "fix": "(a) Заменить хардкод на t(dict, 'txCodes.badge.charge') / t(dict, 'txCodes.badge.payment') + добавить ключи в словари. (b) Добавить txCodes.groupCode.{room_charge,tax,minibar,...} в dictionaries/{ru,en}.ts и использовать lookup в select options."
     },
     {
+      "id": "BUG-011",
+      "title": "Help hub status reference: hardcoded English keywords in localized legend",
+      "severity": "low",
+      "status": "open",
+      "source": "ui-audit/22-help",
+      "file": "apps/web/src/app/help/page.tsx",
+      "lines": "103-143",
+      "description": "Status keywords ('Confirmed', 'Checked In', 'Checked Out', 'Cancelled', 'No Show', 'Clean', 'Dirty', 'Inspected', 'Out of Order') are hardcoded English strings in the hub status-reference legend, followed by a dash and an i18n-translated description. On RU locale produces mixed 'Confirmed - Подтверждено' style text. The bookings list uses fully localised bookings.status.* keys — this is a localisation gap.",
+      "fix": "Extract status keyword strings into i18n keys (e.g. help.status.confirmedLabel) or reuse existing bookings.status.* and rooms.hk.* keys via t(dict, ...). Replace hardcoded strings in page.tsx lines 103-143."
+    },
+    {
       "id": "BUG-008",
       "title": "Property form не может сохранить форму при оригинальном seed (numberOfRooms mismatch)",
       "severity": "medium",

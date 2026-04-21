@@ -30,54 +30,56 @@ export default async function HelpPage() {
           <Link href="/" className="text-blue-600 hover:underline text-sm">
             ← {t(dict, "help.back")}
           </Link>
-          <h1 className="text-3xl font-bold mt-2">
+          <h1 data-testid="help-hub-title" className="text-3xl font-bold mt-2">
             {t(dict, "help.title")}
           </h1>
-          <p className="text-gray-600">
+          <p data-testid="help-hub-subtitle" className="text-gray-600">
             {t(dict, "help.subtitle")}
           </p>
         </div>
       </div>
 
       {/* Quick Reference */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+      <div data-testid="help-quick-links" className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
         <h2 className="font-semibold text-blue-800 mb-2">
           {t(dict, "help.quickLinks")}
         </h2>
         <div className="flex flex-wrap gap-2">
-          <Link href="/bookings?view=arrivals" className="text-blue-600 hover:underline text-sm">
+          <Link data-testid="help-quick-link-arrivals" href="/bookings?view=arrivals" className="text-blue-600 hover:underline text-sm">
             {t(dict, "help.arrivalsToday")}
           </Link>
           <span className="text-gray-300">|</span>
-          <Link href="/bookings?view=departures" className="text-blue-600 hover:underline text-sm">
+          <Link data-testid="help-quick-link-departures" href="/bookings?view=departures" className="text-blue-600 hover:underline text-sm">
             {t(dict, "help.departuresToday")}
           </Link>
           <span className="text-gray-300">|</span>
-          <Link href="/rooms?hk=dirty" className="text-blue-600 hover:underline text-sm">
+          <Link data-testid="help-quick-link-dirty-rooms" href="/rooms?hk=dirty" className="text-blue-600 hover:underline text-sm">
             {t(dict, "help.dirtyRooms")}
           </Link>
           <span className="text-gray-300">|</span>
-          <Link href="/bookings/new" className="text-blue-600 hover:underline text-sm">
+          <Link data-testid="help-quick-link-new-booking" href="/bookings/new" className="text-blue-600 hover:underline text-sm">
             {t(dict, "help.newBooking")}
           </Link>
         </div>
       </div>
 
       {/* Topics Grid */}
-      <div className="grid md:grid-cols-2 gap-4">
+      <div data-testid="help-topics-grid" className="grid md:grid-cols-2 gap-4">
         {helpTopics.map((topic) => (
           <Link
             key={topic.id}
+            data-testid="help-topic-card"
+            data-topic-id={topic.id}
             href={`/help/${topic.id}`}
             className="block p-4 bg-white border rounded-lg hover:shadow-md transition-shadow"
           >
             <div className="flex items-start gap-3">
               <span className="text-2xl">{topic.icon}</span>
               <div>
-                <h3 className="font-semibold">
+                <h3 data-testid="help-topic-card-title" className="font-semibold">
                   {t(dict, `help.topic.${topic.id}.title` as DictionaryKey)}
                 </h3>
-                <p className="text-sm text-gray-600">
+                <p data-testid="help-topic-card-desc" className="text-sm text-gray-600">
                   {t(dict, `help.topic.${topic.id}.desc` as DictionaryKey)}
                 </p>
               </div>
@@ -87,13 +89,13 @@ export default async function HelpPage() {
       </div>
 
       {/* Status Reference */}
-      <div className="mt-8 bg-white border rounded-lg p-4">
+      <div data-testid="help-status-reference" className="mt-8 bg-white border rounded-lg p-4">
         <h2 className="font-semibold mb-4">
           {t(dict, "help.statusReference")}
         </h2>
 
         <div className="grid md:grid-cols-2 gap-6">
-          <div>
+          <div data-testid="help-booking-statuses">
             <h3 className="text-sm font-medium text-gray-500 mb-2">
               {t(dict, "help.bookingStatuses")}
             </h3>
@@ -121,7 +123,7 @@ export default async function HelpPage() {
             </div>
           </div>
 
-          <div>
+          <div data-testid="help-room-statuses">
             <h3 className="text-sm font-medium text-gray-500 mb-2">
               {t(dict, "help.roomStatuses")}
             </h3>

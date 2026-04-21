@@ -28,10 +28,10 @@ export default async function HelpTopicPage({ params }: Props) {
         <Link href="/help" style={{ color: "var(--accent)", fontSize: 12.5 }}>
           ← {t(dict, "help.back")}
         </Link>
-        <h1 className="page-title">{title}</h1>
+        <h1 data-testid="help-topic-title" className="page-title">{title}</h1>
       </div>
       <div className="card">
-        <div className="card-body">{content}</div>
+        <div data-testid="help-topic-content" className="card-body">{content}</div>
       </div>
     </main>
   );

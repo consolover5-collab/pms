@@ -141,6 +141,30 @@ bugs:
       (b) Добавить ключи txCodes.groupCode.{room_charge,tax,minibar,restaurant,spa,laundry,phone,parking,misc}
       в dictionaries/{ru,en}.ts и использовать lookup в select options вместо сырой строки {g}.
 
+  - id: BUG-011
+    title: "Help hub status-reference: hardcoded English keywords in localized legend"
+    severity: low
+    status: open
+    source: ui-audit/22-help
+    file: apps/web/src/app/help/page.tsx
+    lines: "103-143"
+    description: |
+      Status keywords ("Confirmed", "Checked In", "Checked Out", "Cancelled", "No Show",
+      "Clean", "Dirty", "Inspected", "Out of Order") are hardcoded English strings in the
+      status-reference legend, followed by a dash and an i18n-translated description.
+      On RU locale this produces mixed text like "Confirmed - Подтверждено",
+      "Checked In - Заселён", "Clean - Чистый", etc.
+      The bookings list (/bookings) and rooms list (/rooms) use fully localised status labels
+      via bookings.status.* and rooms.hk.* i18n keys — confirming this is a localisation gap,
+      not intentional design.
+    fix: |
+      Extract status keyword strings into i18n keys:
+        help.status.confirmedLabel, help.status.checkedInLabel, help.status.checkedOutLabel,
+        help.status.cancelledLabel, help.status.noShowLabel, help.status.cleanLabel,
+        help.status.dirtyLabel, help.status.inspectedLabel, help.status.outOfOrderLabel.
+      Or reuse existing bookings.status.* and rooms.hk.* keys via t(dict, 'bookings.status.confirmed').
+      Replace hardcoded strings in page.tsx lines 103-143 with t(dict, ...) calls.
+
   - id: BUG-007
     title: "Room detail page частично локализована — hkStatusLabels и вспомогательные лейблы захардкожены"
     severity: low

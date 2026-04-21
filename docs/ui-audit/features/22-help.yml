@@ -1,0 +1,161 @@
+id: 22-help
+title: "Help (/help + /help/<topic>)"
+route: /help
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  hub_page:
+    server_component: apps/web/src/app/help/page.tsx
+    note: >
+      Bilingual static page. Lists 9 topic cards with icon, title, description.
+      Quick-links section links to arrivals, departures, dirty rooms, new booking.
+      Status-reference legend renders booking + room statuses with color dots.
+      BUG-011: status keyword labels hardcoded English; descriptions are i18n'd —
+      produces mixed "Confirmed - Подтверждено" on RU locale.
+    testids:
+      - { id: help-hub-title,             element: "h1",                   added: true }
+      - { id: help-hub-subtitle,          element: "p",                    added: true }
+      - { id: help-quick-links,           element: "div (quick-links box)", added: true }
+      - { id: help-quick-link-arrivals,   element: "Link (arrivals)",      added: true }
+      - { id: help-quick-link-departures, element: "Link (departures)",    added: true }
+      - { id: help-quick-link-dirty-rooms, element: "Link (dirty rooms)",  added: true }
+      - { id: help-quick-link-new-booking, element: "Link (new booking)",  added: true }
+      - { id: help-topics-grid,           element: "div.grid",             added: true }
+      - { id: help-topic-card,            element: "Link (topic card)",    added: true, note: "also data-topic-id={topic.id}" }
+      - { id: help-topic-card-title,      element: "h3",                   added: true }
+      - { id: help-topic-card-desc,       element: "p",                    added: true }
+      - { id: help-status-reference,      element: "div (status block)",   added: true }
+      - { id: help-booking-statuses,      element: "div (booking block)",  added: true }
+      - { id: help-room-statuses,         element: "div (room block)",     added: true }
+
+  topic_page:
+    server_component: apps/web/src/app/help/[topic]/page.tsx
+    note: >
+      Wrapper that reads HelpContentDict[topic]. Unknown topic → notFound() called
+      → Next.js 15 RSC renders default 404 UI client-side (HTTP status stays 200 at
+      transport level due to RSC streaming behavior).
+    testids:
+      - { id: help-topic-title,   element: "h1.page-title", added: true }
+      - { id: help-topic-content, element: "div.card-body", added: true }
+
+  help_content:
+    component: apps/web/src/app/help/[topic]/help-content.tsx
+    note: >
+      Static dictionary with 9 entries. Each entry has titleRu/titleEn/contentRu/contentEn.
+      Content is JSX (React.ReactNode). generateStaticParams() returns all 9 keys.
+
+topics:
+  - id: quick-start
+    titleEn: "Quick Start"
+    titleRu: "Быстрый старт"
+  - id: dashboard
+    titleEn: "Dashboard"
+    titleRu: "Dashboard"
+  - id: bookings
+    titleEn: "Bookings"
+    titleRu: "Бронирования"
+  - id: check-in-out
+    titleEn: "Check-in / Check-out"
+    titleRu: "Заезд и выезд"
+  - id: rooms
+    titleEn: "Rooms"
+    titleRu: "Номера"
+  - id: guests
+    titleEn: "Guests"
+    titleRu: "Гости"
+  - id: folio
+    titleEn: "Folio / Cashiering"
+    titleRu: "Фолио / Касса"
+  - id: night-audit
+    titleEn: "Night Audit"
+    titleRu: "Ночной аудит"
+  - id: configuration
+    titleEn: "Configuration"
+    titleRu: "Конфигурация"
+
+steps:
+  - id: "01-hub-render"
+    status: ok
+    action: >
+      Navigate /help (both locales). Assert: help-hub-title visible; help-hub-subtitle visible;
+      help-quick-links visible; help-topics-grid visible; [data-testid="help-topic-card"] count=9;
+      each card has visible non-empty title and description; help-status-reference visible;
+      help-booking-statuses visible; help-room-statuses visible.
+    screenshots:
+      - 22-help-01-hub-render-ru.png
+      - 22-help-01-hub-render-en.png
+    mutation: false
+    locale_gate: both locales
+
+  - id: "02-open-topic-bookings"
+    status: ok
+    action: >
+      Navigate /help; click [data-testid="help-topic-card"][data-topic-id="bookings"];
+      wait for URL /help/bookings; assert help-topic-title visible;
+      EN: title="Bookings"; RU: title="Бронирования";
+      assert help-topic-content textContent.length > 100.
+    screenshots:
+      - 22-help-02-open-topic-bookings-ru.png
+      - 22-help-02-open-topic-bookings-en.png
+    mutation: false
+    locale_gate: both locales
+
+  - id: "03-all-topics-non-empty"
+    status: ok
+    action: >
+      Iterate all 9 topic IDs. For each: navigate /help/<topic>; assert URL contains topic slug;
+      assert help-topic-title visible; assert help-topic-content visible and textContent.length > 100.
+      Screenshot of rooms topic (5th, representative sample).
+    screenshots:
+      - 22-help-03-all-topics-rooms-sample-ru.png
+      - 22-help-03-all-topics-rooms-sample-en.png
+    mutation: false
+    locale_gate: both locales
+
+  - id: "04-missing-topic-404"
+    status: ok
+    note: >
+      Next.js 15 App Router: notFound() during RSC streaming does NOT set HTTP 404 — the
+      404 UI is rendered client-side via React hydration (HTTP status is 200 at transport).
+      Assertion adapted: URL stays at /help/nonexistent-topic-xyz AND body contains "404"
+      AND "could not be found".
+    action: >
+      Navigate /help/nonexistent-topic-xyz; assert URL contains slug (no redirect);
+      assert body contains "404"; assert body contains "could not be found".
+    screenshots:
+      - 22-help-04-missing-topic-404-ru.png
+      - 22-help-04-missing-topic-404-en.png
+    mutation: false
+    locale_gate: both locales
+
+bugs:
+  - id: BUG-011
+    title: "Help hub status-reference: hardcoded English keywords in localized legend"
+    severity: low
+    status: open
+    file: apps/web/src/app/help/page.tsx
+    lines: "103-143"
+    description: >
+      Status keywords ("Confirmed", "Checked In", etc.) hardcoded in English, followed by
+      i18n-translated description. On RU locale produces "Confirmed - Подтверждено" style
+      mixed text. Bookings list uses fully localised bookings.status.* keys — confirmed gap.
+
+console_errors: []
+network_errors: []
+
+signals:
+  l10n: partial
+  l10n_note: >
+    Topic titles and content are fully bilingual (titleRu/titleEn, contentRu/contentEn).
+    Hub page quick-links and section headings are i18n'd. BUG-011: status-reference keyword
+    labels are hardcoded English — produces mixed-language text on RU locale.
+  testids_added: true
+  testids_prefix: "help-*"
+  mutations_gated_to_en: false
+  risk: NONE
+  restore_mechanism: "n/a — zero mutations"
+
+status: ok
+last_audited: "2026-04-21"
+screenshots_dir: docs/ui-audit/screenshots/
