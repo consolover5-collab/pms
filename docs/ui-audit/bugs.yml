@@ -48,3 +48,21 @@ bugs:
     fix: |
       Добавить ключи bookings.edit.* в apps/web/src/i18n/dictionaries/{ru,en}.ts и подтянуть через
       useI18n() в форме. Заголовок в page.tsx вывести через server-side getDictionary.
+
+  - id: BUG-006
+    title: "Rooms list page не локализована — все лейблы хардкод на английском"
+    severity: low
+    status: open
+    source: ui-audit/07-rooms-list
+    file: apps/web/src/app/rooms/page.tsx
+    description: |
+      Страница /rooms рендерится полностью на английском вне зависимости от locale-cookie.
+      Заголовок "Rooms", кнопка "+ New Room", фильтр-группы "All / Occupancy / Housekeeping",
+      лейблы chips (Vacant, Occupied, Clean, Dirty, Inspected, Pickup, Out of Service, Out of Order),
+      пустое состояние "No rooms match the selected filters" и footer "Showing X of Y rooms" —
+      всё как английские строковые литералы без обращения к i18n-словарям.
+      Аналогичный паттерн как BUG-003 (search-form на /bookings) и BUG-005 (booking edit).
+    fix: |
+      Добавить ключи roomsList.* в apps/web/src/i18n/dictionaries/{ru,en}.ts (title, newRoom,
+      filterAll, filterOccupancy, filterHousekeeping, chips для occ/hk статусов, empty, footer)
+      и подтянуть через server-side getDictionary() в page.tsx.
