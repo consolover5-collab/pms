@@ -307,7 +307,7 @@ test.describe('17 configuration-rate-plans', () => {
     ).toBeVisible({ timeout: UI_TIMEOUT });
 
     // The matrix table should have rows — guard: wait for tbody tr
-    const matrixRows = page.locator('.t tbody tr');
+    const matrixRows = page.getByTestId('rate-matrix-row');
     await expect(matrixRows.first()).toBeVisible({ timeout: UI_TIMEOUT });
     const matrixRowCount = await matrixRows.count();
     testInfo.attach('matrix-row-count', {
@@ -364,7 +364,7 @@ test.describe('17 configuration-rate-plans', () => {
       page.getByText(labels.en.roomRatesTitle),
     ).toBeVisible({ timeout: UI_TIMEOUT });
 
-    const matrixRowsAfterReload = page.locator('.t tbody tr');
+    const matrixRowsAfterReload = page.getByTestId('rate-matrix-row');
     await expect(matrixRowsAfterReload.first()).toBeVisible({ timeout: UI_TIMEOUT });
 
     const stdRowAfterReload = matrixRowsAfterReload.filter({ hasText: '(STD)' });

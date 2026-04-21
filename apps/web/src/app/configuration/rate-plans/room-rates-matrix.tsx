@@ -101,7 +101,7 @@ export function RoomRatesMatrix({
             const isSaved = saved === rt.id;
             const hasRate = rt.id in rates;
             return (
-              <tr key={rt.id}>
+              <tr key={rt.id} data-testid="rate-matrix-row">
                 <td>
                   <span style={{ fontWeight: 500 }}>{rt.name}</span>
                   <span
