@@ -41,6 +41,17 @@
       "fix": "Вынести строки в i18n-ключи bookings.search.placeholder / bookings.search.submit и локализовать."
     },
     {
+      "id": "BUG-004",
+      "title": "'Force check-in' button in dirty-warning modal doesn't bypass API gate",
+      "severity": "medium",
+      "status": "open",
+      "source": "ui-audit/06-checkin-checkout",
+      "file": "apps/api/src/routes/bookings.ts",
+      "lines": "521-530",
+      "description": "UI renders a 'Force check-in' button when hk=dirty that sends {force: true, roomId}; the check-in handler does not read the force flag and rejects with ROOM_NOT_READY regardless. Clicking the button re-opens the same dirty-warning modal, creating an infinite loop for the user.",
+      "fix": "Either honor force: true server-side (skip the hk-clean gate analogous to check-out's force path) or remove the 'Force check-in' button from the UI and require the user to clean the room first."
+    },
+    {
       "id": "DEBT-002",
       "title": "OOO-валидация дублирована в POST и PATCH /rooms/:id/status",
       "severity": "medium",

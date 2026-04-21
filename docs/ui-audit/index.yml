@@ -35,8 +35,8 @@ sections:
     priority: P1
   - id: "06"
     file: features/06-checkin-checkout.yml
-    status: pending
-    bugs: 0
+    status: ok
+    bugs: 1
     priority: P0
   - id: "07"
     file: features/07-rooms-list.yml
@@ -131,9 +131,9 @@ sections:
 
 totals:
   sections: 24
-  ok: 4
+  ok: 5
   partial: 0
   broken: 0
   missing: 0
-  pending: 20
-  bugs: 1
+  pending: 19
+  bugs: 2
