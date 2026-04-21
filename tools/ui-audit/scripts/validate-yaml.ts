@@ -11,7 +11,7 @@ const REQUIRED_FIELDS = [
   'id', 'title', 'route', 'depends_on', 'locales_tested',
   'ui', 'steps', 'edge_cases',
   'api_calls_observed', 'console_errors', 'network_errors',
-  'bugs', 'status', 'last_audited', 'screenshots_dir', 'help_rewrite_hints',
+  'bugs', 'status', 'last_audited', 'screenshots_dir', 'help_rewrite_hints', 'retro',
 ];
 
 const VALID_STATUS = ['ok', 'partial', 'broken', 'missing', 'pending'];

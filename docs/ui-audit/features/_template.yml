@@ -10,8 +10,17 @@ locales_tested: [ru, en]
 ui:
   header: { ru: "", en: "" }
   required_fields: []
+  # Example required field (note is optional):
+  # - { id: checkIn, label: { ru: "Заезд", en: "Check-in" }, kind: "date" }
+  # - { id: rateAmount, label: { ru: "Цена / ночь", en: "Rate per Night" }, kind: "number", note: "auto-filled from rate plan × room type" }
   optional_fields: []
+  # Example optional field (default is optional):
+  # - { id: adults, label: { ru: "Взрослых", en: "Adults" }, kind: "number", default: 1 }
+  # - { id: notes, label: { ru: "Примечания", en: "Notes" }, kind: "textarea" }
   buttons: {}
+  # Example buttons map (keyed by semantic id):
+  # submit: { ru: "Создать бронирование", en: "Create Booking" }
+  # cancelAddGuest: { ru: "Отмена", en: "Cancel" }
 
 steps: []
 # Example step:
@@ -56,7 +65,7 @@ bugs: []
 #   screenshot: NN-slug-02-empty-validation-ru.png
 
 help_rewrite_hints:
-  # Set topic: null if no matching help topic exists for this section.
+  # Set topic to a help-article id (e.g. "bookings") or null if no matching help topic exists.
   topic: <help-topic-id-or-null>
   current: ""
   actual: ""
