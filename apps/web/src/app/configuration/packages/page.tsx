@@ -43,9 +43,9 @@ export default async function PackagesPage({
       </div>
 
       <div className="page-head">
-        <h1 className="page-title">{t(dict, "packages.title")}</h1>
+        <h1 className="page-title" data-testid="packages-title">{t(dict, "packages.title")}</h1>
         <div className="actions">
-          <Link href="/configuration/packages/new" className="btn sm primary">
+          <Link href="/configuration/packages/new" className="btn sm primary" data-testid="packages-new">
             <Icon name="plus" size={12} />
             {t(dict, "packages.add")}
           </Link>

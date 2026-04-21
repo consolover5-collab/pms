@@ -91,7 +91,7 @@ export function PackagesList({
 
   return (
     <>
-      <form onSubmit={handleSearch} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <form data-testid="packages-search-form" onSubmit={handleSearch} style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <div style={{ position: "relative", flex: "1 1 320px", maxWidth: 420 }}>
           <span
             style={{
@@ -106,6 +106,7 @@ export function PackagesList({
             <Icon name="search" size={14} />
           </span>
           <input
+            data-testid="packages-search-input"
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -114,11 +115,11 @@ export function PackagesList({
             style={{ paddingLeft: 32, width: "100%" }}
           />
         </div>
-        <button type="submit" className="btn sm">
+        <button data-testid="packages-search-submit" type="submit" className="btn sm">
           {t(dict, "profiles.searchBtn")}
         </button>
         {initialSearch && (
-          <Link href="/configuration/packages" className="btn sm ghost">
+          <Link data-testid="packages-clear" href="/configuration/packages" className="btn sm ghost">
             {t(dict, "profiles.clear")}
           </Link>
         )}
@@ -133,6 +134,7 @@ export function PackagesList({
         <div className="card-body" style={{ padding: 0 }}>
           {packages.length === 0 ? (
             <div
+              data-testid="packages-empty"
               style={{
                 padding: 24,
                 textAlign: "center",
@@ -143,7 +145,7 @@ export function PackagesList({
               {t(dict, "packages.empty")}
             </div>
           ) : (
-            <table className="t">
+            <table data-testid="packages-table" className="t">
               <thead>
                 <tr>
                   <th style={{ width: 100 }}>{t(dict, "packages.colCode")}</th>
@@ -159,22 +161,22 @@ export function PackagesList({
               </thead>
               <tbody>
                 {packages.map((pkg) => (
-                  <tr key={pkg.id}>
-                    <td className="tnum">{pkg.code}</td>
-                    <td style={{ fontWeight: 500 }}>{pkg.name}</td>
-                    <td className="r tnum">
+                  <tr key={pkg.id} data-testid="package-row" data-package-id={pkg.id}>
+                    <td className="tnum" data-testid="package-code">{pkg.code}</td>
+                    <td style={{ fontWeight: 500 }} data-testid="package-name">{pkg.name}</td>
+                    <td className="r tnum" data-testid="package-amount">
                       {Number(pkg.amount) === 0
                         ? t(dict, "packages.included")
                         : `${formatCurrency(pkg.amount)} ₽`}
                     </td>
-                    <td style={{ fontSize: 12, color: "var(--muted)" }}>
+                    <td style={{ fontSize: 12, color: "var(--muted)" }} data-testid="package-rule">
                       {ruleLabel(pkg.calculationRule)}
                     </td>
-                    <td style={{ fontSize: 12, color: "var(--muted)" }}>
+                    <td style={{ fontSize: 12, color: "var(--muted)" }} data-testid="package-rhythm">
                       {rhythmLabel(pkg.postingRhythm)}
                     </td>
                     <td>
-                      <span className={`badge ${pkg.isActive ? "checked-in" : "cancelled"}`}>
+                      <span data-testid="package-status-badge" className={`badge ${pkg.isActive ? "checked-in" : "cancelled"}`}>
                         <span className="dot" />
                         {pkg.isActive ? t(dict, "packages.active") : t(dict, "packages.inactive")}
                       </span>
@@ -182,12 +184,14 @@ export function PackagesList({
                     <td className="r">
                       <div style={{ display: "inline-flex", gap: 6 }}>
                         <Link
+                          data-testid="package-edit"
                           href={`/configuration/packages/${pkg.id}/edit`}
                           className="btn xs ghost"
                         >
                           {t(dict, "packages.edit")}
                         </Link>
                         <button
+                          data-testid="package-toggle-active"
                           type="button"
                           onClick={() => handleToggleActive(pkg.id, pkg.isActive)}
                           disabled={deactivating === pkg.id}

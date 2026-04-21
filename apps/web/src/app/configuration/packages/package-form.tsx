@@ -129,6 +129,7 @@ export function PackageForm({
 
   return (
     <form
+      data-testid="package-form"
       onSubmit={handleSubmit}
       style={{
         display: "flex",
@@ -138,6 +139,7 @@ export function PackageForm({
     >
       {error && (
         <div
+          data-testid="package-error-banner"
           role="alert"
           style={{
             padding: "10px 12px",
@@ -170,7 +172,7 @@ export function PackageForm({
           gap: 10,
         }}
       >
-        <div className="field">
+        <div className="field" data-testid="package-field-code">
           <label className="lab">
             {t(dict, "packages.fld.code")}
             {required}
@@ -186,7 +188,7 @@ export function PackageForm({
             placeholder={t(dict, "packages.ph.code")}
           />
         </div>
-        <div className="field">
+        <div className="field" data-testid="package-field-name">
           <label className="lab">
             {t(dict, "packages.fld.name")}
             {required}
@@ -202,7 +204,7 @@ export function PackageForm({
         </div>
       </div>
 
-      <div className="field">
+      <div className="field" data-testid="package-field-description">
         <label className="lab">{t(dict, "packages.fld.description")}</label>
         <textarea
           value={form.description || ""}
@@ -220,7 +222,7 @@ export function PackageForm({
           gap: 10,
         }}
       >
-        <div className="field">
+        <div className="field" data-testid="package-field-transaction-code">
           <label className="lab">
             {t(dict, "packages.fld.transactionCode")}
             {required}
@@ -240,7 +242,7 @@ export function PackageForm({
           </select>
         </div>
 
-        <div className="field">
+        <div className="field" data-testid="package-field-calculation-rule">
           <label className="lab">
             {t(dict, "packages.fld.calculationRule")}
             {required}
@@ -259,7 +261,7 @@ export function PackageForm({
           </select>
         </div>
 
-        <div className="field">
+        <div className="field" data-testid="package-field-posting-rhythm">
           <label className="lab">
             {t(dict, "packages.fld.postingRhythm")}
             {required}
@@ -278,7 +280,7 @@ export function PackageForm({
           </select>
         </div>
 
-        <div className="field">
+        <div className="field" data-testid="package-field-amount">
           <label className="lab">
             {t(dict, "packages.fld.amount")}
             {required}
@@ -296,6 +298,7 @@ export function PackageForm({
       </div>
 
       <label
+        data-testid="package-field-is-active"
         style={{
           display: "inline-flex",
           gap: 8,
@@ -349,6 +352,8 @@ export function PackageForm({
                 return (
                   <div
                     key={rp.id}
+                    data-testid="package-rate-plan-link"
+                    data-rate-plan-id={rp.id}
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -370,6 +375,7 @@ export function PackageForm({
                       }}
                     >
                       <input
+                        data-testid="package-rate-plan-link-check"
                         type="checkbox"
                         checked={isLinked}
                         onChange={(e) =>
@@ -402,6 +408,7 @@ export function PackageForm({
                         }}
                       >
                         <input
+                          data-testid="package-rate-plan-include-in-rate"
                           type="checkbox"
                           checked={includedInRate}
                           onChange={(e) => updateIncludedInRate(rp.id, e.target.checked)}
@@ -418,7 +425,7 @@ export function PackageForm({
       )}
 
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <button type="submit" disabled={loading} className="btn primary">
+        <button data-testid="package-submit" type="submit" disabled={loading} className="btn primary">
           {loading
             ? t(dict, "common.saving")
             : isEdit
