@@ -4,7 +4,18 @@ import { useState, useEffect, useCallback } from "react";
 import { formatCurrency } from "@/lib/format";
 import { useLocale } from "@/components/locale-provider";
 import { t } from "@/lib/i18n";
+import type { DictionaryKey, Dictionary } from "@/lib/i18n/locales/en";
 import { Icon } from "@/components/icon";
+
+function getPayeeTypeLabel(dict: Dictionary, type: string | null | undefined): string {
+  if (!type) return "—";
+  return t(dict, `folio.payeeType.${type}` as DictionaryKey);
+}
+
+function getPaymentMethodLabel(dict: Dictionary, method: string | null | undefined): string | null {
+  if (!method) return null;
+  return t(dict, `folio.paymentMethod.${method}` as DictionaryKey);
+}
 
 type Transaction = {
   id: string;
@@ -187,8 +198,10 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
                   {t(dict, "bookingDetail.window")} {windowLetter(w.windowNumber)} · {w.label}
                 </div>
                 <div className="who">
-                  {w.payeeType ?? "—"}
-                  {w.paymentMethod ? ` · ${w.paymentMethod}` : ""}
+                  {getPayeeTypeLabel(dict, w.payeeType)}
+                  {getPaymentMethodLabel(dict, w.paymentMethod)
+                    ? ` · ${getPaymentMethodLabel(dict, w.paymentMethod)}`
+                    : ""}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
@@ -315,7 +328,7 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
                       <td>
                         {tx.description || tx.transactionCode.description}
                         {tx.isSystemGenerated && (
-                          <span style={{ marginLeft: 6, fontSize: 10, color: "var(--muted-2)" }}>auto</span>
+                          <span style={{ marginLeft: 6, fontSize: 10, color: "var(--muted-2)" }}>{t(dict, "folio.autoBadge")}</span>
                         )}
                       </td>
                       <td className="r tnum">

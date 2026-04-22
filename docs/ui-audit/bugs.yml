@@ -304,7 +304,7 @@ bugs:
   - id: BUG-014
     title: "Folio section: payeeType / paymentMethod / auto-badge рендерятся сырыми snake_case-значениями"
     severity: low
-    status: open
+    status: closed
     source: ui-audit/preflight-batch-d
     files:
       - apps/web/src/app/bookings/[id]/folio-section.tsx
