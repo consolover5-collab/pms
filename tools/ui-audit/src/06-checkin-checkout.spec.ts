@@ -174,11 +174,9 @@ test.describe('06 checkin-checkout', () => {
 
     await auditScreenshot(page, SECTION_ID, '02-checkin-dirty-warning', 'en');
 
-    // Click "Check in anyway". Per handler at apps/api/src/routes/bookings.ts:521-530
-    // the API does NOT honor request.body.force on check-in: it rejects ROOM_NOT_READY
-    // regardless. The UI handler at booking-actions.tsx:169-172 re-opens the dirty-warning
-    // modal on every ROOM_NOT_READY for action==="check-in", so the modal reappears rather
-    // than ErrorDisplay being shown. Observable empirical behavior: status unchanged.
+    // Click "Check in anyway". After BUG-004 fix the API honors
+    // request.body.force and allows check-in for dirty/pickup rooms.
+    // Expected: 200 + booking transitions to checked_in.
     const forceBtn = page.getByRole('button', { name: L.forceCheckIn });
     const [forceResp] = await Promise.all([
       page.waitForResponse(
@@ -189,23 +187,35 @@ test.describe('06 checkin-checkout', () => {
       ),
       forceBtn.click(),
     ]);
-    const forceBody = (await forceResp.json()) as { code?: string };
-    testInfo.attach('force-checkin-response', {
-      body: `status=${forceResp.status()} code=${forceBody.code ?? ''}`,
+    testInfo.attach('force-checkin-status', {
+      body: `status=${forceResp.status()}`,
       contentType: 'text/plain',
     });
-    expect(forceResp.status()).toBe(400);
-    expect(forceBody.code).toBe('ROOM_NOT_READY');
+    expect(forceResp.status()).toBe(200);
 
-    // Verify booking status is still 'confirmed' — force did not bypass API gate.
+    // Verify booking transitioned to checked_in — force bypassed the hk gate.
     const post = await getBookingStatus(BK_B);
     testInfo.attach('bk-b-status-after-force', {
       body: `status=${post.status}`,
       contentType: 'text/plain',
     });
-    expect(post.status).toBe('confirmed');
+    expect(post.status).toBe('checked_in');
 
-    await auditScreenshot(page, SECTION_ID, '02-checkin-dirty-force-blocked', 'en');
+    await auditScreenshot(page, SECTION_ID, '02-checkin-dirty-force-allowed', 'en');
+
+    // Restore room 206 to dirty/vacant so downstream tests (08-room-detail)
+    // still find the canonical dirty+vacant anchor. Check out the booking
+    // first (legal transition), then force HK back to dirty.
+    await fetch(`${API_URL}/api/bookings/${BK_B}/check-out`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force: true }),
+    });
+    await fetch(`${API_URL}/api/rooms/${DIRTY_ROOM_ID}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ housekeepingStatus: 'dirty' }),
+    });
   });
 
   test('03-checkin-oos-blocked: room-picker opens and OOS room is filtered out', async ({ page }, testInfo) => {

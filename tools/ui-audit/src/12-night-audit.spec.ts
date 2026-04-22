@@ -56,11 +56,9 @@ const labels = {
   },
 } as const;
 
-// Probe-state values confirmed 2026-04-21 (fresh call before writing spec):
-//   businessDate: 2026-04-20, overdueDueOuts: 0, dueToday: 0,
-//   pendingNoShows: 0, roomsToCharge: 33, estimatedRevenue: 168984
+// Probe-state values. businessDate is seeded as "today" so we probe it live.
+// Other counters have a tolerance window since they drift with booking random.
 const EXPECTED = {
-  businessDate: '2026-04-20',
   overdueDueOuts: 0,
   dueToday: 0,
   pendingNoShows: 0,
@@ -69,6 +67,15 @@ const EXPECTED = {
   roomsToChargeMin: 28,
   roomsToChargeMax: 38,
 } as const;
+
+async function probeBusinessDate(): Promise<string> {
+  const r = await fetch(
+    'http://localhost:3000/api/business-date?propertyId=ff1d9135-dfb9-4baa-be46-0e739cd26dad',
+  );
+  if (!r.ok) throw new Error(`GET /api/business-date failed: ${r.status}`);
+  const body = (await r.json()) as { date: string };
+  return body.date;
+}
 
 const API_RESPONSE_TIMEOUT_MS = 20_000;
 const UI_SETTLE_TIMEOUT_MS = 10_000;
@@ -146,7 +153,8 @@ test.describe('12 night-audit', () => {
     });
 
     // Verify counters match probe values.
-    expect(previewBody.businessDate).toBe(EXPECTED.businessDate);
+    const liveBizDate = await probeBusinessDate();
+    expect(previewBody.businessDate).toBe(liveBizDate);
     expect(previewBody.overdueDueOuts).toBe(EXPECTED.overdueDueOuts);
     expect(previewBody.dueToday).toBe(EXPECTED.dueToday);
     expect(previewBody.pendingNoShows).toBe(EXPECTED.pendingNoShows);

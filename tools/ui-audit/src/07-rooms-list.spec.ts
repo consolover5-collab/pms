@@ -47,23 +47,47 @@
 
 import { test, expect } from '@playwright/test';
 import {
+  API_URL,
+  GBH_PROPERTY_ID,
   auditScreenshot,
   registerSectionHooks,
   setLocaleAndGoto,
 } from './shared.ts';
 import { SEED } from './seed-refs.ts';
 
+type RoomDTO = {
+  id: string;
+  housekeepingStatus: string;
+  occupancyStatus: string;
+};
+
+async function probeRoomStats(): Promise<{
+  total: number;
+  vacant: number;
+  occupied: number;
+  clean: number;
+  dirty: number;
+}> {
+  const r = await fetch(`${API_URL}/api/rooms?propertyId=${GBH_PROPERTY_ID}`);
+  if (!r.ok) throw new Error(`GET /api/rooms failed: ${r.status}`);
+  const rooms = (await r.json()) as RoomDTO[];
+  return {
+    total: rooms.length,
+    vacant: rooms.filter((x) => x.occupancyStatus === 'vacant').length,
+    occupied: rooms.filter((x) => x.occupancyStatus === 'occupied').length,
+    clean: rooms.filter((x) => x.housekeepingStatus === 'clean').length,
+    dirty: rooms.filter((x) => x.housekeepingStatus === 'dirty').length,
+  };
+}
+
 const SECTION_ID = '07-rooms-list';
 const ROUTE = '/rooms';
 
-// Probe-confirmed counts (2026-04-21)
+// Seed topology (stable across reseeds). Occupancy/HK counts drift with
+// booking randomisation, so we probe them at runtime in scenario 01.
 const EXPECTED = {
   total: 54,
-  vacant: 21,
-  occupied: 33,
-  clean: 39,
-  dirty: 6,
-  floors: 6, // floors 2,3,4,5,6,7
+  floors: 6, // floors 2..7
   standardDoubleCount: 24,
 } as const;
 
@@ -92,12 +116,18 @@ test.describe('07 rooms-list', () => {
     const expectedHeading = locale === 'ru' ? 'Номера' : 'Rooms';
     await expect(page.getByTestId('rooms-heading')).toHaveText(expectedHeading);
 
-    // Stats match probe-confirmed DB state
-    await expect(page.getByTestId('rooms-stat-total')).toHaveText(String(EXPECTED.total));
-    await expect(page.getByTestId('rooms-stat-vacant')).toHaveText(String(EXPECTED.vacant));
-    await expect(page.getByTestId('rooms-stat-occupied')).toHaveText(String(EXPECTED.occupied));
-    await expect(page.getByTestId('rooms-stat-clean')).toHaveText(String(EXPECTED.clean));
-    await expect(page.getByTestId('rooms-stat-dirty')).toHaveText(String(EXPECTED.dirty));
+    // Stats match live DB state (probed at test time for reseed resilience).
+    const probed = await probeRoomStats();
+    testInfo.attach('stat-probe', {
+      body: JSON.stringify(probed),
+      contentType: 'application/json',
+    });
+    await expect(page.getByTestId('rooms-stat-total')).toHaveText(String(probed.total));
+    await expect(page.getByTestId('rooms-stat-vacant')).toHaveText(String(probed.vacant));
+    await expect(page.getByTestId('rooms-stat-occupied')).toHaveText(String(probed.occupied));
+    await expect(page.getByTestId('rooms-stat-clean')).toHaveText(String(probed.clean));
+    await expect(page.getByTestId('rooms-stat-dirty')).toHaveText(String(probed.dirty));
+    expect(probed.total).toBe(EXPECTED.total);
 
     // Floor groups — 6 floors (2..7)
     const floorGroups = page.getByTestId('rooms-floor-group');
@@ -162,14 +192,15 @@ test.describe('07 rooms-list', () => {
       'page',
     );
 
-    // Stats are computed from allRooms (not filtered) — still 54 total, 6 dirty
-    await expect(page.getByTestId('rooms-stat-total')).toHaveText(String(EXPECTED.total));
-    await expect(page.getByTestId('rooms-stat-dirty')).toHaveText(String(EXPECTED.dirty));
+    // Stats are computed from allRooms (not filtered) — probe live count.
+    const probed = await probeRoomStats();
+    await expect(page.getByTestId('rooms-stat-total')).toHaveText(String(probed.total));
+    await expect(page.getByTestId('rooms-stat-dirty')).toHaveText(String(probed.dirty));
 
-    // Filtered card count matches dirty=6
+    // Filtered card count matches live dirty count.
     const filteredCards = page.getByTestId('rooms-card');
     await expect(filteredCards.first()).toBeVisible({ timeout: UI_TIMEOUT });
-    await expect(filteredCards).toHaveCount(EXPECTED.dirty);
+    await expect(filteredCards).toHaveCount(probed.dirty);
 
     testInfo.attach('filtered-url', {
       body: page.url(),

@@ -67,13 +67,20 @@ const ROUTE = '/configuration/profiles';
 
 const UI_TIMEOUT = 10_000;
 
-// Seed-anchored totals. After BUG-017 fix the page paginates with
-// PAGE_SIZE=50 and the count badge shows the API's `total` field
-// (which matches the DB total), not the rendered slice length.
-// Seed: 130 individual + 10 company + 6 travel_agent + 4 source = 150.
-const EXPECTED_TRUE_TOTAL = 150;
-const EXPECTED_RENDERED = 50; // first page slice; PAGE_SIZE=50
+// After BUG-017 fix the page paginates (PAGE_SIZE=50) and the count badge
+// shows the API's `total` field. We probe the live total at test time so the
+// assertion stays green even when other spec files create/deactivate profiles.
+const EXPECTED_RENDERED = 50; // first-page slice; PAGE_SIZE=50
 const EXPECTED_COMPANY_MIN = 1; // company tab should render at least 1 row
+
+async function probeProfilesTotal(): Promise<number> {
+  const url =
+    'http://localhost:3000/api/profiles?' +
+    'propertyId=ff1d9135-dfb9-4baa-be46-0e739cd26dad&limit=1';
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`GET /api/profiles probe failed: ${r.status}`);
+  return ((await r.json()) as { total: number }).total;
+}
 
 test.describe('21 configuration-profiles', () => {
   test.describe.configure({ mode: 'serial' });
@@ -115,8 +122,10 @@ test.describe('21 configuration-profiles', () => {
     const countBadge = page.getByTestId('config-profiles-count');
     await expect(countBadge).toBeVisible();
     const countText = (await countBadge.textContent())?.trim() ?? '';
+    const liveTotal = await probeProfilesTotal();
     testInfo.attach('badge-total', { body: countText, contentType: 'text/plain' });
-    expect(Number(countText)).toBe(EXPECTED_TRUE_TOTAL);
+    testInfo.attach('live-total', { body: String(liveTotal), contentType: 'text/plain' });
+    expect(Number(countText)).toBe(liveTotal);
 
     // Row count == first-page slice (sanity — pagination renders PAGE_SIZE rows)
     const rows = page.getByTestId('config-profiles-row');

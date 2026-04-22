@@ -54,9 +54,17 @@ let mutationBookingId: string | null = null;
 
 // Labels — form is currently hardcoded EN; both locales see same strings.
 const labels = {
-  header: (confNumber: string) => `Edit Booking #${confNumber}`,
-  dateError: 'Check-out date must be after check-in date',
-};
+  ru: {
+    header: (confNumber: string) => `Редактирование брони №${confNumber}`,
+    dateError: 'Дата выезда должна быть позже даты заезда',
+    statusCheckedIn: 'Заселён',
+  },
+  en: {
+    header: (confNumber: string) => `Edit Booking #${confNumber}`,
+    dateError: 'Check-out date must be after check-in date',
+    statusCheckedIn: 'Checked in',
+  },
+} as const;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -137,9 +145,9 @@ test.describe('05 booking-edit', () => {
     const form = page.getByTestId('booking-edit-form');
     await expect(form).toBeVisible({ timeout: UI_TIMEOUT });
 
-    // Heading visible
+    // Heading visible (locale-aware — BUG-005 fix localised the title)
     await expect(
-      page.getByRole('heading', { name: labels.header(confirmed.confirmationNumber) }),
+      page.getByRole('heading', { name: labels[locale].header(confirmed.confirmationNumber) }),
     ).toBeVisible();
 
     // Confirmation is readonly (always disabled)
@@ -264,10 +272,11 @@ test.describe('05 booking-edit', () => {
     // URL still on the edit page
     expect(page.url()).toContain(`/bookings/${checkedIn.id}/edit`);
 
-    // Status-info banner should be visible (explanation exists for checked_in)
+    // Status-info banner should be visible (explanation exists for checked_in).
+    // BUG-005 fix localised the status label; assert per-locale text.
     const statusBanner = page.getByTestId('booking-edit-status-info');
     await expect(statusBanner).toBeVisible();
-    await expect(statusBanner).toContainText('checked in');
+    await expect(statusBanner).toContainText(labels[locale].statusCheckedIn);
 
     // Terminal banner should NOT be visible for checked_in
     await expect(page.getByTestId('booking-edit-terminal-banner')).toHaveCount(0);
@@ -322,8 +331,8 @@ test.describe('05 booking-edit', () => {
 
     await auditScreenshot(page, SECTION_ID, '04-validation-checkout-before-checkin', locale);
 
-    // Assert the inline error has the expected copy.
-    await expect(errElt).toHaveText(labels.dateError);
+    // Assert the inline error has the expected copy (locale-aware — BUG-005 fix).
+    await expect(errElt).toHaveText(labels[locale].dateError);
 
     // Submit button must be disabled because dateError is truthy.
     const submit = page.getByTestId('booking-edit-submit');

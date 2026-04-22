@@ -114,9 +114,13 @@ test.describe('02 bookings-list', () => {
     });
 
     if (rowCount > 0 && emptyCount === 0) {
+      // The badge class on /bookings is state-aware: checked-in bookings whose
+      // checkOutDate === today render with "no-show" styling to signal urgency
+      // ("Due out"). View=inhouse restricts the rows to status=checked_in, so
+      // we accept either class as a legitimate in-house badge.
       const badges = await page.locator('table.t tbody tr .badge').all();
       for (const b of badges) {
-        await expect(b).toHaveClass(/checked-in/);
+        await expect(b).toHaveClass(/checked-in|no-show/);
       }
     }
 
