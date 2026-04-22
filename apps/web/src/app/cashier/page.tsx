@@ -119,15 +119,21 @@ export default function CashierPage() {
   return (
     <>
       <div className="page-head">
-        <h1 className="page-title">{t(dict, "cashier.title")}</h1>
-        <span className="page-sub">
+        <h1 className="page-title" data-testid="cashier-title">{t(dict, "cashier.title")}</h1>
+        <span className="page-sub" data-testid="cashier-subtitle">
           {session
             ? t(dict, "cashier.shiftNumber", { number: session.cashierNumber })
             : t(dict, "cashier.subtitle")}
         </span>
         <div className="actions">
           {session && (
-            <button type="button" onClick={closeSession} disabled={closing} className="btn sm danger">
+            <button
+              type="button"
+              onClick={closeSession}
+              disabled={closing}
+              className="btn sm danger"
+              data-testid="cashier-close-session-button"
+            >
               <Icon name="logout" size={12} />
               {closing ? t(dict, "common.loading") : t(dict, "cashier.closeSession")}
             </button>
@@ -137,6 +143,7 @@ export default function CashierPage() {
 
       {error && (
         <div
+          data-testid="cashier-error-banner"
           style={{
             padding: 12,
             background: "var(--cancelled-bg)",
@@ -156,30 +163,30 @@ export default function CashierPage() {
       )}
 
       {loading ? (
-        <div style={{ color: "var(--muted)" }}>{t(dict, "common.loading")}</div>
+        <div data-testid="cashier-loading" style={{ color: "var(--muted)" }}>{t(dict, "common.loading")}</div>
       ) : session ? (
         <>
-          <div className="grid g4">
-            <div className="kpi accent">
+          <div className="grid g4" data-testid="cashier-kpi-grid">
+            <div className="kpi accent" data-testid="cashier-kpi-turnover">
               <div className="lab">{t(dict, "cashier.turnover")}</div>
               <div className="val tnum">{formatCurrency(turnover)} ₽</div>
               <div className="foot">
                 {summary?.transactionCount ?? 0} {t(dict, "cashier.operations")}
               </div>
             </div>
-            <div className="kpi">
+            <div className="kpi" data-testid="cashier-kpi-credit">
               <div className="lab">{t(dict, "cashier.credit")}</div>
               <div className="val tnum">
                 {summary ? formatCurrency(summary.totalCredit) : "0"} ₽
               </div>
             </div>
-            <div className="kpi">
+            <div className="kpi" data-testid="cashier-kpi-debit">
               <div className="lab">{t(dict, "cashier.debit")}</div>
               <div className="val tnum">
                 {summary ? formatCurrency(summary.totalDebit) : "0"} ₽
               </div>
             </div>
-            <div className="kpi">
+            <div className="kpi" data-testid="cashier-kpi-shift">
               <div className="lab">{t(dict, "cashier.openedAt", { time: new Date(session.openedAt).toLocaleTimeString() })}</div>
               <div className="val" style={{ fontSize: 16 }}>
                 №{session.cashierNumber}
@@ -192,9 +199,9 @@ export default function CashierPage() {
           </div>
         </>
       ) : (
-        <div className="card">
+        <div className="card" data-testid="cashier-no-session-card">
           <div className="card-head">
-            <div className="card-title">{t(dict, "cashier.noSession")}</div>
+            <div className="card-title" data-testid="cashier-no-session-title">{t(dict, "cashier.noSession")}</div>
           </div>
           <div className="card-body">
             <p style={{ color: "var(--muted)", fontSize: 13, marginTop: 0, marginBottom: 14 }}>
@@ -202,6 +209,7 @@ export default function CashierPage() {
             </p>
             <form
               onSubmit={openSession}
+              data-testid="cashier-open-form"
               style={{
                 display: "grid",
                 gridTemplateColumns: "auto 1fr auto 1fr auto",
@@ -220,6 +228,7 @@ export default function CashierPage() {
                 defaultValue={1}
                 required
                 className="input"
+                data-testid="cashier-field-number"
                 style={{ maxWidth: 120 }}
               />
               <label htmlFor="openingBalance" style={{ fontSize: 12, color: "var(--muted)" }}>
@@ -232,9 +241,15 @@ export default function CashierPage() {
                 step="0.01"
                 defaultValue="0"
                 className="input tnum"
+                data-testid="cashier-field-opening-balance"
                 style={{ maxWidth: 180 }}
               />
-              <button type="submit" disabled={opening} className="btn primary">
+              <button
+                type="submit"
+                disabled={opening}
+                className="btn primary"
+                data-testid="cashier-open-session-button"
+              >
                 <Icon name="key" size={12} />
                 {opening ? t(dict, "common.loading") : t(dict, "cashier.openSession")}
               </button>
@@ -243,7 +258,7 @@ export default function CashierPage() {
         </div>
       )}
 
-      <div className="card">
+      <div className="card" data-testid="cashier-recent-sessions-card">
         <div className="card-head">
           <div className="card-title">
             {t(dict, "cashier.recentSessions")} <span className="count">{sessions.length}</span>
@@ -252,6 +267,7 @@ export default function CashierPage() {
         <div className="card-body" style={{ padding: 0 }}>
           {sessions.length === 0 ? (
             <div
+              data-testid="cashier-sessions-empty"
               style={{
                 padding: 24,
                 textAlign: "center",
@@ -262,7 +278,7 @@ export default function CashierPage() {
               {t(dict, "cashier.emptySessions")}
             </div>
           ) : (
-            <table className="t">
+            <table className="t" data-testid="cashier-sessions-table">
               <thead>
                 <tr>
                   <th style={{ width: 60 }}>{t(dict, "cashier.colNumber")}</th>
@@ -275,7 +291,7 @@ export default function CashierPage() {
               </thead>
               <tbody>
                 {sessions.map((s) => (
-                  <tr key={s.id}>
+                  <tr key={s.id} data-testid="cashier-session-row" data-session-id={s.id}>
                     <td className="tnum">#{s.cashierNumber}</td>
                     <td className="tnum" style={{ color: "var(--muted)" }}>
                       {new Date(s.openedAt).toLocaleString()}

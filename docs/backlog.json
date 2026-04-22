@@ -1,6 +1,6 @@
 {
   "project": "pms",
-  "updated": "2026-04-21",
+  "updated": "2026-04-22",
   "note": "Только подтверждённые проблемы — проверены по реальному коду, не по планам",
   "items": [
     {
@@ -185,6 +185,21 @@
       "lines": "40-49 (routes/properties.ts INVALID_ROOM_COUNT validation)",
       "description": "Seed устанавливает property.numberOfRooms=50, но в таблице rooms 54 записи.\nAPI PUT /api/properties/:id валидирует numberOfRooms >= actual room count и\nотклоняет любой запрос с numberOfRooms=50 как 400 INVALID_ROOM_COUNT.\nСледствие: /configuration/property рендерит форму, которая НЕ МОЖЕТ сохранить\nни одно изменение (name, address, timezone, taxRate и пр.) без ручного\nувеличения numberOfRooms до 54+ — это обнаружено только через mutation\nscenario в section 15 UI audit.",
       "fix": "В seed-файле установить property.numberOfRooms равным фактическому числу\nrooms (сейчас 54), либо заполнять numberOfRooms динамически на основании\n`SELECT COUNT(*) FROM rooms`. После фикса seed запустить полный reset\n(`pnpm --filter api run db:reset && pnpm --filter api run db:seed`)."
+    },
+    {
+      "id": "BUG-015",
+      "title": "Cashier: /api/cashier/current и /api/cashier/close возвращают 401 — смену невозможно загрузить/закрыть",
+      "severity": "high",
+      "status": "open",
+      "source": "ui-audit/13-cashier",
+      "files": [
+        "apps/api/src/app.ts",
+        "apps/api/src/routes/cashier.ts",
+        "apps/web/src/app/cashier/page.tsx"
+      ],
+      "lines": "app.ts:34; cashier.ts:62,96",
+      "description": "Маршрут /cashier фактически сломан в текущей сборке.\n\nЧто наблюдается:\n(a) GET /api/cashier/current → 401 {code: \"UNAUTHORIZED\"} для любого\n    залогиненного пользователя. В UI это проявляется как `session = null`\n    в useEffect после fetchData; из-за этого всегда рендерится\n    \"no-session\" карточка с формой открытия смены, даже если смена на\n    самом деле открыта в БД.\n(b) POST /api/cashier/close → 401 (та же причина). Кнопка \"Close session\"\n    в page-head рендерится только при session !== null, поэтому её\n    невозможно нажать — закрытие смены недоступно из UI.\n(c) POST /api/cashier/open → 201, но userId сохраняется как null (см.\n    cashier.ts:10 — `(request as any).user?.id || null`). Сразу после\n    успешного POST'а страница вызывает fetchData() → GET /api/cashier/current\n    снова 401 → UI остаётся в \"no-session\" состоянии. Пользователю кажется,\n    что \"ничего не произошло\".\n\nПервопричина:\napps/api/src/app.ts:34 — `await app.register(authPlugin);` закомментирован\nс комментарием \"Auth plugin is disabled until the frontend auth UI is\nfully wired\". Без authPlugin хук preHandler не выставляет request.user.\nОбработчики /api/cashier/current (cashier.ts:96) и /api/cashier/close\n(cashier.ts:62) безусловно разыменовывают request.user?.id и возвращают\n401, когда он undefined.\n\nВоспроизведение (manual probe, 2026-04-22):\n  curl -c /tmp/c.txt -X POST http://localhost:3000/api/auth/login \\\n    -H 'Content-Type: application/json' \\\n    -d '{\"username\":\"admin\",\"password\":\"admin123\"}'\n  # → 200 + Set-Cookie: pms_session=...\n  curl -b /tmp/c.txt http://localhost:3000/api/cashier/current\n  # → {\"error\":\"Authorization required\",\"code\":\"UNAUTHORIZED\"}\n\nПобочные эффекты:\n- KPI-сетка (turnover / charges / payments / shift#) никогда не\n  рендерится — фича по сути не работает.\n- Таблица \"Recent sessions\" работает (GET /api/cashier/sessions не\n  требует request.user), так что пользователь видит историю смен,\n  но не может взаимодействовать с текущей.\n- Console error + network error 401 на каждой загрузке /cashier.",
+      "fix": "Два варианта, любой решает проблему:\n\n(A) Включить authPlugin глобально — раскомментировать\napps/api/src/app.ts:34 (`await app.register(authPlugin);`). Требует,\nчтобы все клиенты (UI + внешние) присылали pms_session cookie; SSR web\nуже пересылает cookie через rewrite, так что фронт не должен сломаться.\nЗаодно закроет ту же дыру в других handler'ах, читающих request.user.\n\n(B) Локальный фикс: в cashier.ts ручно читать cookie через\n`request.cookies[\"pms_session\"]` + lookup в sessions/users (по аналогии\nс apps/api/src/routes/auth.ts:66) и устанавливать request.user\nвнутри cashier preHandler. Менее инвазивно, но дублирует логику\nauthPlugin — временное решение.\n\nРекомендация: (A), потому что это единственный честный фикс и\nразблокирует сценарии 01/02 аудита Cashier без \"костыльных\" ветвлений."
     },
     {
       "id": "DEBT-002",

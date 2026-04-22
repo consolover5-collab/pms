@@ -282,3 +282,72 @@ bugs:
       по аналогии с getStatusLabel / getTaskTypeLabel в housekeeping-client.tsx.
       В folio-section.tsx строки 190-191 заменить raw-значения на lookup через helper;
       строку 318 заменить "auto" на t(dict, "folio.autoBadge").
+
+  - id: BUG-015
+    title: "Cashier: /api/cashier/current и /api/cashier/close возвращают 401 — смену невозможно загрузить/закрыть"
+    severity: high
+    status: open
+    source: ui-audit/13-cashier
+    files:
+      - apps/api/src/app.ts
+      - apps/api/src/routes/cashier.ts
+      - apps/web/src/app/cashier/page.tsx
+    lines: "app.ts:34; cashier.ts:62,96"
+    description: |
+      Маршрут /cashier фактически сломан в текущей сборке.
+
+      Что наблюдается:
+      (a) GET /api/cashier/current → 401 {code: "UNAUTHORIZED"} для любого
+          залогиненного пользователя. В UI это проявляется как `session = null`
+          в useEffect после fetchData; из-за этого всегда рендерится
+          "no-session" карточка с формой открытия смены, даже если смена на
+          самом деле открыта в БД.
+      (b) POST /api/cashier/close → 401 (та же причина). Кнопка "Close session"
+          в page-head рендерится только при session !== null, поэтому её
+          невозможно нажать — закрытие смены недоступно из UI.
+      (c) POST /api/cashier/open → 201, но userId сохраняется как null (см.
+          cashier.ts:10 — `(request as any).user?.id || null`). Сразу после
+          успешного POST'а страница вызывает fetchData() → GET /api/cashier/current
+          снова 401 → UI остаётся в "no-session" состоянии. Пользователю кажется,
+          что "ничего не произошло".
+
+      Первопричина:
+      apps/api/src/app.ts:34 — `await app.register(authPlugin);` закомментирован
+      с комментарием "Auth plugin is disabled until the frontend auth UI is
+      fully wired". Без authPlugin хук preHandler не выставляет request.user.
+      Обработчики /api/cashier/current (cashier.ts:96) и /api/cashier/close
+      (cashier.ts:62) безусловно разыменовывают request.user?.id и возвращают
+      401, когда он undefined.
+
+      Воспроизведение (manual probe, 2026-04-22):
+        curl -c /tmp/c.txt -X POST http://localhost:3000/api/auth/login \
+          -H 'Content-Type: application/json' \
+          -d '{"username":"admin","password":"admin123"}'
+        # → 200 + Set-Cookie: pms_session=...
+        curl -b /tmp/c.txt http://localhost:3000/api/cashier/current
+        # → {"error":"Authorization required","code":"UNAUTHORIZED"}
+
+      Побочные эффекты:
+      - KPI-сетка (turnover / charges / payments / shift#) никогда не
+        рендерится — фича по сути не работает.
+      - Таблица "Recent sessions" работает (GET /api/cashier/sessions не
+        требует request.user), так что пользователь видит историю смен,
+        но не может взаимодействовать с текущей.
+      - Console error + network error 401 на каждой загрузке /cashier.
+    fix: |
+      Два варианта, любой решает проблему:
+
+      (A) Включить authPlugin глобально — раскомментировать
+      apps/api/src/app.ts:34 (`await app.register(authPlugin);`). Требует,
+      чтобы все клиенты (UI + внешние) присылали pms_session cookie; SSR web
+      уже пересылает cookie через rewrite, так что фронт не должен сломаться.
+      Заодно закроет ту же дыру в других handler'ах, читающих request.user.
+
+      (B) Локальный фикс: в cashier.ts ручно читать cookie через
+      `request.cookies["pms_session"]` + lookup в sessions/users (по аналогии
+      с apps/api/src/routes/auth.ts:66) и устанавливать request.user
+      внутри cashier preHandler. Менее инвазивно, но дублирует логику
+      authPlugin — временное решение.
+
+      Рекомендация: (A), потому что это единственный честный фикс и
+      разблокирует сценарии 01/02 аудита Cashier без "костыльных" ветвлений.

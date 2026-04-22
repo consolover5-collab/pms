@@ -70,8 +70,8 @@ sections:
     priority: P0
   - id: "13"
     file: features/13-cashier.yml
-    status: pending
-    bugs: 0
+    status: broken
+    bugs: 1
     priority: P2
   - id: "14"
     file: features/14-tape-chart.yml
@@ -80,13 +80,13 @@ sections:
     priority: P2
   - id: "15"
     file: features/15-configuration-property.yml
-    status: pending
-    bugs: 0
+    status: ok
+    bugs: 1
     priority: P1
   - id: "16"
     file: features/16-configuration-room-types.yml
-    status: pending
-    bugs: 0
+    status: ok
+    bugs: 1
     priority: P1
   - id: "17"
     file: features/17-configuration-rate-plans.yml
@@ -95,12 +95,12 @@ sections:
     priority: P0
   - id: "18"
     file: features/18-configuration-transaction-codes.yml
-    status: pending
-    bugs: 0
+    status: ok
+    bugs: 1
     priority: P1
   - id: "19"
     file: features/19-configuration-packages.yml
-    status: pending
+    status: ok
     bugs: 0
     priority: P1
   - id: "20"
@@ -115,8 +115,8 @@ sections:
     priority: P2
   - id: "22"
     file: features/22-help.yml
-    status: pending
-    bugs: 0
+    status: ok
+    bugs: 1
     priority: P1
   - id: "23"
     file: features/23-login.yml
@@ -131,9 +131,9 @@ sections:
 
 totals:
   sections: 24
-  ok: 13
+  ok: 18
   partial: 0
-  broken: 0
+  broken: 1
   missing: 0
-  pending: 11
-  bugs: 5
+  pending: 5
+  bugs: 10

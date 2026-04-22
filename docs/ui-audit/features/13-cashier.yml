@@ -1,0 +1,273 @@
+id: 13-cashier
+title: "Cashier (/cashier)"
+route: /cashier
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "Касса"
+    en: "Cashier"
+  page_file: apps/web/src/app/cashier/page.tsx
+  note: >
+    Shift-based cashier workstation. On mount, GET /api/cashier/current should
+    return the active shift for the logged-in user plus a summary (totalDebit,
+    totalCredit, transactionCount). When a shift is open, a 4-KPI grid renders
+    (turnover / charges / payments / shift# + opening balance) plus a "Close
+    session" button in the page head. When no shift is open, a "No open
+    session" card renders an inline form (cashier number + opening balance +
+    submit) that POSTs to /api/cashier/open. "Close session" collects the
+    closing balance via window.prompt() and POSTs to /api/cashier/close. A
+    second card lists the 10 most recent sessions for the property.
+
+    CURRENT STATE (BUG-015): GET /api/cashier/current and POST /api/cashier/close
+    both gate on `request.user?.id` (cashier.ts:62,96). The API's authPlugin is
+    disabled in apps/api/src/app.ts:34 (`// await app.register(authPlugin);`),
+    so `request.user` is never set and every authenticated call returns 401.
+    Consequence: the no-session card is stuck visible for all users, the KPI
+    grid never renders, the close-session button is never reachable.
+    POST /api/cashier/open ignores the missing user (saves userId as null),
+    so "open session" silently appears to succeed at the network layer but the
+    subsequent refetch 401s and the UI stays on the "no session" card.
+
+  required_fields:
+    - { id: cashierNumber, label: { ru: "Номер кассы", en: "Cashier number" }, kind: "number",
+        note: "Integer >=1; form default 1; HTML5 required; posted as parseInt(value, 10)" }
+  optional_fields:
+    - { id: openingBalance, label: { ru: "Остаток на начало", en: "Opening balance" }, kind: "number",
+        default: "0", note: "step=0.01; default 0; posted as string; omitted falls back to '0'" }
+
+  buttons:
+    openSession:
+      ru: "Открыть смену"
+      en: "Open session"
+      note: "Submit of the open-session form; POST /api/cashier/open"
+    closeSession:
+      ru: "Закрыть смену"
+      en: "Close session"
+      note: >
+        Shown in page-head only when a shift is open. Opens window.prompt for
+        the closing balance, then POSTs /api/cashier/close. Currently unreachable
+        via the UI because the session-loading endpoint 401s (BUG-015).
+
+  testids:
+    - { id: cashier-title,                  element: "h1.page-title", added: true }
+    - { id: cashier-subtitle,               element: "span.page-sub", added: true }
+    - { id: cashier-close-session-button,   element: "button",        added: true, note: "only rendered when session !== null" }
+    - { id: cashier-error-banner,           element: "div (banner)",  added: true }
+    - { id: cashier-loading,                element: "div",           added: true }
+    - { id: cashier-kpi-grid,               element: "div.grid.g4",   added: true }
+    - { id: cashier-kpi-turnover,           element: "div.kpi.accent", added: true }
+    - { id: cashier-kpi-credit,             element: "div.kpi",        added: true }
+    - { id: cashier-kpi-debit,              element: "div.kpi",        added: true }
+    - { id: cashier-kpi-shift,              element: "div.kpi",        added: true }
+    - { id: cashier-no-session-card,        element: "div.card",       added: true }
+    - { id: cashier-no-session-title,       element: "div.card-title", added: true }
+    - { id: cashier-open-form,              element: "form",           added: true }
+    - { id: cashier-field-number,           element: "input[number]",  added: true }
+    - { id: cashier-field-opening-balance,  element: "input[number]",  added: true }
+    - { id: cashier-open-session-button,    element: "button[submit]", added: true }
+    - { id: cashier-recent-sessions-card,   element: "div.card",       added: true }
+    - { id: cashier-sessions-empty,         element: "div (empty)",    added: true }
+    - { id: cashier-sessions-table,         element: "table.t",        added: true }
+    - { id: cashier-session-row,            element: "tr",             added: true, note: "also data-session-id={s.id}" }
+
+steps:
+  - id: "01-load-view"
+    status: ok
+    action: >
+      Navigate /cashier (both locales). Assert: cashier-title visible and localised
+      ('Cashier'/'Касса'); cashier-subtitle visible with no-session variant
+      ('Manage your cash session'/'Управление кассовой сменой');
+      cashier-no-session-card visible; cashier-open-form visible; cashier-kpi-grid
+      NOT present (count=0); cashier-close-session-button NOT present (count=0);
+      cashier-recent-sessions-card visible.
+    screenshots:
+      - 13-cashier-01-load-view-ru.png
+      - 13-cashier-01-load-view-en.png
+    mutation: false
+    locale_gate: both locales
+    note: >
+      In the current build the no-session state is forced because
+      /api/cashier/current 401s (BUG-015). If that bug is fixed and the logged-in
+      admin has an open shift, the KPI grid will render instead and this assertion
+      will need to be relaxed to branch on session-state.
+
+  - id: "02-primary-operation-form"
+    status: ok
+    action: >
+      Navigate /cashier (both locales). Assert: cashier-open-form visible;
+      cashier-field-number visible with default value '1'; cashier-field-opening-balance
+      visible with default value '0'; cashier-open-session-button visible + enabled +
+      localised text ('Open session'/'Открыть смену'); htmlFor-linked labels match
+      expected localised strings.
+    screenshots:
+      - 13-cashier-02-primary-operation-form-ru.png
+      - 13-cashier-02-primary-operation-form-en.png
+    mutation: false
+    locale_gate: both locales
+    note: >
+      We do NOT submit the form. POST /api/cashier/open succeeds (201) but leaves
+      userId=null; the subsequent GET /api/cashier/current still 401s, so the UI
+      does not transition to the KPI state — the submission is pointless to test
+      end-to-end until BUG-015 is fixed. See scenario 04 for the 401 contract.
+
+  - id: "03-recent-sessions-table"
+    status: ok
+    action: >
+      Navigate /cashier (both locales). Assert cashier-recent-sessions-card visible.
+      If cashier-sessions-table present, assert localised thead texts
+      (Opened/Closed/Opening/Closing/Status vs Открыта/Закрыта/Начало/Конец/Статус)
+      and ≥1 cashier-session-row. If instead cashier-sessions-empty renders,
+      record as attachment but do not fail (preflight confirmed ≥1 seeded session
+      at 2026-04-20 for property GBH).
+    screenshots:
+      - 13-cashier-03-recent-sessions-table-ru.png
+      - 13-cashier-03-recent-sessions-table-en.png
+    mutation: false
+    locale_gate: both locales
+
+  - id: "04-current-endpoint-401"
+    status: ok
+    action: >
+      EN-only. With a valid session cookie (setLocaleAndGoto logs in as admin),
+      GET /api/cashier/current via page.context().request. Assert
+      status === 401 and body matches {code: "UNAUTHORIZED"}. This is the API
+      contract evidence for BUG-015.
+    screenshots: []
+    mutation: false
+    locale_gate: en-only
+    note: >
+      No screenshot — pure API contract check. The 401 is captured as a
+      network_error in audit-data for scenarios 01/02/03 as well, confirming
+      every page-load triggers it.
+
+edge_cases:
+  primary-operation-broken:
+    summary: Opening a new shift succeeds at POST /api/cashier/open (201) but the UI never transitions to the active-shift KPI state because the follow-up GET /api/cashier/current returns 401.
+    impact: User cannot tell whether their shift is open without manually querying the DB or /api/cashier/sessions. "Close session" button is unreachable.
+    status: bug
+    linked_bug: BUG-015
+  closing-prompt-unreachable:
+    summary: closeSession() uses window.prompt("Closing balance", "0"). Cannot be reached in the current build.
+    impact: Close-shift flow is untested via UI.
+    status: bug
+    linked_bug: BUG-015
+
+api_calls_observed:
+  - { method: GET,  path: "/api/properties",           status: 200, note: "on mount to pick propertyId" }
+  - { method: GET,  path: "/api/cashier/current",      status: 401, note: "BUG-015: handler gates on request.user which authPlugin would set" }
+  - { method: GET,  path: "/api/cashier/sessions",     status: 200, note: "?propertyId=...&limit=10; populates recent-sessions table" }
+
+console_errors:
+  - locale: ru
+    scenario: 01-load-view
+    text: "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    verdict: bug
+    linked_bug: BUG-015
+  - locale: ru
+    scenario: 02-primary-operation-form
+    text: "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    verdict: bug
+    linked_bug: BUG-015
+  - locale: ru
+    scenario: 03-recent-sessions-table
+    text: "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    verdict: bug
+    linked_bug: BUG-015
+  - locale: en
+    scenario: 01-load-view
+    text: "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    verdict: bug
+    linked_bug: BUG-015
+  - locale: en
+    scenario: 02-primary-operation-form
+    text: "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    verdict: bug
+    linked_bug: BUG-015
+  - locale: en
+    scenario: 03-recent-sessions-table
+    text: "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    verdict: bug
+    linked_bug: BUG-015
+
+network_errors:
+  - locale: ru
+    scenario: 01-load-view
+    status: 401
+    method: GET
+    url: "http://localhost:3000/api/cashier/current"
+    verdict: bug
+    linked_bug: BUG-015
+  - locale: ru
+    scenario: 02-primary-operation-form
+    status: 401
+    method: GET
+    url: "http://localhost:3000/api/cashier/current"
+    verdict: bug
+    linked_bug: BUG-015
+  - locale: ru
+    scenario: 03-recent-sessions-table
+    status: 401
+    method: GET
+    url: "http://localhost:3000/api/cashier/current"
+    verdict: bug
+    linked_bug: BUG-015
+  - locale: en
+    scenario: 01-load-view
+    status: 401
+    method: GET
+    url: "http://localhost:3000/api/cashier/current"
+    verdict: bug
+    linked_bug: BUG-015
+  - locale: en
+    scenario: 02-primary-operation-form
+    status: 401
+    method: GET
+    url: "http://localhost:3000/api/cashier/current"
+    verdict: bug
+    linked_bug: BUG-015
+  - locale: en
+    scenario: 03-recent-sessions-table
+    status: 401
+    method: GET
+    url: "http://localhost:3000/api/cashier/current"
+    verdict: bug
+    linked_bug: BUG-015
+
+bugs:
+  - id: BUG-015
+    severity: high
+    scenario: primary-operation
+    observed: >
+      /api/cashier/current and /api/cashier/close always return 401 because
+      apps/api/src/app.ts has `await app.register(authPlugin)` commented out
+      while both handlers still gate on `request.user?.id`. The cashier page
+      cannot load shift state, render KPIs, or reach the close-shift flow.
+
+help_rewrite_hints:
+  topic: null
+  current: ""
+  actual: ""
+  rewrite: |
+
+retro:
+  time_minutes: 0
+  unblocker_fixes:
+    - "Added 20 data-testids to apps/web/src/app/cashier/page.tsx (cashier-* prefix)"
+  methodology_deltas: []
+
+status: broken
+last_audited: "2026-04-22"
+screenshots_dir: docs/ui-audit/screenshots/
+
+signals:
+  l10n: ok
+  l10n_note: "All visible strings routed through t(dict, 'cashier.*') — full en+ru coverage."
+  testids_added: true
+  testids_prefix: "cashier-*"
+  mutations_gated_to_en: "n/a — no mutations performed"
+  risk: NONE
+  restore_mechanism: "n/a — zero mutations"
+  primary_operation_broken: true
+  broken_reason: "BUG-015 (auth plugin disabled → /api/cashier/current and /api/cashier/close 401)"
