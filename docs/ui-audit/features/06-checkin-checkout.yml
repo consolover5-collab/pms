@@ -114,10 +114,7 @@ network_errors:
   - { status: 400, method: POST, path: "/api/bookings/{BK_A}/check-out", note: "ожидаемо: EARLY_CHECKOUT перед force" }
   - { status: 400, method: POST, path: "/api/bookings/{BK_E}/check-out", note: "ожидаемо: EARLY_CHECKOUT (не UNPAID_BALANCE)" }
 
-bugs:
-  - id: BUG-004
-    title: "'Force check-in' button в dirty-warning modal не обходит API gate"
-    severity: medium
+bugs: []
 
 help_rewrite_hints:
   topic: check-in-out

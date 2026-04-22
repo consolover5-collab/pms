@@ -67,7 +67,7 @@ bugs:
   - id: BUG-004
     title: "'Force check-in' button in dirty-warning modal doesn't bypass API gate"
     severity: medium
-    status: open
+    status: closed
     source: ui-audit/06-checkin-checkout
     file: apps/api/src/routes/bookings.ts
     lines: "521-530"
