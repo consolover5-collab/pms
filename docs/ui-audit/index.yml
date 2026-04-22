@@ -120,7 +120,7 @@ sections:
     priority: P1
   - id: "23"
     file: features/23-login.yml
-    status: pending
+    status: ok
     bugs: 0
     priority: P2
   - id: "24"
@@ -131,9 +131,9 @@ sections:
 
 totals:
   sections: 24
-  ok: 18
+  ok: 19
   partial: 2
   broken: 1
   missing: 1
-  pending: 2
+  pending: 1
   bugs: 12
