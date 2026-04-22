@@ -8,6 +8,7 @@ import { ErrorDisplay, type ApiErrorDetail } from "@/components/error-display";
 import { useLocale } from "@/components/locale-provider";
 import { t, plural, type Locale } from "@/lib/i18n";
 import type { DictionaryKey, Dictionary } from "@/lib/i18n/locales/en";
+import { GUARANTEE_CODES } from "@/lib/constants/guarantee-codes";
 
 function formatNights(dict: Dictionary, locale: Locale, count: number): string {
   const form =
@@ -72,13 +73,6 @@ const statusBadgeKeys: Record<string, DictionaryKey> = {
   no_show: "bookings.status.noShow",
 };
 
-const guaranteeCodeKeys: { value: string; labelKey: DictionaryKey }[] = [
-  { value: "cc_guaranteed", labelKey: "guaranteeCodes.cc_guaranteed" },
-  { value: "deposit_guaranteed", labelKey: "guaranteeCodes.deposit_guaranteed" },
-  { value: "company_guaranteed", labelKey: "guaranteeCodes.company_guaranteed" },
-  { value: "non_guaranteed", labelKey: "guaranteeCodes.non_guaranteed" },
-  { value: "travel_agent_guaranteed", labelKey: "guaranteeCodes.travel_agent_guaranteed" },
-];
 
 // Field wrapper with visual disabled state
 function FormField({
@@ -647,8 +641,8 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           className={`w-full px-3 py-2 border rounded ${!canEditFinancials ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
         >
           <option value="">{t(dict, "bookings.edit.notSpecified")}</option>
-          {guaranteeCodeKeys.map((gc) => (
-            <option key={gc.value} value={gc.value}>
+          {GUARANTEE_CODES.map((gc) => (
+            <option key={gc.code} value={gc.code}>
               {t(dict, gc.labelKey)}
             </option>
           ))}

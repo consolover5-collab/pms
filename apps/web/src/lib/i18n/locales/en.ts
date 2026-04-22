@@ -720,11 +720,6 @@ export const en = {
   "bookings.edit.locked.occupancy": "Cannot change occupancy after check-in",
   "bookings.edit.locked.guarantee": "Cannot change guarantee for completed bookings",
   "bookings.edit.locked.payment": "Cannot change payment for completed bookings",
-  "guaranteeCodes.cc_guaranteed": "Credit Card",
-  "guaranteeCodes.deposit_guaranteed": "Deposit",
-  "guaranteeCodes.company_guaranteed": "Company",
-  "guaranteeCodes.non_guaranteed": "No Guarantee",
-  "guaranteeCodes.travel_agent_guaranteed": "Travel Agent",
 
   // Configuration hub
   "config.title": "Configuration",

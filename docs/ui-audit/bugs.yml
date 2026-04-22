@@ -403,7 +403,7 @@ bugs:
   - id: BUG-016
     title: "guarantee-codes: CRUD not implemented; hardcoded enum duplicated in booking-edit form"
     severity: medium
-    status: open
+    status: closed
     source: ui-audit/20-configuration-guarantee-codes
     files:
       - apps/web/src/app/configuration/guarantee-codes/page.tsx

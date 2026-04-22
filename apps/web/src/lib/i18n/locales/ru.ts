@@ -722,11 +722,6 @@ export const ru: Dictionary = {
   "bookings.edit.locked.occupancy": "Количество гостей нельзя менять после заселения",
   "bookings.edit.locked.guarantee": "Гарантию нельзя менять для завершённых броней",
   "bookings.edit.locked.payment": "Способ оплаты нельзя менять для завершённых броней",
-  "guaranteeCodes.cc_guaranteed": "Кредитная карта",
-  "guaranteeCodes.deposit_guaranteed": "Депозит",
-  "guaranteeCodes.company_guaranteed": "Компания",
-  "guaranteeCodes.non_guaranteed": "Без гарантии",
-  "guaranteeCodes.travel_agent_guaranteed": "Турагент",
 
   // Configuration hub
   "config.title": "Настройки",

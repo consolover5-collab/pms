@@ -134,8 +134,7 @@ api_calls_observed:
 console_errors: []
 network_errors: []
 
-bugs:
-  - BUG-016
+bugs: []
 
 signals:
   l10n: ok
