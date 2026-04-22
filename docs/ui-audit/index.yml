@@ -75,7 +75,7 @@ sections:
     priority: P2
   - id: "14"
     file: features/14-tape-chart.yml
-    status: pending
+    status: partial
     bugs: 0
     priority: P2
   - id: "15"
@@ -132,8 +132,8 @@ sections:
 totals:
   sections: 24
   ok: 18
-  partial: 0
+  partial: 1
   broken: 1
   missing: 0
-  pending: 5
+  pending: 4
   bugs: 10

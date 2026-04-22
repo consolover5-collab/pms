@@ -160,6 +160,9 @@ export default function TapeChartPage() {
         key={b.id}
         href={`/bookings/${b.id}`}
         className={`bar ${cls}`}
+        data-testid="tape-chart-bar"
+        data-booking-id={b.id}
+        data-booking-status={b.status}
         style={{
           position: "absolute",
           top: 3,
@@ -197,8 +200,8 @@ export default function TapeChartPage() {
   return (
     <>
       <div className="page-head">
-        <h1 className="page-title">{t(dict, "tape.title")}</h1>
-        <span className="page-sub">
+        <h1 className="page-title" data-testid="tape-chart-title">{t(dict, "tape.title")}</h1>
+        <span className="page-sub" data-testid="tape-chart-subtitle">
           {t(dict, "tape.subtitle", {
             from,
             to,
@@ -207,28 +210,30 @@ export default function TapeChartPage() {
           })}
         </span>
         <div className="actions">
-          <div className="ptabs">
+          <div className="ptabs" data-testid="tape-chart-period-tabs">
             {([14, 30, 90] as const).map((r) => (
               <div
                 key={r}
                 className={`pt ${range === r ? "on" : ""}`}
                 onClick={() => setRange(r)}
                 role="button"
+                data-testid={`tape-chart-period-${r}-button`}
+                data-active={range === r ? "true" : "false"}
               >
                 {t(dict, r === 14 ? "tape.days14" : r === 30 ? "tape.days30" : "tape.days90")}
               </div>
             ))}
           </div>
-          <button type="button" className="btn sm" onClick={() => shift(-range)}>
+          <button type="button" className="btn sm" onClick={() => shift(-range)} data-testid="tape-chart-prev-button">
             <Icon name="chevLeft" size={12} />
           </button>
-          <button type="button" className="btn sm" onClick={goToday}>
+          <button type="button" className="btn sm" onClick={goToday} data-testid="tape-chart-today-button">
             {t(dict, "tape.today")}
           </button>
-          <button type="button" className="btn sm" onClick={() => shift(range)}>
+          <button type="button" className="btn sm" onClick={() => shift(range)} data-testid="tape-chart-next-button">
             <Icon name="chevRight" size={12} />
           </button>
-          <Link href="/bookings/new" className="btn sm primary">
+          <Link href="/bookings/new" className="btn sm primary" data-testid="tape-chart-new-booking-link">
             <Icon name="plus" size={12} />
             {t(dict, "tape.newBooking")}
           </Link>
@@ -236,6 +241,7 @@ export default function TapeChartPage() {
       </div>
 
       <div
+        data-testid="tape-chart-legend"
         style={{
           display: "flex",
           alignItems: "center",
@@ -269,6 +275,7 @@ export default function TapeChartPage() {
 
       {error && (
         <div
+          data-testid="tape-chart-error"
           style={{
             background: "var(--cancelled-bg)",
             color: "var(--cancelled-fg)",
@@ -280,10 +287,10 @@ export default function TapeChartPage() {
         </div>
       )}
 
-      {loading && <div style={{ color: "var(--muted)" }}>{t(dict, "tape.loading")}</div>}
+      {loading && <div data-testid="tape-chart-loading" style={{ color: "var(--muted)" }}>{t(dict, "tape.loading")}</div>}
 
       {!loading && data && (
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="card" data-testid="tape-chart-grid" style={{ padding: 0, overflow: "hidden" }}>
           <div className="tape-wrap">
             <div style={{ minWidth: totalW }}>
               <div
@@ -369,9 +376,11 @@ export default function TapeChartPage() {
                 }, 0);
 
                 return (
-                  <div key={code}>
+                  <div key={code} data-testid="tape-chart-group" data-group-code={code}>
                     <div
                       onClick={() => setOpenGroups((g) => ({ ...g, [code]: !isOpen }))}
+                      data-testid="tape-chart-group-header"
+                      data-group-code={code}
                       style={{
                         padding: "6px 12px",
                         background: "var(--bg-subtle)",
@@ -419,6 +428,9 @@ export default function TapeChartPage() {
                       group.rooms.map((r) => (
                         <div
                           key={r.id}
+                          data-testid="tape-chart-room-row"
+                          data-room-id={r.id}
+                          data-room-number={r.roomNumber}
                           style={{
                             display: "flex",
                             borderBottom: "1px solid var(--border)",
@@ -494,7 +506,7 @@ export default function TapeChartPage() {
               })}
 
               {data.rooms.length === 0 && (
-                <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
+                <div data-testid="tape-chart-no-rooms" style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
                   {t(dict, "tape.noRooms")}
                 </div>
               )}
@@ -504,7 +516,7 @@ export default function TapeChartPage() {
       )}
 
       {!loading && unassigned.length > 0 && (
-        <div className="card">
+        <div className="card" data-testid="tape-chart-unassigned-card">
           <div className="card-head">
             <div className="card-title">
               {t(dict, "tape.unassigned")} <span className="count">{unassigned.length}</span>
