@@ -24,11 +24,14 @@ ui:
     window by ±range days. An "Unassigned bookings" card at the bottom lists
     bookings without roomId as link badges.
 
-    Drag-and-drop of booking bars is NOT implemented: bars have no draggable
-    attribute and no drag handlers anywhere in the page; there is also no
-    PUT move-room endpoint on the API (tape-chart.ts is GET-only, bookings.ts
-    has no reassign-room route). Scenario 04 is therefore recorded as
-    `not_tested` in edge_cases per the plan's guidance.
+    Drag-and-drop of booking bars is NOT wired up in the UI: bars have no
+    `draggable` attribute and no drag handlers anywhere in the page.
+    The API endpoint `POST /api/bookings/:id/room-move` DOES exist, however
+    (apps/api/src/routes/bookings.ts:886), with full validation and a
+    structured error envelope ({ error, code: 'BOOKING_NOT_FOUND' | ... });
+    no UI surface currently invokes it. Scenario 04 therefore asserts the
+    UI absence AND the backend presence as a two-part regression tripwire
+    (see edge_cases[0] for the full rationale).
 
   buttons:
     period14: { ru: "14 дней", en: "14 days", note: "default; POST-mount state" }
@@ -62,7 +65,7 @@ ui:
     - { id: tape-chart-error,                element: "div",              added: true }
     - { id: tape-chart-grid,                 element: "div.card",         added: true }
     - { id: tape-chart-group,                element: "div",              added: true, note: "data-group-code={roomTypeCode}" }
-    - { id: tape-chart-group-header,         element: "div",              added: true, note: "data-group-code={roomTypeCode}; click toggles collapse" }
+    - { id: tape-chart-group-header,         element: "div",              added: true, note: "click toggles collapse (data-group-code lives on the outer tape-chart-group only)" }
     - { id: tape-chart-room-row,             element: "div",              added: true, note: "data-room-id={r.id}, data-room-number={r.roomNumber}" }
     - { id: tape-chart-bar,                  element: "a.bar",            added: true, note: "data-booking-id={b.id}, data-booking-status={b.status}" }
     - { id: tape-chart-no-rooms,             element: "div",              added: true }
@@ -114,34 +117,50 @@ steps:
       Navigation-only check, identical under either locale — run once to
       avoid duplicating the assertion.
 
-  - id: "04-drag-move-not-implemented"
-    status: not_tested
+  - id: "04-drag-move-absent-but-api-exists"
+    status: ok
     action: >
-      EN-only contract evidence. Assert bars have no draggable='true' attribute
-      (confirms the feature is absent in the DOM). Additionally probe
-      PUT /api/bookings/<random-uuid>/room — expect 404 (no such route) to
-      confirm the feature is also absent on the API. This is a regression
-      guard: if either assertion flips, scenario 04 needs a real audit.
+      EN-only two-part regression tripwire. (a) Assert booking bars have no
+      draggable='true' attribute — confirms the UI does not wire drag-to-move.
+      (b) Probe POST /api/bookings/<crypto.randomUUID()>/room-move with body
+      { newRoomId: '00000000-0000-0000-0000-000000000000' } and assert
+      status === 404 AND response body code === 'BOOKING_NOT_FOUND'. The real
+      endpoint lives at apps/api/src/routes/bookings.ts:886 — this probe
+      confirms it still responds with its documented structured error envelope
+      for unknown IDs. If the endpoint is removed or its envelope changes
+      (different code, bare 404, etc.) the tripwire fires; if the UI wires
+      drag-to-move it also fires. Either way, a real audit of scenario 04 is
+      required next.
     screenshots: []
     mutation: false
     locale_gate: en-only
 
 edge_cases:
-  - id: drag-and-drop-unavailable
+  - id: drag-and-drop-ui-absent-backend-present
     description: >
-      Plan scenario 04 assumes drag-to-move is wired up. It is not — bars
-      are plain <Link>s with no drag handlers (page.tsx:159-195) and no
-      PUT /api/bookings/:id/room endpoint exists on the API
-      (tape-chart.ts is GET-only). The audit therefore did not exercise the
-      scenario end-to-end.
+      Plan scenario 04 assumes drag-to-move is wired up end-to-end. The
+      reality is split: the backend endpoint POST /api/bookings/:id/room-move
+      DOES exist (apps/api/src/routes/bookings.ts:886) with full validation,
+      transactional double-room locking, and a structured error envelope
+      ({ error, code: 'BOOKING_NOT_FOUND' | 'ROOM_NOT_FOUND' | ... }) — but
+      no UI surface invokes it. The tape chart bars are plain <Link>s with
+      no draggable attribute and no drag handlers (page.tsx:159-195).
     expected: >
-      Either drag-to-move works (if the feature is implemented) or the plan
-      is updated to drop scenario 04 for the current product scope.
-    observed: not_tested
+      Either a UI surface wires drag-to-move (or some other affordance) to
+      the existing backend endpoint and scenario 04 gets a full end-to-end
+      audit, OR the backend endpoint is also removed and the plan drops
+      scenario 04 entirely.
+    observed: >
+      Two-part tripwire in place instead of a full simulation: asserts
+      (a) bars have `draggable !== 'true'`, and (b) the real endpoint still
+      responds 404 with `code: 'BOOKING_NOT_FOUND'` for a random UUID. If
+      either invariant flips, the test fails and the scenario re-enters the
+      audit backlog.
     reason: >
-      Feature genuinely not implemented in the product. Recording as
-      not_tested per the plan's explicit guidance
-      ("skip drag scenario if not trivial; record as not_tested").
+      The UI side of the feature is genuinely not implemented; the backend
+      side is. A tripwire on both sides is the most honest way to encode the
+      current state without either faking a passing simulation or skipping
+      the scenario entirely.
 
   - id: collapsible-groups
     description: >
@@ -184,7 +203,7 @@ retro:
   unblocker_fixes:
     - "Added 16 data-testids to apps/web/src/app/tape-chart/page.tsx (tape-chart-* prefix) — bars also carry data-booking-id/status and room rows carry data-room-id/number for stable selection"
   methodology_deltas:
-    - "Scenario 04 drag-move recorded as not_tested with a DOM+API contract check rather than a skipped test: the spec asserts the current non-implementation (no draggable attr, PUT move-room → 404) so a future addition of the feature surfaces as a test failure and triggers a real audit."
+    - "Scenario 04 drag-move encoded as a two-part DOM+API tripwire rather than skipped. The spec asserts (a) bars have `draggable !== 'true'` (UI has no drag wiring) and (b) POST /api/bookings/<random-uuid>/room-move still responds 404 with `code: 'BOOKING_NOT_FOUND'` (the real endpoint at bookings.ts:886 still exists). Earlier drafts wrongly claimed the backend endpoint was missing and probed a fabricated path — corrected to probe the real endpoint so the tripwire fires on genuine regression (UI grows drag wiring OR backend endpoint is removed/reshaped)."
 
 status: partial
 last_audited: "2026-04-22"
@@ -199,4 +218,4 @@ signals:
   risk: NONE
   restore_mechanism: "n/a — zero mutations"
   primary_operation_broken: false
-  partial_reason: "scenario 04 (drag-move) is not_tested because the feature is not implemented in the product"
+  partial_reason: "scenario 04 (drag-move) is encoded as a UI-absence + backend-presence tripwire rather than a full end-to-end simulation because the UI half of the feature is genuinely not implemented (backend endpoint exists at bookings.ts:886 but nothing invokes it)"

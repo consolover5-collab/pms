@@ -15,15 +15,33 @@
  *   - Room-type group headers are collapsible (click toggles openGroups[code]).
  *   - Unassigned-bookings card lists rows without roomId as link-badges.
  *
- * What is NOT wired up:
- *   - Drag-and-drop of booking bars to move to another room. Bars are plain
- *     <Link>s with no draggable attribute, no onDragStart / onDragEnd / onDrop
- *     handlers anywhere in the page. No PUT /api/bookings/:id/room endpoint
- *     exists either. Per the plan's "skip drag scenario if not trivial" guidance,
- *     scenario 04 is recorded as `not_tested` in the YAML edge_cases.
+ * What is NOT wired up in the UI:
+ *   - Drag-and-drop of booking bars to move to another room. Bars are <Link>
+ *     elements without a `draggable` attr — no HTML5 drag wiring in the UI,
+ *     no onDragStart / onDragEnd / onDrop handlers anywhere in the page.
  *
- * Status: partial — 3 of 4 suggested scenarios covered; drag is genuinely not
- * implemented in the product so the 4th scenario cannot pass or fail meaningfully.
+ * Backend reality check (important — prior spec comments were wrong):
+ *   - The API endpoint `POST /api/bookings/:id/room-move` DOES exist
+ *     (apps/api/src/routes/bookings.ts:886) with full validation,
+ *     transactional double-room locking, and a structured error envelope
+ *     ({ error, code: 'BOOKING_NOT_FOUND' | 'ROOM_NOT_FOUND' | ... }).
+ *     Integration coverage lives at apps/api/src/routes/integration.test.ts:207.
+ *   - No UI surface invokes it today — the backend capability exists but is
+ *     not exposed through the tape chart (or anywhere else the audit found).
+ *
+ * Scenario 04 is therefore a two-part regression tripwire:
+ *   (a) DOM: assert bars have `draggable !== 'true'` — fires if someone wires
+ *       drag-to-move into the UI without an audit pass.
+ *   (b) API: probe `POST /api/bookings/<random-uuid>/room-move` with
+ *       `{ newRoomId: <zero-uuid> }` and assert `status === 404` AND body
+ *       `code === 'BOOKING_NOT_FOUND'` — fires if the backend endpoint is
+ *       ever removed (404 with a different or absent `code` field would flag
+ *       the regression and force a re-audit of how the UI should expose
+ *       room-move going forward).
+ *
+ * Status: partial — 3 of 4 suggested scenarios covered end-to-end; scenario 04
+ * is a contract/tripwire assertion rather than a full drag simulation because
+ * the UI genuinely does not implement drag.
  *
  * Scenarios:
  *   01 — render-timeline (ru + en): page renders; timeline grid visible with
@@ -35,9 +53,9 @@
  *   03 — click-bar (en-only — mutation-free navigation but only needs one): click
  *        the first visible booking bar; URL navigates to /bookings/:id and
  *        booking detail h1 renders.
- *   04 — drag-move: NOT TESTED. Drag-and-drop not implemented in the product
- *        (bars are plain <Link>s, no drag handlers, no move-room API endpoint).
- *        Recorded as `not_tested` in the YAML edge_cases with the full reason.
+ *   04 — drag-move-absent-but-api-exists (en-only): assert the UI has no drag
+ *        wiring AND the backend endpoint still responds with its documented
+ *        404 envelope — a dual tripwire that fires if either side drifts.
  */
 
 import { test, expect } from '@playwright/test';
@@ -219,8 +237,8 @@ test.describe('14 tape-chart', () => {
 
       await firstBar.click();
 
-      // URL should be /bookings/<bookingId>
-      await page.waitForURL(new RegExp(`/bookings/${bookingId}(?:\\?|$|/)`), {
+      // URL should be /bookings/<bookingId> (end-of-path or querystring only)
+      await page.waitForURL(new RegExp(`/bookings/${bookingId}(?:$|\\?)`), {
         timeout: UI_TIMEOUT,
       });
       // Detail page renders an h1 (guest name)
@@ -230,21 +248,18 @@ test.describe('14 tape-chart', () => {
     },
   );
 
-  // ── Scenario 04: drag-move — NOT TESTED ───────────────────────────────────
-  // Drag-and-drop is not implemented in the product. Booking bars are plain
-  // <Link> elements (apps/web/src/app/tape-chart/page.tsx:159-193) with no
-  // draggable attribute and no drag handlers. There is also no PUT move-room
-  // endpoint in apps/api/src/routes/tape-chart.ts (GET-only) or bookings.ts.
-  // The "not_tested" status is recorded in the YAML edge_cases per the plan's
-  // explicit guidance for this scenario.
-  //
-  // Rather than writing a test we expect to fail, we include a contract check
-  // that documents the absence of drag wiring — it reads page HTML and asserts
-  // the bars have no draggable attribute. This serves as a regression guard:
-  // if drag is later wired up, this test will fail and someone will re-audit
-  // scenario 04 properly.
+  // ── Scenario 04: drag-move-absent-but-api-exists (tripwire) ───────────────
+  // Two-part regression tripwire (see header comment for full rationale):
+  //   (a) DOM — booking bars have no HTML5 drag wiring (no `draggable="true"`).
+  //   (b) API — the real endpoint POST /api/bookings/:id/room-move still
+  //       exists and still responds with its documented 404 envelope
+  //       `{ code: "BOOKING_NOT_FOUND" }` for an unknown UUID. This is the
+  //       endpoint registered at apps/api/src/routes/bookings.ts:886.
+  // If either invariant breaks (UI grows drag wiring; backend endpoint is
+  // removed or its error envelope changes), scenario 04 fails and someone
+  // must re-audit how room-move should be exposed (or recover the backend).
   test(
-    '04-drag-move-not-implemented: booking bars have no drag wiring (audit evidence)',
+    '04-drag-move-absent-but-api-exists: no UI drag wiring, backend endpoint still present',
     async ({ page }, testInfo) => {
       test.skip(testInfo.project.name !== 'en', 'Contract evidence runs once');
 
@@ -261,18 +276,19 @@ test.describe('14 tape-chart', () => {
         contentType: 'text/plain',
       });
 
-      // If this ever becomes "true" the product has grown a drag feature and
-      // scenario 04 needs a real audit.
+      // (a) If this ever becomes "true" the product has grown a drag feature
+      // and scenario 04 needs a real end-to-end audit.
       expect(draggable).not.toBe('true');
 
-      // Also confirm there is no move-room endpoint registered on the API.
-      // A missing endpoint returns 404, a present one would return 400/401 etc.
-      // We only need ONE target here — use an arbitrary non-existent id to
-      // avoid guessing at a real booking.
-      const probeRes = await page.context().request.put(
-        `${API_URL}/api/bookings/00000000-0000-0000-0000-000000000000/room`,
+      // (b) Probe the real POST /api/bookings/:id/room-move route with a
+      // random non-existent booking id. The route MUST respond 404 with
+      // `code: 'BOOKING_NOT_FOUND'` — this distinguishes "route exists,
+      // booking missing" from "route was removed" (which would yield a
+      // different status, a bare 404 with no envelope, or a different code).
+      const probeRes = await page.context().request.post(
+        `${API_URL}/api/bookings/${crypto.randomUUID()}/room-move`,
         {
-          data: { roomId: '00000000-0000-0000-0000-000000000000' },
+          data: { newRoomId: '00000000-0000-0000-0000-000000000000' },
           headers: { 'content-type': 'application/json' },
         },
       );
@@ -280,8 +296,16 @@ test.describe('14 tape-chart', () => {
         body: String(probeRes.status()),
         contentType: 'text/plain',
       });
-      // A missing route → 404. (If someone wires up the endpoint, this flips.)
       expect(probeRes.status()).toBe(404);
+
+      const probeBody = (await probeRes.json().catch(() => null)) as
+        | { code?: string; error?: string }
+        | null;
+      testInfo.attach('move-room-probe-body', {
+        body: JSON.stringify(probeBody),
+        contentType: 'application/json',
+      });
+      expect(probeBody?.code).toBe('BOOKING_NOT_FOUND');
     },
   );
 });

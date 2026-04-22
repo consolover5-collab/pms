@@ -380,7 +380,6 @@ export default function TapeChartPage() {
                     <div
                       onClick={() => setOpenGroups((g) => ({ ...g, [code]: !isOpen }))}
                       data-testid="tape-chart-group-header"
-                      data-group-code={code}
                       style={{
                         padding: "6px 12px",
                         background: "var(--bg-subtle)",
