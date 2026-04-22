@@ -155,15 +155,7 @@ api_calls_observed:
 console_errors: []
 network_errors: []
 
-bugs:
-  - id: BUG-006
-    severity: low
-    scenario: "01-list-render"
-    observed: >
-      /rooms page renders identically in RU and EN — all labels are hardcoded
-      English. No useI18n()/getDictionary() calls. No "rooms.*" i18n keys for
-      the list page (keys exist only for the room edit subpage).
-    screenshot: 07-rooms-list-01-list-render-ru.png
+bugs: []
 
 help_rewrite_hints:
   topic: rooms
