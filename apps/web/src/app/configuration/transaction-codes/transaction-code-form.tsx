@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useLocale } from "@/components/locale-provider";
 import { t } from "@/lib/i18n";
+import type { DictionaryKey } from "@/lib/i18n/locales/en";
 import Link from "next/link";
 
 const CHARGE_GROUP_CODES = [
@@ -172,7 +173,9 @@ export function TransactionCodeForm({
             className="select"
           >
             {groupCodes.map((g) => (
-              <option key={g} value={g}>{g}</option>
+              <option key={g} value={g}>
+                {t(dict, `txCodes.groupCode.${g}` as DictionaryKey)}
+              </option>
             ))}
           </select>
         </div>

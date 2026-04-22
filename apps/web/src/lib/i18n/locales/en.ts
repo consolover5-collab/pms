@@ -287,6 +287,18 @@ export const en = {
   "txCodes.form.update": "Update",
   "txCodes.form.cancel": "Cancel",
   "txCodes.form.saveError": "Failed to save",
+  "txCodes.badge.charge": "charge",
+  "txCodes.badge.payment": "payment",
+  "txCodes.groupCode.room_charge": "Room charge",
+  "txCodes.groupCode.tax": "Tax",
+  "txCodes.groupCode.minibar": "Minibar",
+  "txCodes.groupCode.restaurant": "Restaurant",
+  "txCodes.groupCode.spa": "Spa",
+  "txCodes.groupCode.laundry": "Laundry",
+  "txCodes.groupCode.phone": "Phone",
+  "txCodes.groupCode.parking": "Parking",
+  "txCodes.groupCode.misc": "Miscellaneous",
+  "txCodes.groupCode.payment": "Payment",
 
   // Housekeeping
   "hk.taskType.checkout_clean": "Checkout Clean",

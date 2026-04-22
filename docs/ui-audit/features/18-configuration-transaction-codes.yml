@@ -191,8 +191,7 @@ network_errors:
   - { method: DELETE, path: "/api/transaction-codes/:id?propertyId=...", status: 400,
       note: "Expected — scenario 04 HAS_FOLIO_TRANSACTIONS validation; not a bug" }
 
-bugs:
-  - BUG-010
+bugs: []
 
 signals:
   l10n: partial

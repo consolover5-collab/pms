@@ -168,7 +168,7 @@ bugs:
   - id: BUG-010
     title: "Transaction codes: badge-text и group-code options показываются hardcoded (не локализованы)"
     severity: low
-    status: open
+    status: closed
     source: ui-audit/18-configuration-transaction-codes
     files:
       - apps/web/src/app/configuration/transaction-codes/page.tsx

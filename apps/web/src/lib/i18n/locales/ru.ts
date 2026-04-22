@@ -289,6 +289,18 @@ export const ru: Dictionary = {
   "txCodes.form.update": "Обновить",
   "txCodes.form.cancel": "Отмена",
   "txCodes.form.saveError": "Ошибка сохранения",
+  "txCodes.badge.charge": "начисление",
+  "txCodes.badge.payment": "платёж",
+  "txCodes.groupCode.room_charge": "Проживание",
+  "txCodes.groupCode.tax": "Налог",
+  "txCodes.groupCode.minibar": "Мини-бар",
+  "txCodes.groupCode.restaurant": "Ресторан",
+  "txCodes.groupCode.spa": "Спа",
+  "txCodes.groupCode.laundry": "Прачечная",
+  "txCodes.groupCode.phone": "Телефон",
+  "txCodes.groupCode.parking": "Парковка",
+  "txCodes.groupCode.misc": "Прочее",
+  "txCodes.groupCode.payment": "Платёж",
 
   // Housekeeping
   "hk.taskType.checkout_clean": "Уборка (выезд)",

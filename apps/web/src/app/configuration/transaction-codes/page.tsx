@@ -81,7 +81,7 @@ export default async function TransactionCodesPage() {
                       <td>
                         <span className="badge confirmed" data-testid="tx-code-type-badge">
                           <span className="dot" />
-                          charge
+                          {t(dict, "txCodes.badge.charge")}
                         </span>
                       </td>
                       <td className="r">
@@ -126,7 +126,7 @@ export default async function TransactionCodesPage() {
                       <td>
                         <span className="badge checked-in" data-testid="tx-code-type-badge">
                           <span className="dot" />
-                          payment
+                          {t(dict, "txCodes.badge.payment")}
                         </span>
                       </td>
                       <td className="r">
