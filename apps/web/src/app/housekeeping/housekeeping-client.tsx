@@ -197,9 +197,9 @@ export function HousekeepingClient({
                           fontSize: 10.5,
                           fontWeight: 600,
                         }}
-                        title="Rush / VIP"
+                        title={t(dict, "hk.rushTitle")}
                       >
-                        ● Rush
+                        {t(dict, "hk.rushBadge")}
                       </span>
                     )}
                   </div>

@@ -298,6 +298,8 @@ export const en = {
   "hk.status.in_progress": "In Progress",
   "hk.status.completed": "Completed",
   "hk.status.skipped": "Skipped",
+  "hk.rushTitle": "Rush / VIP",
+  "hk.rushBadge": "● Rush",
   "hk.filterAllStatuses": "All statuses",
   "hk.filterByMaid": "Filter by attendant…",
   "hk.generateBtn": "Generate today's tasks",

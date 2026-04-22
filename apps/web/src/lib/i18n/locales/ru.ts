@@ -300,6 +300,8 @@ export const ru: Dictionary = {
   "hk.status.in_progress": "В процессе",
   "hk.status.completed": "Завершено",
   "hk.status.skipped": "Пропущено",
+  "hk.rushTitle": "Срочно / VIP",
+  "hk.rushBadge": "● Срочно",
   "hk.filterAllStatuses": "Все статусы",
   "hk.filterByMaid": "Фильтр по горничной...",
   "hk.generateBtn": "Сгенерировать задания на сегодня",

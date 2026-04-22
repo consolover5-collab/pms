@@ -283,7 +283,7 @@ bugs:
   - id: BUG-013
     title: "Housekeeping board: Rush / VIP hardcoded strings на карточке высокоприоритетной задачи"
     severity: low
-    status: open
+    status: closed
     source: ui-audit/preflight-batch-d
     files:
       - apps/web/src/app/housekeeping/housekeeping-client.tsx
