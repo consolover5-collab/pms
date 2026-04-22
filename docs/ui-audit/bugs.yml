@@ -100,7 +100,7 @@ bugs:
   - id: BUG-006
     title: "Rooms list page не локализована — все лейблы хардкод на английском"
     severity: low
-    status: open
+    status: closed
     source: ui-audit/07-rooms-list
     file: apps/web/src/app/rooms/page.tsx
     description: |
