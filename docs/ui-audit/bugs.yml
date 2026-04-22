@@ -54,7 +54,7 @@ bugs:
   - id: BUG-003
     title: "Search form на /bookings не локализована"
     severity: low
-    status: open
+    status: closed
     source: ui-audit/02-bookings-list
     file: apps/web/src/app/bookings/search-form.tsx
     lines: "33, 40"

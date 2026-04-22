@@ -354,6 +354,8 @@ export const ru: Dictionary = {
   "bookings.next": "Далее",
   "bookings.pageOf": "Страница {current} из {total}",
   "bookings.showing": "Показаны {from}–{to} из {total}",
+  "bookings.search.placeholder": "Поиск по имени гостя или номеру брони…",
+  "bookings.search.submit": "Поиск",
   "booking.estAmount": "Расч. сумма",
   "booking.guarantee": "Гарантия",
   "bookingDetail.tab.folio": "Финансы",

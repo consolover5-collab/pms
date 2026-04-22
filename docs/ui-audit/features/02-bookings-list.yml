@@ -83,8 +83,7 @@ console_errors: []
 
 network_errors: []
 
-bugs:
-  - BUG-003
+bugs: []
 
 help_rewrite_hints:
   topic: bookings

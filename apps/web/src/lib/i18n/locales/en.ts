@@ -352,6 +352,8 @@ export const en = {
   "bookings.next": "Next",
   "bookings.pageOf": "Page {current} of {total}",
   "bookings.showing": "Showing {from}–{to} of {total}",
+  "bookings.search.placeholder": "Search by guest name or confirmation number…",
+  "bookings.search.submit": "Search",
   "booking.estAmount": "Est. Amount",
   "booking.guarantee": "Guarantee",
   "bookingDetail.tab.folio": "Folio",
