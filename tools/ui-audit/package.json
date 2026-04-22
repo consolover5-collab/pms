@@ -1,0 +1,24 @@
+{
+  "name": "@pms/ui-audit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:ru": "playwright test --project=ru",
+    "test:en": "playwright test --project=en",
+    "install-browsers": "playwright install chromium",
+    "aggregate": "tsx scripts/aggregate.ts",
+    "validate-yaml": "tsx scripts/validate-yaml.ts",
+    "probe-state": "tsx scripts/probe-state.ts",
+    "sync-backlog": "tsx scripts/sync-backlog.ts",
+    "sync-backlog:check": "tsx scripts/sync-backlog.ts --check"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^20.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.0.0",
+    "yaml": "^2.8.3"
+  }
+}

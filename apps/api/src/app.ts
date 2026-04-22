@@ -27,11 +27,7 @@ export async function buildApp() {
   await app.register(cors, { origin: true, credentials: true });
   await app.register(cookie);
   await app.register(dbPlugin);
-  // Auth plugin is disabled until the frontend auth UI (login page, session
-  // handling, cookie forwarding in SSR) is fully wired. The auth routes
-  // (/api/auth/login, /logout, /me) still work — only the preHandler guard
-  // that blocks unauthenticated requests is skipped. Re-enable by uncommenting:
-  // await app.register(authPlugin);
+  await app.register(authPlugin);
   await app.register(healthRoutes);
   await app.register(propertiesRoutes);
   await app.register(roomTypesRoutes);

@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
-
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
 
 type RoomType = {
   id: string;
@@ -15,13 +16,19 @@ type RoomType = {
   roomCount: number;
 };
 
-export function RoomTypesList({ roomTypes, propertyId }: { roomTypes: RoomType[]; propertyId: string }) {
+export function RoomTypesList({
+  roomTypes,
+  propertyId,
+}: {
+  roomTypes: RoomType[];
+  propertyId: string;
+}) {
   const router = useRouter();
+  const { dict } = useLocale();
   const [deleting, setDeleting] = useState<string | null>(null);
 
   async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this room type?")) return;
-
+    if (!confirm(t(dict, "roomTypes.confirmDelete"))) return;
     setDeleting(id);
     try {
       const res = await fetch(`/api/room-types/${id}?propertyId=${propertyId}`, {
@@ -30,83 +37,100 @@ export function RoomTypesList({ roomTypes, propertyId }: { roomTypes: RoomType[]
       if (res.ok) {
         router.refresh();
       } else {
-        alert("Failed to delete room type");
+        alert(t(dict, "roomTypes.deleteFailed"));
       }
     } finally {
       setDeleting(null);
     }
   }
 
-  if (roomTypes.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        No room types configured. Add your first room type to get started.
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-white border rounded-lg overflow-hidden">
-      <table className="w-full">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
-              Code
-            </th>
-            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
-              Name
-            </th>
-            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
-              Max Occ.
-            </th>
-            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
-              Rooms
-            </th>
-            <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {roomTypes.map((rt) => (
-            <tr key={rt.id} className="hover:bg-gray-50">
-              <td className="px-4 py-3 font-mono text-sm">{rt.code}</td>
-              <td className="px-4 py-3">
-                <Link href={`/configuration/room-types/${rt.id}`} className="font-medium hover:underline text-gray-900">
-                  {rt.name}
-                </Link>
-                {rt.description && (
-                  <div className="text-xs text-gray-500">{rt.description}</div>
-                )}
-              </td>
-              <td className="px-4 py-3">{rt.maxOccupancy}</td>
-              <td className="px-4 py-3">
-                <Link
-                  href={`/configuration/room-types/${rt.id}`}
-                  className="text-blue-600 hover:underline"
-                >
-                  {rt.roomCount}
-                </Link>
-              </td>
-              <td className="px-4 py-3 text-right space-x-2">
-                <a
-                  href={`/configuration/room-types/${rt.id}/edit`}
-                  className="text-blue-600 hover:underline text-sm"
-                >
-                  Edit
-                </a>
-                <button
-                  onClick={() => handleDelete(rt.id)}
-                  disabled={deleting === rt.id}
-                  className="text-red-600 hover:underline text-sm disabled:opacity-50"
-                >
-                  {deleting === rt.id ? "..." : "Delete"}
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="card">
+      <div className="card-head">
+        <div className="card-title">
+          {t(dict, "roomTypes.title")} <span className="count">{roomTypes.length}</span>
+        </div>
+      </div>
+      <div className="card-body" style={{ padding: 0 }}>
+        {roomTypes.length === 0 ? (
+          <div
+            data-testid="room-type-empty"
+            style={{
+              padding: 24,
+              textAlign: "center",
+              color: "var(--muted)",
+              fontSize: 13,
+            }}
+          >
+            {t(dict, "roomTypes.empty")}
+          </div>
+        ) : (
+          <table className="t" data-testid="room-types-list">
+            <thead>
+              <tr>
+                <th style={{ width: 80 }}>{t(dict, "roomTypes.colCode")}</th>
+                <th>{t(dict, "roomTypes.colName")}</th>
+                <th className="r" style={{ width: 100 }}>
+                  {t(dict, "roomTypes.colMaxOcc")}
+                </th>
+                <th className="r" style={{ width: 90 }}>
+                  {t(dict, "roomTypes.colRooms")}
+                </th>
+                <th className="r">{t(dict, "roomTypes.colActions")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {roomTypes.map((rt) => (
+                <tr key={rt.id} data-testid="room-type-row" data-room-type-id={rt.id}>
+                  <td className="tnum" data-testid="room-type-code">{rt.code}</td>
+                  <td>
+                    <Link
+                      href={`/configuration/room-types/${rt.id}`}
+                      style={{ color: "var(--fg)", fontWeight: 500 }}
+                      data-testid="room-type-name"
+                    >
+                      {rt.name}
+                    </Link>
+                    {rt.description && (
+                      <div style={{ fontSize: 11, color: "var(--muted)" }}>{rt.description}</div>
+                    )}
+                  </td>
+                  <td className="r tnum">{rt.maxOccupancy}</td>
+                  <td className="r tnum">
+                    <Link
+                      href={`/configuration/room-types/${rt.id}`}
+                      style={{ color: "var(--accent)" }}
+                      data-testid="room-type-rooms"
+                    >
+                      {rt.roomCount}
+                    </Link>
+                  </td>
+                  <td className="r">
+                    <div style={{ display: "inline-flex", gap: 6 }}>
+                      <Link
+                        href={`/configuration/room-types/${rt.id}/edit`}
+                        className="btn xs ghost"
+                        data-testid="room-type-edit"
+                      >
+                        {t(dict, "roomTypes.edit")}
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(rt.id)}
+                        disabled={deleting === rt.id}
+                        className="btn xs danger"
+                        data-testid="room-type-delete"
+                      >
+                        {deleting === rt.id ? t(dict, "roomTypes.deleting") : t(dict, "roomTypes.delete")}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }

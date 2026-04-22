@@ -3,6 +3,7 @@ import Link from "next/link";
 import { RoomStatusActions } from "./room-status-actions";
 import { BackButton } from "@/components/back-button";
 import { getLocale, getDict, t } from "@/lib/i18n";
+import { getHkStatusLabel, getOccupancyLabel } from "@/lib/hk-labels";
 
 type Room = {
   id: string;
@@ -43,15 +44,6 @@ const hkStatusColors: Record<string, string> = {
   out_of_service: "bg-gray-400 text-white",
 };
 
-const hkStatusLabels: Record<string, string> = {
-  clean: "Clean",
-  dirty: "Dirty",
-  pickup: "Pickup",
-  inspected: "Inspected",
-  out_of_order: "Out of Order",
-  out_of_service: "Out of Service",
-};
-
 function Field({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
@@ -86,24 +78,33 @@ export default async function RoomDetailPage({
 
   return (
     <main className="p-8 max-w-2xl">
-      <BackButton fallbackHref="/rooms" label="Back to rooms" />
+      <BackButton fallbackHref="/rooms" label={t(dict, "rooms.backToRooms")} />
 
       <div className="mt-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold font-mono">#{room.roomNumber}</h1>
+          <h1
+            data-testid="room-detail-number"
+            className="text-3xl font-bold font-mono"
+          >
+            #{room.roomNumber}
+          </h1>
           <span
+            data-testid="room-detail-hk-badge"
+            data-hk-status={room.housekeepingStatus}
             className={`text-xs px-2 py-1 rounded ${hkStatusColors[room.housekeepingStatus]}`}
           >
-            {hkStatusLabels[room.housekeepingStatus]}
+            {getHkStatusLabel(dict, room.housekeepingStatus)}
           </span>
           <span
+            data-testid="room-detail-occ-badge"
+            data-occ-status={room.occupancyStatus}
             className={`text-xs px-2 py-1 rounded ${
               room.occupancyStatus === "occupied"
                 ? "bg-blue-100 text-blue-800"
                 : "bg-green-100 text-green-800"
             }`}
           >
-            {room.occupancyStatus === "occupied" ? "Occupied" : "Vacant"}
+            {getOccupancyLabel(dict, room.occupancyStatus)}
           </span>
         </div>
         {room.occupancyStatus !== "occupied" && (
@@ -118,13 +119,16 @@ export default async function RoomDetailPage({
 
       {/* Current guest info when occupied */}
       {activeBooking && (
-        <div className="mt-4 border border-blue-200 bg-blue-50 rounded-lg p-4">
+        <div
+          data-testid="room-detail-current-guest-card"
+          className="mt-4 border border-blue-200 bg-blue-50 rounded-lg p-4"
+        >
           <h3 className="text-sm font-semibold text-blue-800 mb-2">
-            Current Guest
+            {t(dict, "rooms.currentGuest")}
           </h3>
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
-              <span className="text-gray-500">Guest: </span>
+              <span className="text-gray-500">{t(dict, "rooms.guestLabel")}: </span>
               <Link
                 href={`/guests/${activeBooking.guest.id}`}
                 className="text-blue-600 hover:underline font-medium"
@@ -133,7 +137,7 @@ export default async function RoomDetailPage({
               </Link>
             </div>
             <div>
-              <span className="text-gray-500">Confirmation: </span>
+              <span className="text-gray-500">{t(dict, "rooms.confirmationLabel")}: </span>
               <Link
                 href={`/bookings/${activeBooking.id}`}
                 className="text-blue-600 hover:underline font-mono"
@@ -142,7 +146,7 @@ export default async function RoomDetailPage({
               </Link>
             </div>
             <div>
-              <span className="text-gray-500">Check-out: </span>
+              <span className="text-gray-500">{t(dict, "rooms.checkOutLabel")}: </span>
               <span>{activeBooking.checkOutDate}</span>
             </div>
           </div>
@@ -151,15 +155,15 @@ export default async function RoomDetailPage({
 
       <div className="mt-6 grid grid-cols-2 gap-4">
         <Field
-          label="Room Type"
+          label={t(dict, "rooms.roomType")}
           value={`${room.roomType.name} (${room.roomType.code})`}
         />
-        <Field label="Floor" value={room.floor?.toString() || null} />
+        <Field label={t(dict, "rooms.floor")} value={room.floor?.toString() || null} />
         <Field
-          label="Max Occupancy"
+          label={t(dict, "rooms.maxOccupancy")}
           value={room.roomType.maxOccupancy?.toString() || null}
         />
-        <Field label="Description" value={room.roomType.description} />
+        <Field label={t(dict, "rooms.description")} value={room.roomType.description} />
       </div>
 
       <RoomStatusActions

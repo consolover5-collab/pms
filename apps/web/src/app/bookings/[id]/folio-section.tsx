@@ -4,6 +4,18 @@ import { useState, useEffect, useCallback } from "react";
 import { formatCurrency } from "@/lib/format";
 import { useLocale } from "@/components/locale-provider";
 import { t } from "@/lib/i18n";
+import type { DictionaryKey, Dictionary } from "@/lib/i18n/locales/en";
+import { Icon } from "@/components/icon";
+
+function getPayeeTypeLabel(dict: Dictionary, type: string | null | undefined): string {
+  if (!type) return "—";
+  return t(dict, `folio.payeeType.${type}` as DictionaryKey);
+}
+
+function getPaymentMethodLabel(dict: Dictionary, method: string | null | undefined): string | null {
+  if (!method) return null;
+  return t(dict, `folio.paymentMethod.${method}` as DictionaryKey);
+}
 
 type Transaction = {
   id: string;
@@ -34,10 +46,7 @@ type FolioWindow = {
 type FolioData = {
   balance: number;
   transactions: Transaction[];
-  summary: {
-    totalCharges: number;
-    totalPayments: number;
-  };
+  summary: { totalCharges: number; totalPayments: number };
   windows: FolioWindow[];
 };
 
@@ -51,6 +60,10 @@ type TransactionCode = {
 
 type PostFormMode = null | "charge" | "payment";
 
+function windowLetter(n: number): string {
+  return String.fromCharCode(64 + n);
+}
+
 export function FolioSection({ bookingId }: { bookingId: string }) {
   const { dict } = useLocale();
   const [folio, setFolio] = useState<FolioData | null>(null);
@@ -59,7 +72,7 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [postFormMode, setPostFormMode] = useState<PostFormMode>(null);
   const [posting, setPosting] = useState(false);
-  const [selectedWindowId, setSelectedWindowId] = useState<string | null>(null);
+  const [activeWindowId, setActiveWindowId] = useState<string | null>(null);
 
   const fetchFolio = useCallback(async () => {
     try {
@@ -67,24 +80,20 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
       if (!res.ok) throw new Error("Failed to fetch folio");
       const data: FolioData = await res.json();
       setFolio(data);
-      if (!selectedWindowId && data.windows.length > 0) {
-        setSelectedWindowId(data.windows[0].id);
-      }
+      setActiveWindowId((prev) => prev ?? data.windows[0]?.id ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error loading folio");
     } finally {
       setLoading(false);
     }
-  }, [bookingId, selectedWindowId]);
+  }, [bookingId]);
 
-  async function fetchCodes() {
+  const fetchCodes = useCallback(async () => {
     try {
       const propRes = await fetch("/api/properties");
       const properties = await propRes.json();
       if (!properties.length) return;
-      const res = await fetch(
-        `/api/transaction-codes?propertyId=${properties[0].id}`,
-      );
+      const res = await fetch(`/api/transaction-codes?propertyId=${properties[0].id}`);
       if (res.ok) {
         const data = await res.json();
         setCodes(data.filter((c: TransactionCode) => c.isManualPostAllowed));
@@ -92,23 +101,20 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
     } catch {
       // Codes not critical for viewing
     }
-  }
+  }, []);
 
   useEffect(() => {
     fetchFolio();
     fetchCodes();
-  }, [bookingId, fetchFolio]);
+  }, [fetchFolio, fetchCodes]);
 
   const chargeCodes = codes.filter((c) => c.transactionType === "charge");
   const paymentCodes = codes.filter((c) => c.transactionType === "payment");
-
-  const activeWindow = folio?.windows.find((w) => w.id === selectedWindowId);
-  const windowTransactions = folio
-    ? folio.transactions.filter((t) => t.folioWindowId === selectedWindowId)
-    : [];
+  const activeCodes = postFormMode === "charge" ? chargeCodes : paymentCodes;
 
   async function handlePost(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!activeWindowId) return;
     setPosting(true);
     setError(null);
     const form = new FormData(e.currentTarget);
@@ -128,50 +134,6 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
       ? `/api/bookings/${bookingId}/folio/payment`
       : `/api/bookings/${bookingId}/folio/post`;
 
-    const selectedCode = codes.find((c) => c.id === codeId);
-    const optimisticId = `optimistic-${Date.now()}`;
-    const now = new Date().toISOString();
-    const today = now.slice(0, 10);
-
-    const optimisticTxn: Transaction = {
-      id: optimisticId,
-      date: today,
-      transactionCode: {
-        code: selectedCode?.code || "...",
-        description: selectedCode?.description || "",
-      },
-      debit: isPayment ? "0" : amount.toFixed(2),
-      credit: isPayment ? amount.toFixed(2) : "0",
-      description: description || null,
-      isSystemGenerated: false,
-      postedBy: "You",
-      createdAt: now,
-      folioWindowId: selectedWindowId || "",
-    };
-
-    const previousFolio = folio;
-
-    if (folio) {
-      const newBalance = isPayment
-        ? folio.balance - amount
-        : folio.balance + amount;
-      const newCharges = isPayment
-        ? folio.summary.totalCharges
-        : folio.summary.totalCharges + amount;
-      const newPayments = isPayment
-        ? folio.summary.totalPayments + amount
-        : folio.summary.totalPayments;
-
-      setFolio({
-        ...folio,
-        balance: newBalance,
-        transactions: [...folio.transactions, optimisticTxn],
-        summary: { totalCharges: newCharges, totalPayments: newPayments },
-      });
-    }
-
-    setPostFormMode(null);
-
     try {
       const res = await fetch(url, {
         method: "POST",
@@ -179,261 +141,296 @@ export function FolioSection({ bookingId }: { bookingId: string }) {
         body: JSON.stringify({
           transactionCodeId: codeId,
           amount,
-          folioWindowId: selectedWindowId || undefined,
+          folioWindowId: activeWindowId,
           ...(description ? { description } : {}),
         }),
       });
 
       if (!res.ok) {
         const data = await res.json();
-        setFolio(previousFolio);
         setError(data.error || "Failed to post");
         return;
       }
 
+      setPostFormMode(null);
       await fetchFolio();
     } catch {
-      setFolio(previousFolio);
       setError("Network error");
     } finally {
       setPosting(false);
     }
   }
 
-  function toggleForm(mode: "charge" | "payment") {
-    setPostFormMode(postFormMode === mode ? null : mode);
-  }
-
   if (loading) {
     return (
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <p className="text-sm text-gray-400">Loading folio...</p>
+      <div className="card">
+        <div className="card-body">
+          <div style={{ color: "var(--muted)", fontSize: 13 }}>{t(dict, "bookingDetail.loadingFolio")}</div>
+        </div>
       </div>
     );
   }
 
   if (error && !folio) {
     return (
-      <div className="mt-6 p-4 bg-red-50 rounded-lg">
-        <p className="text-sm text-red-600">{error}</p>
+      <div className="card">
+        <div className="card-body">
+          <div style={{ color: "var(--cancelled)", fontSize: 13 }}>{error}</div>
+        </div>
       </div>
     );
   }
 
   if (!folio) return null;
 
-  const activeCodes =
-    postFormMode === "charge" ? chargeCodes : paymentCodes;
-
-  const formTheme =
-    postFormMode === "charge"
-      ? {
-          bg: "bg-blue-50",
-          border: "border-blue-200",
-          btn: "bg-blue-600 hover:bg-blue-700",
-          label: "Post Charge",
-          posting: "Posting charge...",
-        }
-      : {
-          bg: "bg-green-50",
-          border: "border-green-200",
-          btn: "bg-green-600 hover:bg-green-700",
-          label: "Accept Payment",
-          posting: "Processing payment...",
-        };
+  const activeWin = folio.windows.find((w) => w.id === activeWindowId) ?? folio.windows[0];
 
   return (
-    <div className="mt-6">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold">Folio</h2>
-        <div className="flex items-center gap-3">
-          <span
-            className={`text-sm font-mono font-bold ${folio.balance > 0 ? "text-red-600" : "text-green-600"}`}
-          >
-            Balance: {formatCurrency(folio.balance)} &#8381;
-          </span>
-          <button
-            onClick={() => toggleForm("charge")}
-            disabled={posting}
-            className={`px-3 py-1 text-xs rounded disabled:opacity-50 ${
-              postFormMode === "charge"
-                ? "bg-blue-100 text-blue-700 border border-blue-300"
-                : "bg-blue-600 text-white hover:bg-blue-700"
-            }`}
-          >
-            {postFormMode === "charge" ? "Cancel" : "Post Charge"}
-          </button>
-          <button
-            onClick={() => toggleForm("payment")}
-            disabled={posting}
-            className={`px-3 py-1 text-xs rounded disabled:opacity-50 ${
-              postFormMode === "payment"
-                ? "bg-green-100 text-green-700 border border-green-300"
-                : "bg-green-600 text-white hover:bg-green-700"
-            }`}
-          >
-            {postFormMode === "payment" ? "Cancel" : "Accept Payment"}
-          </button>
-        </div>
-      </div>
+    <div>
+      {folio.windows.map((w) => {
+        const winTxns = folio.transactions.filter((tx) => tx.folioWindowId === w.id);
+        const isActive = w.id === activeWindowId;
+        return (
+          <div key={w.id} className="folio-win">
+            <div className="fh">
+              <div>
+                <div className="ti">
+                  {t(dict, "bookingDetail.window")} {windowLetter(w.windowNumber)} · {w.label}
+                </div>
+                <div className="who">
+                  {getPayeeTypeLabel(dict, w.payeeType)}
+                  {getPaymentMethodLabel(dict, w.paymentMethod)
+                    ? ` · ${getPaymentMethodLabel(dict, w.paymentMethod)}`
+                    : ""}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  type="button"
+                  className="btn xs"
+                  onClick={() => {
+                    setActiveWindowId(w.id);
+                    setPostFormMode(postFormMode === "charge" && isActive ? null : "charge");
+                  }}
+                  disabled={posting}
+                >
+                  <Icon name="plus" size={11} />
+                  {t(dict, "bookingDetail.windowCharge")}
+                </button>
+                <button
+                  type="button"
+                  className="btn xs"
+                  onClick={() => {
+                    setActiveWindowId(w.id);
+                    setPostFormMode(postFormMode === "payment" && isActive ? null : "payment");
+                  }}
+                  disabled={posting}
+                >
+                  <Icon name="cash" size={11} />
+                  {t(dict, "bookingDetail.windowPayment")}
+                </button>
+              </div>
+            </div>
 
-      {error && (
-        <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
-          {error}
-          <button
-            onClick={() => setError(null)}
-            className="ml-2 text-red-400 hover:text-red-600"
-          >
-            x
-          </button>
-        </div>
-      )}
+            {isActive && postFormMode && (
+              <form
+                onSubmit={handlePost}
+                style={{
+                  padding: "10px 14px",
+                  borderBottom: "1px solid var(--border)",
+                  background: "var(--bg-subtle)",
+                  display: "grid",
+                  gridTemplateColumns: "2fr 1fr 2fr auto",
+                  gap: 8,
+                  alignItems: "center",
+                }}
+              >
+                <select name="codeId" required className="select" style={{ fontSize: 12 }}>
+                  <option value="">
+                    {postFormMode === "charge"
+                      ? t(dict, "bookingDetail.chargeCode")
+                      : t(dict, "bookingDetail.paymentMethod")}
+                  </option>
+                  {activeCodes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.code} — {c.description}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  name="amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  placeholder={t(dict, "bookingDetail.amountPlaceholder")}
+                  className="input tnum"
+                  style={{ fontSize: 12 }}
+                />
+                <input
+                  name="description"
+                  type="text"
+                  placeholder={t(dict, "bookingDetail.descriptionPlaceholder")}
+                  className="input"
+                  style={{ fontSize: 12 }}
+                />
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button type="submit" disabled={posting} className="btn xs primary">
+                    {posting
+                      ? postFormMode === "charge"
+                        ? t(dict, "bookingDetail.postingCharge")
+                        : t(dict, "bookingDetail.processingPayment")
+                      : t(dict, "bookingDetail.postCharge")}
+                  </button>
+                  <button type="button" onClick={() => setPostFormMode(null)} className="btn xs ghost">
+                    {t(dict, "bookingDetail.cancelPost")}
+                  </button>
+                </div>
+              </form>
+            )}
 
-      {/* Window tabs */}
-      {folio.windows.length > 1 && (
-        <div className="flex gap-1 mb-3">
-          {folio.windows.map((w) => (
-            <button
-              key={w.id}
-              onClick={() => setSelectedWindowId(w.id)}
-              className={`px-3 py-1.5 text-xs rounded-t border-b-2 ${
-                selectedWindowId === w.id
-                  ? "bg-white border-blue-600 text-blue-700 font-medium"
-                  : "bg-gray-50 border-transparent text-gray-500 hover:bg-gray-100"
-              }`}
-            >
-              W{w.windowNumber}: {w.label}
-              <span className="ml-1 font-mono">
-                ({formatCurrency(w.balance)} &#8381;)
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
+            {winTxns.length === 0 ? (
+              <div
+                style={{
+                  padding: "18px 14px",
+                  color: "var(--muted)",
+                  fontSize: 12,
+                  textAlign: "center",
+                }}
+              >
+                {t(dict, "bookingDetail.noTransactions")}
+              </div>
+            ) : (
+              <table className="t">
+                <thead>
+                  <tr>
+                    <th style={{ width: 100 }}>{t(dict, "bookingDetail.dateCol")}</th>
+                    <th style={{ width: 80 }}>{t(dict, "bookingDetail.codeCol")}</th>
+                    <th>{t(dict, "bookingDetail.descriptionCol")}</th>
+                    <th className="r" style={{ width: 110 }}>
+                      {t(dict, "bookingDetail.debit")}
+                    </th>
+                    <th className="r" style={{ width: 110 }}>
+                      {t(dict, "bookingDetail.credit")}
+                    </th>
+                    <th style={{ width: 100 }}>{t(dict, "bookingDetail.byCol")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {winTxns.map((tx) => (
+                    <tr key={tx.id}>
+                      <td className="tnum" style={{ color: "var(--muted)" }}>
+                        {tx.date}
+                      </td>
+                      <td className="tnum" style={{ fontSize: 11 }}>
+                        {tx.transactionCode.code}
+                      </td>
+                      <td>
+                        {tx.description || tx.transactionCode.description}
+                        {tx.isSystemGenerated && (
+                          <span style={{ marginLeft: 6, fontSize: 10, color: "var(--muted-2)" }}>{t(dict, "folio.autoBadge")}</span>
+                        )}
+                      </td>
+                      <td className="r tnum">
+                        {parseFloat(tx.debit) > 0 ? formatCurrency(tx.debit) : ""}
+                      </td>
+                      <td className="r tnum" style={{ color: "var(--checked-in)" }}>
+                        {parseFloat(tx.credit) > 0 ? formatCurrency(tx.credit) : ""}
+                      </td>
+                      <td style={{ fontSize: 11, color: "var(--muted-2)" }}>{tx.postedBy}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
 
-      {/* Post form */}
-      {postFormMode && (
-        <form
-          onSubmit={handlePost}
-          className={`mb-4 p-3 ${formTheme.bg} border ${formTheme.border} rounded-lg space-y-2`}
-        >
-          <div className="grid grid-cols-3 gap-2">
-            <select
-              name="codeId"
-              required
-              className="text-sm border rounded px-2 py-1.5"
-            >
-              <option value="">
-                {postFormMode === "charge"
-                  ? "Charge code..."
-                  : "Payment method..."}
-              </option>
-              {activeCodes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.code} — {c.description}
-                </option>
-              ))}
-            </select>
-            <input
-              name="amount"
-              type="number"
-              step="0.01"
-              min="0.01"
-              required
-              placeholder="Amount"
-              className="text-sm border rounded px-2 py-1.5"
-            />
-            <input
-              name="description"
-              type="text"
-              placeholder="Description (optional)"
-              className="text-sm border rounded px-2 py-1.5"
-            />
+            <div className="totals">
+              <div className="t">
+                <div className="k">{t(dict, "bookingDetail.posted")}</div>
+                <div className="v">{formatCurrency(w.totalCharges)} ₽</div>
+              </div>
+              <div className="t">
+                <div className="k">{t(dict, "bookingDetail.paid")}</div>
+                <div className="v neg">{formatCurrency(w.totalPayments)} ₽</div>
+              </div>
+              <div className="t" style={{ marginLeft: "auto" }}>
+                <div className="k">{t(dict, "bookingDetail.balance")}</div>
+                <div className={`v ${w.balance > 0 ? "pos" : w.balance < 0 ? "neg" : "zero"}`}>
+                  {formatCurrency(w.balance)} ₽
+                </div>
+              </div>
+            </div>
           </div>
+        );
+      })}
+
+      {error && folio && (
+        <div
+          style={{
+            padding: 10,
+            background: "var(--cancelled-bg)",
+            border: "1px solid var(--cancelled)",
+            borderRadius: 6,
+            fontSize: 12,
+            color: "var(--cancelled-fg)",
+            marginBottom: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span>{error}</span>
           <button
-            type="submit"
-            disabled={posting}
-            className={`px-3 py-1.5 text-sm text-white rounded ${formTheme.btn} disabled:opacity-50`}
+            type="button"
+            onClick={() => setError(null)}
+            className="btn xs ghost"
+            style={{ color: "var(--cancelled-fg)" }}
           >
-            {posting ? formTheme.posting : formTheme.label}
+            ×
           </button>
-        </form>
+        </div>
       )}
 
-      {/* Summary */}
-      <div className="grid grid-cols-2 gap-4 mb-3 text-sm">
-        <div>
-          <span className="text-gray-500">Total Charges:</span>{" "}
-          <span className="font-mono">
-            {formatCurrency(activeWindow?.totalCharges ?? folio.summary.totalCharges)} &#8381;
-          </span>
+      <div className="card">
+        <div className="card-head">
+          <div className="card-title">{t(dict, "bookingDetail.totalBooking")}</div>
         </div>
-        <div>
-          <span className="text-gray-500">Total Payments:</span>{" "}
-          <span className="font-mono">
-            {formatCurrency(activeWindow?.totalPayments ?? folio.summary.totalPayments)} &#8381;
-          </span>
+        <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {folio.windows.map((w) => (
+            <div key={w.id} className="leg">
+              <span className="lab">
+                {t(dict, "bookingDetail.window")} {windowLetter(w.windowNumber)} · {w.label}
+              </span>
+              <strong className={w.balance > 0 ? "" : "muted"} style={w.balance === 0 ? { color: "var(--muted)" } : undefined}>
+                {formatCurrency(w.balance)} ₽
+              </strong>
+            </div>
+          ))}
+          <div style={{ borderTop: "1px solid var(--border)", margin: "6px 0" }} />
+          <div className="leg">
+            <span className="lab" style={{ color: "var(--fg)", fontWeight: 600 }}>
+              {t(dict, "bookingDetail.dueOnCheckout")}
+            </span>
+            <strong style={{ color: folio.balance > 0 ? "var(--cancelled)" : "var(--muted)", fontSize: 15 }}>
+              {formatCurrency(folio.balance)} ₽
+            </strong>
+          </div>
+          {activeWin && folio.balance > 0 && (
+            <button
+              type="button"
+              className="btn sm primary"
+              style={{ width: "100%", justifyContent: "center", marginTop: 6 }}
+              onClick={() => {
+                setActiveWindowId(activeWin.id);
+                setPostFormMode("payment");
+              }}
+            >
+              <Icon name="cash" size={12} />
+              {t(dict, "bookingDetail.acceptPayment")}
+            </button>
+          )}
         </div>
       </div>
-
-      {/* Transactions table */}
-      {windowTransactions.length === 0 ? (
-        <p className="text-gray-400 text-sm">No transactions</p>
-      ) : (
-        <div className="border rounded overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="text-left px-3 py-2 text-xs text-gray-500">
-                  Date
-                </th>
-                <th className="text-left px-3 py-2 text-xs text-gray-500">
-                  Code
-                </th>
-                <th className="text-left px-3 py-2 text-xs text-gray-500">
-                  Description
-                </th>
-                <th className="text-right px-3 py-2 text-xs text-gray-500">
-                  Debit
-                </th>
-                <th className="text-right px-3 py-2 text-xs text-gray-500">
-                  Credit
-                </th>
-                <th className="text-left px-3 py-2 text-xs text-gray-500">
-                  Posted By
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {windowTransactions.map((t) => (
-                <tr key={t.id} className={`hover:bg-gray-50 ${t.id.startsWith("optimistic-") ? "opacity-60" : ""}`}>
-                  <td className="px-3 py-2 text-gray-600">{t.date}</td>
-                  <td className="px-3 py-2 font-mono text-xs">
-                    {t.transactionCode.code}
-                  </td>
-                  <td className="px-3 py-2">
-                    {t.description || t.transactionCode.description}
-                    {t.isSystemGenerated && (
-                      <span className="ml-1 text-xs text-gray-400">
-                        (auto)
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono">
-                    {parseFloat(t.debit) > 0 ? formatCurrency(t.debit) : ""}
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono text-green-600">
-                    {parseFloat(t.credit) > 0 ? formatCurrency(t.credit) : ""}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-400">
-                    {t.postedBy}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   );
 }

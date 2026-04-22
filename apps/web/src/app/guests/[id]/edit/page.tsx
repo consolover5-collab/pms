@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
+import { getLocale, getDict, t } from "@/lib/i18n";
 import { GuestEditForm } from "./guest-edit-form";
 
 type Guest = {
@@ -23,18 +24,31 @@ export default async function GuestEditPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const locale = await getLocale();
+  const dict = getDict(locale);
   const { id } = await params;
   const guest = await apiFetch<Guest>(`/api/profiles/${id}`);
 
   return (
-    <main className="p-8">
-      <Link href={`/guests/${guest.id}`} className="text-blue-600 hover:underline text-sm">
-        &larr; Back to guest
-      </Link>
-      <h1 className="text-2xl font-bold mt-4 mb-6">
-        Edit Guest: {guest.firstName} {guest.lastName}
-      </h1>
-      <GuestEditForm guest={guest} />
-    </main>
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <Link href={`/guests/${guest.id}`} style={{ color: "var(--muted)" }}>
+          ← {t(dict, "guests.backToGuest")}
+        </Link>
+      </div>
+
+      <div className="page-head">
+        <h1 className="page-title">{t(dict, "guests.editTitle")}</h1>
+        <span className="page-sub">
+          {guest.firstName} {guest.lastName}
+        </span>
+      </div>
+
+      <div className="card">
+        <div className="card-body">
+          <GuestEditForm guest={guest} />
+        </div>
+      </div>
+    </>
   );
 }

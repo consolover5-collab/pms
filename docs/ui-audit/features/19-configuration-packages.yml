@@ -1,0 +1,267 @@
+id: 19-configuration-packages
+title: "Configuration: Packages"
+route: /configuration/packages
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  list_page:
+    server_component: apps/web/src/app/configuration/packages/page.tsx
+    note: >
+      Fully localised. No i18n gaps found. No delete button in UI (only deactivate/activate toggle);
+      delete is API-only with rate-plan link guard.
+    testids:
+      - { id: packages-title,          element: "h1",                   added: true }
+      - { id: packages-new,            element: "Link (New package btn)",added: true }
+      - { id: packages-search-form,    element: "form",                  added: true }
+      - { id: packages-search-input,   element: "input[text]",           added: true }
+      - { id: packages-search-submit,  element: "button[submit]",        added: true }
+      - { id: packages-clear,          element: "Link (clear search)",   added: true, note: "shown only when initialSearch is set" }
+      - { id: packages-empty,          element: "div (empty state)",     added: true, note: "shown when packages.length===0" }
+      - { id: packages-table,          element: "table.t",               added: true }
+      - { id: package-row,             element: "tbody tr",              added: true, note: "also data-package-id={pkg.id}" }
+      - { id: package-code,            element: "td (code)",             added: true }
+      - { id: package-name,            element: "td (name)",             added: true }
+      - { id: package-amount,          element: "td (amount)",           added: true }
+      - { id: package-rule,            element: "td (calculationRule)",  added: true }
+      - { id: package-rhythm,          element: "td (postingRhythm)",    added: true }
+      - { id: package-status-badge,    element: "span.badge",            added: true }
+      - { id: package-edit,            element: "Link (Edit)",           added: true }
+      - { id: package-toggle-active,   element: "button (toggle active)",added: true }
+
+  form:
+    component: apps/web/src/app/configuration/packages/package-form.tsx
+    note: >
+      Fully localised. Edit mode: code field is disabled; rate-plan link checkboxes rendered below.
+      Both POST (create) and PUT (edit) paths exercised. Rate-plan links updated via separate
+      PUT /api/packages/:id/rate-plans call in handleSubmit.
+    testids:
+      - { id: package-form,                    element: "form",              added: true }
+      - { id: package-error-banner,            element: "div[role=alert]",   added: true }
+      - { id: package-field-code,              element: "div.field (code)",  added: true }
+      - { id: package-field-name,              element: "div.field (name)",  added: true }
+      - { id: package-field-description,       element: "div.field (desc)",  added: true }
+      - { id: package-field-transaction-code,  element: "div.field (tc)",    added: true }
+      - { id: package-field-calculation-rule,  element: "div.field (rule)",  added: true }
+      - { id: package-field-posting-rhythm,    element: "div.field (rhythm)",added: true }
+      - { id: package-field-amount,            element: "div.field (amount)",added: true }
+      - { id: package-field-is-active,         element: "label (isActive)",  added: true }
+      - { id: package-submit,                  element: "button[submit]",    added: true }
+      - { id: package-rate-plan-link,          element: "div (link row)",    added: true, note: "edit mode only; also data-rate-plan-id={rp.id}" }
+      - { id: package-rate-plan-link-check,    element: "input[checkbox]",   added: true, note: "main link checkbox inside link row" }
+      - { id: package-rate-plan-include-in-rate, element: "input[checkbox]", added: true, note: "includedInRate sub-checkbox; visible only when isLinked=true" }
+
+  new_page:
+    component: apps/web/src/app/configuration/packages/new/page.tsx
+    note: "Wrapper around PackageForm with isEdit=false. No additional testids needed."
+
+  edit_page:
+    component: apps/web/src/app/configuration/packages/[id]/edit/page.tsx
+    note: "Wrapper around PackageForm with isEdit=true. Fetches linkedRatePlans via /api/packages/:id/rate-plans."
+
+seed_data:
+  property: "Grand Baltic Hotel (GBH) — ff1d9135-dfb9-4baa-be46-0e739cd26dad"
+  packages:
+    - code: BKFST
+      id: "df6fab35-0f22-445c-b202-2c162660b105"
+      name: "Breakfast"
+      amount: "800.00"
+      calculationRule: per_person_per_night
+      postingRhythm: every_night
+      transactionCodeId: "83b646b7-ec41-4879-965c-990e3d17b649"
+      note: "Linked to 3 rate plans (RACK, CORP, BAR) → delete-blocked target for scenario 04A"
+    - code: PARK
+      id: "02db4d8f-675a-4ce0-954f-6c441e6bbc4e"
+      name: "Parking"
+      amount: "500.00"
+      calculationRule: per_night
+      postingRhythm: every_night
+      transactionCodeId: "d87a8b30-df0a-4eb7-94a6-ac7462360b97"
+      note: "Unlinked → safe edit target for scenario 02"
+
+steps:
+  - id: "01-list-create"
+    status: ok
+    action: >
+      Navigate /configuration/packages; assert packages-table visible;
+      assert package-row for BKFST and PARK both visible by package-code cell content.
+      RU: read-only screenshot.
+      EN: click packages-new → /configuration/packages/new; fill code=AUD_PKG_<suffix>,
+      name='Audit Package (C8)', transactionCodeId=BREAKFAST_TC, calculationRule=per_night,
+      amount=100, postingRhythm=every_night; submit → POST 201; redirect to /configuration/packages;
+      AUD_PKG row visible. Capture createdPkgId for cleanup.
+    screenshots:
+      - 19-configuration-packages-01-list-view-ru.png
+      - 19-configuration-packages-01-list-view-en.png
+      - 19-configuration-packages-01-list-create-en.png
+    mutation: true
+    locale_gate: mutation runs en-only; list read ru+en
+
+  - id: "02-edit-existing"
+    status: ok
+    action: >
+      Plan drift: original plan described "add a component (charge line)" but the schema is monolithic
+      (single transactionCodeId + amount). Adapted to edit-existing-package: toggle PARK amount 500→550.
+
+      Navigate /configuration/packages/PARK_ID/edit; assert package-form visible; code field disabled=true
+      with value='PARK'; amount field pre-filled with 500; change to 550; submit PUT /api/packages/PARK_ID 200;
+      no error banner; redirect to list; API re-GET confirms amount='550.00'.
+
+      Idempotent reversal: re-open edit; set amount back to 500; submit PUT 200; API re-GET confirms
+      amount='500.00'. Reset parkMutationApplied=false.
+
+      extraAfterAll: belt-and-suspenders GET PARK, assert amount='500.00'; if not, PUT restore +
+      re-GET verify; CRITICAL throw on mismatch.
+    screenshots:
+      - 19-configuration-packages-02-edit-existing-en.png
+    mutation: true
+    locale_gate: en-only
+    restore_mechanism: >
+      Idempotent in-test reversal (500→550→500) + extraAfterAll belt-and-suspenders GET + CRITICAL throw.
+
+  - id: "03-attach-to-rate-plan"
+    status: ok
+    action: >
+      Create AUD_PKG_ATT_<suffix> via API (clean state; no links).
+      Navigate /configuration/packages/AUD_PKG_ATT_ID/edit; assert package-rate-plan-link rows visible;
+      find RACK row [data-rate-plan-id=RACK_ID]; assert package-rate-plan-link-check is unchecked;
+      check it; package-rate-plan-include-in-rate appears; submit.
+      Two PUT calls intercepted: /api/packages/:id (200) + /api/packages/:id/rate-plans (200).
+      GET /api/packages/AUD_PKG_ATT_ID/rate-plans → data contains RACK_ID link.
+      GET /api/rate-plans/RACK_ID → isDefault=true (no side-effect).
+      GET /api/rate-plans/RACK_ID/packages → AUD_PKG_ATT in data.
+      Teardown in extraAfterAll: PUT /api/packages/AUD_PKG_ATT_ID/rate-plans {ratePlans:[]} + DELETE.
+    screenshots:
+      - 19-configuration-packages-03-attach-to-rate-plan-en.png
+    mutation: true
+    locale_gate: en-only
+    restore_mechanism: "extraAfterAll: setPackageRatePlans([]) + deletePackage"
+
+  - id: "04-delete"
+    status: ok
+    note: "api_only — no UI delete path exists. See missing_actions below."
+    action: >
+      Part A — delete-blocked (BKFST):
+        Navigate to list; assert BKFST row visible.
+        API DELETE /api/packages/BKFST_ID → 400 { code: 'HAS_RATE_PLANS', error: '...rate plans...' }.
+        Assert code='HAS_RATE_PLANS'; assert error matches /rate plans?/i.
+        Reload list; BKFST row still visible. GET /api/packages/BKFST_ID → 200 (no mutation).
+
+      Part B — happy-path delete (AUD_PKG_DEL_<suffix>):
+        Create AUD_PKG_DEL via API; DELETE via API → 200/204 success;
+        GET /api/packages/AUD_PKG_DEL_ID → 404 { code: 'PACKAGE_NOT_FOUND' }.
+    screenshots:
+      - 19-configuration-packages-04-delete-blocked-en.png
+      - 19-configuration-packages-04-delete-happy-en.png
+    mutation: true
+    mutation_note: "Transient — net-zero persistent change: Part B creates AUD_PKG_DEL then deletes it; Part A leaves BKFST untouched."
+    locale_gate: en-only
+
+missing_actions:
+  - action: "delete package via UI"
+    ui_path: "none — confirmed via grep: no delete button or link anywhere in /configuration/packages"
+    api_path: "DELETE /api/packages/:id"
+    api_protection: >
+      API validates before mutation: if package has rate-plan links → 400 HAS_RATE_PLANS.
+      Error message: 'Cannot delete: package is linked to N rate plans'.
+      Unlinked packages (e.g. PARK, freshly-created AUD_PKG_DEL) are deletable via API.
+    workaround: "Admin must deactivate (toggle in UI) or use direct API call to delete unused packages."
+    recommendation: >
+      Add a Delete button to the edit page, shown only when package has no rate-plan links.
+      With links present, show a hard-block warning listing which rate plans must be unlinked first.
+      Current UX gap: users cannot permanently remove packages without API access.
+    test_approach: "Scenario 04 uses direct API calls to validate the protection gate and happy-path delete."
+
+edge_cases:
+  - id: "monolithic-schema-no-charge-lines"
+    description: >
+      Original audit plan described scenario 02 as 'add a component (charge line)'.
+      The actual package schema is monolithic (code + name + single transactionCodeId + amount).
+      There are no 'charge lines' to add separately.
+    expected: "Plan should have been 'edit package field' not 'add component'"
+    observed: >
+      PackageForm renders a single transactionCodeId select + single amount input.
+      The per-room-per-night / per-stay / per-night calculation rules are scalar fields, not line items.
+    impact: "None — adapted scenario 02 to edit the amount field on PARK instead. Behaviour fully covered."
+
+  - id: "rate-plan-links-on-create"
+    description: >
+      Rate-plan link checkboxes are only rendered when isEdit=true (edit page).
+      Create form does not show rate-plan linking UI.
+    expected: "This is intentional — links are set after package creation, on edit page"
+    observed: "PackageForm.tsx line 321: {isEdit && (...rate plans section...)}"
+    impact: "None — consistent UX; users create package first, then link rate plans in edit."
+
+  - id: "amount-displayed-with-currency"
+    description: >
+      Package amount in list is displayed as '{amount} ₽' (RUB hardcoded in JSX).
+      formatCurrency(pkg.amount) + ' ₽' — currency symbol not i18n'd.
+    expected: "Currency symbol should follow locale"
+    observed: "packages-list.tsx line 168: '₽' is hardcoded"
+    impact: >
+      Low — property is in Russia; RUB is correct. If the app were internationalised for other
+      currencies this would need fixing. Not filed as a bug since it matches product context.
+
+api_calls_observed:
+  - { method: GET,    path: "/api/packages?propertyId=...", status: 200, note: "list load (list page + beforeAll + extraAfterAll)" }
+  - { method: GET,    path: "/api/packages/:id",            status: 200, note: "pre-flight PARK probe + scenario 02 re-GETs" }
+  - { method: GET,    path: "/api/packages/:id",            status: 404, note: "scenario 04B re-GET after delete" }
+  - { method: POST,   path: "/api/packages",                status: 201, note: "scenario 01 create AUD_PKG, scenario 03 create AUD_PKG_ATT, scenario 04B create AUD_PKG_DEL" }
+  - { method: PUT,    path: "/api/packages/:id",            status: 200, note: "scenario 02 amount edits + extraAfterAll restore" }
+  - { method: PUT,    path: "/api/packages/:id/rate-plans", status: 200, note: "scenario 03 attach RACK + extraAfterAll detach" }
+  - { method: DELETE, path: "/api/packages/:id",            status: 400, note: "scenario 04A BKFST delete-blocked (HAS_RATE_PLANS)" }
+  - { method: DELETE, path: "/api/packages/:id",            status: 200, note: "scenario 04B AUD_PKG_DEL happy-path delete" }
+  - { method: GET,    path: "/api/packages/:id/rate-plans", status: 200, note: "scenario 03 link verify + extraAfterAll BKFST link check" }
+  - { method: GET,    path: "/api/rate-plans/:id/packages", status: 200, note: "scenario 03 rate-plan side-effect assert" }
+  - { method: GET,    path: "/api/rate-plans/:id",          status: 200, note: "scenario 03 RACK isDefault side-effect assert" }
+
+console_errors: []
+network_errors:
+  - { method: DELETE, path: "/api/packages/:id", status: 400,
+      note: "Expected — scenario 04A HAS_RATE_PLANS validation on BKFST; not a bug" }
+
+bugs: []
+
+signals:
+  l10n: ok
+  l10n_note: "All labels, buttons, and status badges are fully localised via packages.* i18n keys. No gaps found."
+  testids_added: true
+  testids_prefix: "package-*, packages-*"
+  mutations_gated_to_en: true
+  risk: MEDIUM
+  restore_mechanism: >
+    Scenario 02: idempotent in-test reversal (500→550→500) + extraAfterAll GET verify + CRITICAL throw.
+    Scenario 03: extraAfterAll setPackageRatePlans([]) + deletePackage.
+    Scenario 01: extraAfterAll deletePackage (unlinked; safe).
+    Defensive orphan sweep in extraAfterAll deletes any AUD_PKG_* code still active.
+    extraAfterAll verifies BKFST still has exactly 3 rate-plan links; CRITICAL throw if not.
+
+help_rewrite_hints:
+  topic: packages-configuration
+  actual: |
+    /configuration/packages lists all packages split into a single card with a table.
+    Columns: Code, Name, Amount (in ₽), Calculation Rule, Posting Rhythm, Status, Actions.
+    Create via /new; edit (including rate-plan linking) via /[id]/edit.
+    No delete UI — deactivate via toggle button (calls PUT {isActive:false}).
+    Hard delete is API-only with rate-plan link guard.
+    2 seed packages: BKFST (Breakfast) + PARK (Parking).
+  rewrite: |
+    Add packages help section:
+    - What packages are (add-on charges bundled with rate plans)
+    - Creating a new package (code, name, transaction code, calculation rule, amount, posting rhythm)
+    - Calculation rules: per_night vs per_person_per_night vs per_stay
+    - Posting rhythms: every_night vs arrival_only vs departure_only
+    - Linking packages to rate plans (edit page → rate plan checkboxes with includedInRate toggle)
+    - includedInRate: if checked, amount is factored into rate plan price display
+    - Deactivating vs deleting: deactivate keeps the package in DB but hides from active use
+    - No delete via UI; packages linked to rate plans are permanently protected from deletion
+
+retro:
+  time_minutes: 0
+  unblocker_fixes: []
+  methodology_deltas:
+    - "Retro block back-filled during Batch D finalisation to satisfy validate-yaml schema (field added to _template.yml after Batch C shipped)."
+
+status: ok
+last_audited: "2026-04-21"
+screenshots_dir: docs/ui-audit/screenshots/

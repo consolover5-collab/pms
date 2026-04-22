@@ -1,0 +1,195 @@
+id: booking.detail
+title: "Детали бронирования"
+route: /bookings/[id]
+depends_on:
+  - auth.login
+  - property.select
+  - business-date
+  - booking.create
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "{Имя} {Фамилия} · бейдж статуса · номер подтверждения"
+    en: "{First} {Last} · status badge · confirmation number"
+  required_fields: []
+  optional_fields:
+    - { id: guestName, label: { ru: "Имя гостя", en: "Guest name" }, kind: "heading-h1" }
+    - { id: statusBadge, label: { ru: "Статус", en: "Status" }, kind: "badge", note: "Confirmed / Checked in / Cancelled / No-show / Checked out; Due in / Due out на бизнес-дату" }
+    - { id: confirmationNumber, label: { ru: "№ подтверждения", en: "Confirmation #" }, kind: "code-mono", note: "GBH-XXXXXX" }
+    - { id: room, label: { ru: "Номер", en: "Room" }, kind: "text", note: "комната + код типа, напр. '508 · SUP'" }
+    - { id: checkInAt, label: { ru: "Заезд", en: "Check-in" }, kind: "date" }
+    - { id: checkOutAt, label: { ru: "Выезд", en: "Check-out" }, kind: "date" }
+    - { id: nights, label: { ru: "{count} ноч.", en: "{count} nights" }, kind: "text" }
+    - { id: adults, label: { ru: "{count} взр", en: "{count} adults" }, kind: "text" }
+    - { id: children, label: { ru: "{count} дет", en: "{count} children" }, kind: "text", note: "только если children > 0" }
+    - { id: ratePlan, label: { ru: "Тариф", en: "Rate plan" }, kind: "text" }
+    - { id: tabFolio, label: { ru: "Финансы", en: "Folio" }, kind: "tab", default: true }
+    - { id: tabStay, label: { ru: "Проживание", en: "Stay" }, kind: "tab" }
+    - { id: tabServices, label: { ru: "Услуги", en: "Services" }, kind: "tab", note: "stub — 'Design in progress'" }
+    - { id: tabHistory, label: { ru: "История", en: "History" }, kind: "tab", note: "stub — 'Design in progress' (см. FEAT-011)" }
+    - { id: tabNotes, label: { ru: "Заметки", en: "Notes" }, kind: "tab", note: "count бейдж при notes != null" }
+  buttons:
+    backToBookings: { ru: "К бронированиям", en: "Back to bookings" }
+    editBooking: { ru: "Edit Booking", en: "Edit Booking" }
+    checkIn: { ru: "Check In", en: "Check In" }
+    checkOut: { ru: "Check Out", en: "Check Out" }
+    cancelBooking: { ru: "Отменить бронь", en: "Cancel Booking" }
+    cancelCheckIn: { ru: "Отменить заселение", en: "Cancel Check-in" }
+    reinstate: { ru: "Восстановить", en: "Reinstate" }
+    changeRoom: { ru: "Сменить комнату", en: "Change Room" }
+    confirmCheckOut: { ru: "Подтвердить выселение", en: "Confirm Check-out" }
+    dirtyWarningForceCheckIn: { ru: "Заселить всё равно", en: "Check in anyway" }
+    roomPickerCancel: { ru: "Отмена", en: "Cancel" }
+    roomPickerConfirm: { ru: "Подтвердить", en: "Confirm" }
+
+steps:
+  - id: "01-summary-tab-happy"
+    action: "Открыть /bookings/{id} под admin; H1 с именем гостя, бейдж статуса, GBH-номер и даты в шапке видны"
+    screenshots: [04-booking-detail-01-summary-tab-happy-ru.png, 04-booking-detail-01-summary-tab-happy-en.png]
+  - id: "02-folio-visible"
+    action: "Вкладка Folio активна по умолчанию, рендерится хотя бы одно окно фолио + карточка 'Итого по брони'"
+    screenshots: [04-booking-detail-02-folio-visible-ru.png, 04-booking-detail-02-folio-visible-en.png]
+  - id: "03-action-cancel"
+    action: "en only: клик 'Cancel Booking' → native prompt, accept с 'audit-cancel-reason' → POST /api/bookings/{id}/cancel → бейдж Cancelled, booking.status=cancelled"
+    screenshots: [04-booking-detail-03-action-cancel-en.png]
+  - id: "04-action-reinstate"
+    action: "en only: клик 'Reinstate' → native confirm, accept → POST /api/bookings/{id}/reinstate → бейдж больше не .cancelled, booking.status=confirmed"
+    screenshots: [04-booking-detail-04-action-reinstate-en.png]
+  - id: "05-action-checkin-gated"
+    action: "en only: после восстановления бронь в confirmed. В зависимости от checkInDate vs today рендерится либо кнопка Check In (canCheckIn), либо информ.span 'Check-in available on …' (isFutureArrival). Клик не выполняем — убеждаемся, что одна из веток видна"
+    screenshots: [04-booking-detail-05-action-checkin-gated-en.png]
+
+edge_cases:
+  - id: summary-render
+    description: "Загрузка страницы брони в статусе confirmed"
+    expected: "H1 с именем, status badge, confirmation number, даты и ratePlan видны; console/network ошибок нет"
+    observed: "OK — 2/2 локали, без ошибок (скриншоты 01)"
+  - id: folio-default-tab
+    description: "Вкладка Folio активна по умолчанию, рендерит окна фолио"
+    expected: ".tb.on = Folio; ≥1 .folio-win; карточка 'Booking total' видна"
+    observed: "OK — 2/2 локали (скриншоты 02)"
+  - id: cancel-happy-path
+    description: "Отмена брони через prompt диалог"
+    expected: "prompt → accept с reason → POST /cancel=200 → бейдж 'Cancelled', status=cancelled"
+    observed: "OK — en only, POST /cancel=200, API status=cancelled (скриншот 03)"
+  - id: cancel-reason-visibility
+    description: "Где именно сохраняется причина отмены после reinstate (FEAT-011 flag)"
+    expected: "reason должна быть видна в UI где-то (notes, activity log / history)"
+    observed: "причина попадает в booking.notes как префиксированная строка 'Cancelled: audit-cancel-reason' (подтверждено GET /api/bookings/{id}). Reinstate НЕ очищает notes — причина остаётся мусором как описано в FEAT-011. UI вкладка History = stub 'Design in progress', дополнительного места для журнала действий в UI сейчас нет"
+  - id: reinstate-happy-path
+    description: "Восстановление отменённой брони через confirm диалог"
+    expected: "confirm → accept → POST /reinstate=200 → статус Confirmed, бейдж .cancelled исчезает"
+    observed: "OK — en only, POST /reinstate=200, API status=confirmed (скриншот 04)"
+  - id: checkin-gate-button-vs-span
+    description: "Гейт кнопки Check-in vs информ.сообщения в зависимости от checkInDate"
+    expected: "confirmed booking: либо Check-In button (canCheckIn, checkInDate<=today), либо span 'Check-in available on <date>' (isFutureArrival)"
+    observed: "OK — ровно одна из двух веток видна (скриншот 05). Клик по кнопке не выполняется, чтобы не мутировать shared seed"
+  - id: mutation-locale-split
+    description: "Отличие от плана: мутирующие сценарии (cancel/reinstate/checkin-gate) запускаются только под en"
+    expected: "2 локали × 5 сценариев = 10 тестов"
+    observed: "Фактически: read-only сценарии (01,02) — оба локали; мутирующие (03,04,05) — en only. 7 passed + 3 skipped. Обоснование: мутируется shared seed, дубликаты под ru дали бы коллизию состояний. UI labels проверены через summary tab на обоих локалях"
+
+api_calls_observed:
+  - { method: GET,  path: "/api/auth/me",                                    status: 200, note: "web middleware auth guard" }
+  - { method: GET,  path: "/api/properties",                                 status: 200 }
+  - { method: GET,  path: "/api/business-date?propertyId={propertyId}",      status: 200 }
+  - { method: GET,  path: "/api/bookings/{id}",                                           note: "server-side apiFetch в page.tsx (не виден в browser network)" }
+  - { method: GET,  path: "/api/bookings/{id}/folio",                        status: 200, note: "клиентский fetch из folio-section.tsx" }
+  - { method: GET,  path: "/api/transaction-codes?propertyId={propertyId}",  status: 200, note: "для модальных форм post charge/payment" }
+  - { method: POST, path: "/api/bookings/{id}/cancel",                       status: 200, note: "body: { reason }" }
+  - { method: POST, path: "/api/bookings/{id}/reinstate",                    status: 200 }
+
+console_errors: []
+
+network_errors: []
+
+bugs: []
+
+help_rewrite_hints:
+  topic: bookings
+  current: |
+    help-content.tsx / bookings:
+    — Описывает создание бронирования (см. секцию 03). Отдельной статьи про страницу
+      деталей брони и действия (cancel / reinstate / check-in / check-out / room-move) нет.
+  actual: |
+    UI /bookings/{id} содержит:
+    — Шапка: breadcrumb 'К бронированиям' + conf-number, аватар гостя, H1 'First Last',
+      бейдж статуса (Confirmed / Checked in / Cancelled / No-show / Checked out;
+      Due in / Due out при checkInDate/checkOutDate == бизнес-дата),
+      guaranteeCode (outline-badge), краткая мета (room · roomType.code, checkIn, checkOut,
+      nights, adults, children, ratePlan), кнопка Edit Booking.
+    — Блок BookingActions с кнопками, видимость зависит от status+дат:
+        • confirmed + checkInDate<=today → Check In
+        • confirmed + checkInDate>today → informational span 'Check-in available on {date}'
+        • checked_in → Check Out, Change Room, (+ Cancel Check-in если сегодня)
+        • confirmed → Cancel Booking (prompt с причиной)
+        • cancelled/no_show/checked_out → Reinstate (confirm диалог с причиной)
+    — Модалки: RoomPickerModal (ошибки NO_ROOM_ASSIGNED), DirtyRoomWarning
+      (ROOM_NOT_READY), Force Checkout banner (EARLY/LATE_CHECKOUT).
+    — 5 вкладок: Folio (default), Stay, Services (stub), History (stub), Notes.
+    — Вкладка Folio: окна фолио с charge/payment формами, таблицей транзакций,
+      карточка 'Booking total' (по окнам + Due on checkout + Accept payment при balance>0).
+    — Вкладка Stay: grid 3×N полей (checkIn, checkOut, nights, guests, room, roomType,
+      rate plan, rate/night, est. amount, payment, guarantee, actual check-in/out).
+    — Вкладка Notes: отображает booking.notes (после cancel сюда попадает 'Cancelled: <reason>').
+    — Справа на вкладке Folio: карточки Guest (email/phone, ссылка на профиль),
+      Preferences (пусто), Activity (createdAt + actualCheckIn/Out).
+    — FEAT-011: причина отмены остаётся в booking.notes после reinstate — мусорные
+      данные без отдельного activity log.
+  rewrite: |
+    ## Страница бронирования /bookings/{id}
+
+    Открывается из списка /bookings, дашборда или по прямой ссылке. Страница
+    показывает состояние одного бронирования и объединяет все операции с ним.
+
+    ### Шапка
+    - **Аватар и имя гостя** (H1), рядом — **бейдж статуса** и GBH-номер брони.
+    - **Due in / Due out** — оранжевый оттенок бейджа появляется, когда
+      checkInDate / checkOutDate совпадает с бизнес-датой.
+    - Мета-строка: номер комнаты, даты, ночи, количество гостей, тариф.
+    - Кнопка **Edit Booking** → /bookings/{id}/edit.
+
+    ### Доступные действия
+    Кнопки под шапкой показываются в зависимости от статуса и даты:
+
+    | Статус | checkInDate | Видимые действия |
+    |---|---|---|
+    | confirmed | ≤ сегодня | Check In · Cancel Booking |
+    | confirmed | > сегодня | (info) _Check-in available on …_ · Cancel Booking |
+    | checked_in | сегодня | Check Out · Change Room · Cancel Check-in |
+    | checked_in | раньше | Check Out · Change Room |
+    | cancelled / no_show / checked_out | — | Reinstate |
+
+    - **Check In** — при «грязном» номере появится модалка с предложением
+      *заселить всё равно*; если номер не назначен — откроется выбор из свободных
+      чистых комнат подходящего типа.
+    - **Cancel Booking** — запрашивает причину (опц.), причина записывается
+      в **Примечания брони**. После восстановления (**Reinstate**) причина
+      остаётся в заметках, пока не появится отдельный журнал действий
+      (см. FEAT-011).
+
+    ### Вкладки
+    1. **Финансы / Folio** — окна фолио с начислениями и платежами, итоговая сумма.
+    2. **Проживание / Stay** — сводка по брони (даты, ставки, гарантия, факт. заезд/выезд).
+    3. **Услуги / Services** — в разработке.
+    4. **История / History** — в разработке (будущий журнал действий, FEAT-011).
+    5. **Заметки / Notes** — свободный текст; туда же падает причина отмены.
+
+    > При отмене брони, у которой уже есть оплаченные операции в фолио, API
+    > вернёт ошибку «Has folio transactions» — отменить такую бронь напрямую
+    > нельзя, нужен выезд/возврат через кассу.
+
+retro:
+  time_minutes: 35
+  unblocker_fixes: []
+  methodology_deltas:
+    - "мутирующие сценарии (cancel/reinstate/checkin-gated) запущены только под en — ru проверяет UI-лейблы через read-only сценарии. Иначе два запуска под разными локалями конфликтовали бы за одну seed-бронь"
+    - "scenario 05-action-checkin-gated описан как 'observe-only' — клик Check-In не выполняется: номер 508 clean/vacant, POST /check-in реально бы заселил и оставил seed в checked_in посреди аудита"
+    - "безопасная сеть test.afterAll дополнительно восстанавливает confirmed через POST /reinstate, если какой-то тест упал посреди мутации. В зелёном прогоне вызов не понадобился"
+    - "BOOKING_ID выбирается динамически через GET /bookings?status=confirmed&limit=1 в test.beforeAll, а не хардкодится — устойчиво к перестановкам seed между запусками"
+    - "FEAT-011 наблюдение подтверждено эмпирически: после cancel→reinstate booking.notes содержит 'Cancelled: audit-cancel-reason'. Reinstate очищает actualCheckIn/Out, но НЕ notes. UI вкладка History — stub без журнала"
+
+status: ok
+last_audited: 2026-04-21
+screenshots_dir: docs/ui-audit/screenshots/

@@ -11,6 +11,7 @@
     { "idx": 6, "version": "7", "when": 1775823617693, "tag": "0006_schema_update", "breakpoints": true },
     { "idx": 7, "version": "7", "when": 1744387200000, "tag": "0007_unified_profiles", "breakpoints": true },
     { "idx": 8, "version": "7", "when": 1775974000000, "tag": "0008_folio_profile_id", "breakpoints": true },
-    { "idx": 9, "version": "7", "when": 1777000000000, "tag": "0009_baseline_align", "breakpoints": true }
+    { "idx": 9, "version": "7", "when": 1777000000000, "tag": "0009_baseline_align", "breakpoints": true },
+    { "idx": 10, "version": "7", "when": 1777200000000, "tag": "0010_check_constraints", "breakpoints": true }
   ]
 }

@@ -1,0 +1,146 @@
+id: dashboard.home
+title: "Дашборд (главный экран)"
+route: /
+depends_on:
+  - auth.login
+  - property.select
+  - business-date
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "Доброе утро, {name}"
+    en: "Good morning, {name}"
+  required_fields: []
+  optional_fields: []
+  buttons:
+    refresh: { ru: "Обновить", en: "Refresh" }
+    runAudit: { ru: "Запустить аудит", en: "Run audit" }
+    openBoard: { ru: "Открыть борд", en: "Open board" }
+
+steps:
+  - id: "01-empty-state-happy-path"
+    action: "Открыть / под admin; KPI-карточки (Occupancy/ADR/RevPAR/In-house), donut, inventory и HK-карточки отрисованы"
+    screenshots: [01-dashboard-01-empty-state-happy-path-ru.png, 01-dashboard-01-empty-state-happy-path-en.png]
+  - id: "02-arrivals-today"
+    action: "Проверить карточку 'Заезды сегодня' / 'Arrivals today' — отрисованы либо строки таблицы, либо div.empty"
+    screenshots: [01-dashboard-02-arrivals-today-ru.png, 01-dashboard-02-arrivals-today-en.png]
+  - id: "03-click-through-bookings"
+    action: "Кликнуть a.guest первой строки таблицы заездов — редирект на /bookings/{uuid}. Если заездов нет — скриншот без перехода"
+    screenshots: [01-dashboard-03-click-through-bookings-ru.png, 01-dashboard-03-click-through-bookings-en.png]
+  - id: "04-business-date-visible"
+    action: "Считать текст .page-sub и сверить с GET /api/business-date?propertyId=<GBH> — день и год совпадают"
+    screenshots: [01-dashboard-04-business-date-visible-ru.png, 01-dashboard-04-business-date-visible-en.png]
+
+edge_cases:
+  - id: happy-read-only
+    description: "Read-only дашборд загружается для admin под обоими локалями"
+    expected: "4 KPI, donut, inventory, housekeeping, arrivals, departures — без ошибок в консоли и сети"
+    observed: "OK — console_errors=[], network_errors=[] для обоих локалей (скриншоты 01/02)"
+  - id: arrivals-row-click
+    description: "Клик по гостю в таблице заездов"
+    expected: "Редирект на /bookings/{uuid}; подгружается /api/bookings/{id}/folio"
+    observed: "OK — URL совпадает с /\\/bookings\\/[0-9a-f-]{36}$/; folio=200 (скриншот 03)"
+  - id: business-date-consistency
+    description: "Бизнес-дата в topbar соответствует /api/business-date"
+    expected: "день и год из body.date (ISO YYYY-MM-DD) присутствуют в локализованной подписи .page-sub"
+    observed: "OK — API вернул 2026-04-20, .page-sub содержит '20' и '2026' (скриншот 04)"
+  - id: no-property-empty-state
+    description: "Дашборд при отсутствии properties"
+    expected: "Рендерится карточка dashboard.noProperty + dashboard.runSeed"
+    observed: "not_tested — в seed всегда есть GBH property; force-нельзя без инвазивного мока"
+  - id: no-open-business-date
+    description: "Нет открытой бизнес-даты"
+    expected: "Поведение /api/dashboard/summary при отсутствии open business-date неизвестно"
+    observed: "not_tested — не закрываем бизнес-дату во время пассивного аудита"
+  - id: no-arrivals-fallback
+    description: "План предполагал заголовок 'Arrivals today' как ссылку на список"
+    expected: "Клик по заголовку → /bookings?tab=arrivals"
+    observed: "План разошёлся с реальностью: заголовок — обычный текст в .card-title, без href. Единственные переходы — per-row (a.guest и кнопка Check-in)"
+
+api_calls_observed:
+  - { method: GET, path: "/api/auth/me",                               status: 200, note: "вызов из web-middleware (auth guard)" }
+  - { method: GET, path: "/api/properties",                            status: 200, note: "web proxy → api; первая property берётся как активная" }
+  - { method: GET, path: "/api/business-date?propertyId={propertyId}", status: 200, note: "вызов из topbar; page.tsx использует summary.currentBusinessDate" }
+  - { method: GET, path: "/api/dashboard/arrivals?propertyId={propertyId}",    note: "server-side apiFetch (не виден в браузере)" }
+  - { method: GET, path: "/api/dashboard/departures?propertyId={propertyId}",  note: "server-side apiFetch (не виден в браузере)" }
+  - { method: GET, path: "/api/dashboard/summary?propertyId={propertyId}",     note: "server-side apiFetch (не виден в браузере); возвращает currentBusinessDate" }
+  - { method: GET, path: "/api/bookings/{id}/folio",                   status: 200, note: "после per-row клика (scenario 03)" }
+  - { method: GET, path: "/api/transaction-codes?propertyId={propertyId}", status: 200, note: "на странице бронирования после редиректа" }
+
+console_errors: []
+
+network_errors: []
+
+bugs: []
+
+help_rewrite_hints:
+  topic: dashboard
+  current: |
+    help-content.tsx / dashboard:
+    — Бизнес-дата, карточки номерного фонда (Occupied/Vacant/Dirty/Clean/Inspected),
+      Arrivals / Departures / In-House, шорт-workflow начала смены.
+  actual: |
+    UI отличается от текста хелпа:
+    — карточки наверху не «Occupied/Vacant/Dirty/Clean/Inspected», а 4 KPI:
+      Occupancy (% + sold/total), ADR (—), RevPAR (—), In-house (count + arrivals/departures sub).
+    — отдельно donut "Статус номерного фонда" с легендой Occupied / Vacant / OOO / OOS.
+    — отдельно карточка "Уборка номеров" со stackbar и 6 HkStat: Dirty / Pickup / Clean / Inspected / OOO / OOS.
+    — раздел In-House на дашборде отсутствует (остались только Arrivals и Departures).
+    — Arrivals: колонки Guest / Room / Nights / Status / (action). Если status=confirmed —
+      per-row кнопка Check-in (ведёт на /bookings/{id}, не сразу на checkin-workflow).
+    — Departures: колонки Guest / Room / ETD / Check-out (ведёт на /bookings/{id}).
+    — Нет header-level ссылки на полный список бронирований; переходы только per-row.
+    — Кнопки в page-head: Refresh (/ ) и Run Audit (/night-audit).
+    — Раздел Inspected есть в HK-карточке, но `dashboard.inspected` показывал 0 в тесте.
+  rewrite: |
+    ## Главный экран (Dashboard)
+
+    Дашборд открывается по умолчанию после входа и показывает состояние отеля
+    на текущий **бизнес-день**. Все цифры обновляются по кнопке **Обновить**
+    или после Night Audit.
+
+    ### Шапка страницы
+    - **Приветствие** с названием объекта (например, «Доброе утро, Grand Baltic Hotel»).
+    - **Бизнес-дата** — отображается рядом с заголовком в формате локали.
+      Меняется только после запуска **Night Audit**, не в полночь.
+    - Кнопки: **Обновить** (перезагрузить дашборд) и **Запустить аудит** (→ /night-audit).
+
+    ### KPI-карточки
+    Четыре верхние карточки — это ключевые метрики смены:
+    1. **Загрузка / Occupancy** — процент загрузки + «N из M номеров».
+    2. **ADR** — средний тариф (пока заглушка «—»).
+    3. **RevPAR** — доход на номер (пока заглушка «—»).
+    4. **Гостей в отеле / In-house** — количество заселённых + «N заездов · M выездов».
+
+    ### Статус номерного фонда (donut)
+    Круговая диаграмма занятости с легендой:
+    **Occupied / Vacant / OOO / OOS** — в центре процент загрузки.
+
+    ### Уборка номеров (Housekeeping)
+    Цветная полоса + 6 счётчиков: **Dirty / Pickup / Clean / Inspected / OOO / OOS**.
+    Кнопка **Открыть борд** ведёт на /housekeeping для подробной работы.
+
+    ### Заезды сегодня (Arrivals)
+    Таблица: **Гость / Номер / Ночи / Статус / действие**.
+    Клик по имени гостя или кнопке **Check-in** (для статуса _confirmed_)
+    открывает страницу бронирования /bookings/{id}.
+
+    ### Выезды сегодня (Departures)
+    Таблица: **Гость / Номер / ETD / Check-out**. Клик ведёт на /bookings/{id},
+    где можно завершить выселение.
+
+    > Список **In-House** на дашборде не выводится — откройте /bookings и фильтр
+    > по статусу «Checked-in», чтобы увидеть всех проживающих гостей.
+
+retro:
+  time_minutes: 30
+  unblocker_fixes: []
+  methodology_deltas:
+    - "browser-visible API traffic ≠ полный список: server-rendered apiFetch вызовы (/api/dashboard/*) не видны через page.on('response'); надо отмечать их отдельно как server-side"
+    - "scenario 'click section header → list route' не релевантен дашборду — у карточек нет header-level links, только per-row"
+    - "businessDate в UI берётся из summary.currentBusinessDate, а /api/business-date тянется отдельным клиентским вызовом из topbar — cross-check через request.get работает корректно"
+
+status: ok
+last_audited: 2026-04-21
+screenshots_dir: docs/ui-audit/screenshots/

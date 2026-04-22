@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Link from "next/link";
 import { useLocale } from "@/components/locale-provider";
 import { t } from "@/lib/i18n";
 
@@ -60,113 +61,159 @@ export function RatePlanForm({
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to save rate plan");
+        throw new Error(data.error || t(dict, "ratePlans.saveFailed"));
       }
 
       router.replace("/configuration/rate-plans");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(err instanceof Error ? err.message : t(dict, "ratePlans.saveFailed"));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-xl">
+    <form
+      onSubmit={handleSubmit}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+        maxWidth: 640,
+      }}
+    >
       {error && (
-        <div className="p-3 bg-red-50 text-red-700 rounded">{error}</div>
+        <div
+          role="alert"
+          style={{
+            padding: "10px 12px",
+            background: "var(--cancelled-bg)",
+            color: "var(--cancelled-fg)",
+            borderRadius: 6,
+            fontSize: 12.5,
+            lineHeight: 1.4,
+          }}
+        >
+          {error}
+        </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Code *</label>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">
+            {t(dict, "ratePlans.fld.code")}
+            <span style={{ color: "var(--cancelled)", marginLeft: 2 }}>*</span>
+          </label>
           <input
             type="text"
             value={form.code}
             onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
             required
             maxLength={20}
-            className="w-full border rounded px-3 py-2"
-            placeholder="RACK"
+            className="input"
+            placeholder={t(dict, "ratePlans.ph.code")}
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Name *</label>
+        <div className="field">
+          <label className="lab">
+            {t(dict, "ratePlans.fld.name")}
+            <span style={{ color: "var(--cancelled)", marginLeft: 2 }}>*</span>
+          </label>
           <input
             type="text"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             required
-            className="w-full border rounded px-3 py-2"
-            placeholder="Rack Rate"
+            className="input"
+            placeholder={t(dict, "ratePlans.ph.name")}
           />
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Base Rate</label>
+      <div className="field">
+        <label className="lab">{t(dict, "ratePlans.fld.baseRate")}</label>
         <input
           type="number"
           value={form.baseRate}
           onChange={(e) => setForm({ ...form, baseRate: e.target.value })}
           min={0}
           step={0.01}
-          className="w-full border rounded px-3 py-2"
-          placeholder="Optional base rate amount"
+          className="input tnum"
+          placeholder={t(dict, "ratePlans.ph.baseRate")}
+          style={{ maxWidth: 220 }}
         />
-        <p className="text-xs text-gray-500 mt-1">
-          Leave empty if rate varies by room type
-        </p>
+        <span className="hint">{t(dict, "ratePlans.fld.baseRateHint")}</span>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Description</label>
+      <div className="field">
+        <label className="lab">{t(dict, "ratePlans.fld.description")}</label>
         <textarea
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
           rows={3}
-          className="w-full border rounded px-3 py-2"
-          placeholder="Rate plan description..."
+          className="input"
+          style={{ resize: "vertical", minHeight: 72 }}
+          placeholder={t(dict, "ratePlans.ph.description")}
         />
       </div>
 
-      <div className="space-y-2">
-        <label className="flex items-center gap-2 text-sm">
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <label
+          style={{
+            display: "inline-flex",
+            gap: 8,
+            fontSize: 13,
+            alignItems: "center",
+            cursor: "pointer",
+          }}
+        >
           <input
             type="checkbox"
             checked={form.isDefault}
             onChange={(e) => setForm({ ...form, isDefault: e.target.checked })}
-            className="rounded"
           />
-          <span className="font-medium">Base Rate</span>
-          <span className="text-gray-500">{t(dict, "ratePlan.defaultHint")}</span>        </label>
-        <label className="flex items-center gap-2 text-sm">
+          <span style={{ fontWeight: 500 }}>
+            {t(dict, "ratePlans.fld.isDefault")}
+          </span>
+          <span style={{ color: "var(--muted)", fontSize: 12 }}>
+            {t(dict, "ratePlan.defaultHint")}
+          </span>
+        </label>
+        <label
+          style={{
+            display: "inline-flex",
+            gap: 8,
+            fontSize: 13,
+            alignItems: "center",
+            cursor: "pointer",
+          }}
+        >
           <input
             type="checkbox"
-            id="isActive"
             checked={form.isActive}
             onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-            className="rounded"
           />
-          <label htmlFor="isActive">Active (available for new reservations)</label>
+          <span style={{ fontWeight: 500 }}>
+            {t(dict, "ratePlans.fld.isActive")}
+          </span>
+          <span style={{ color: "var(--muted)", fontSize: 12 }}>
+            {t(dict, "ratePlans.fld.isActiveHint")}
+          </span>
         </label>
       </div>
 
-      <div className="flex gap-3 pt-4">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? "Saving..." : isEdit ? "Update" : "Create"}
+      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+        <button type="submit" disabled={loading} className="btn primary">
+          {loading
+            ? t(dict, "common.saving")
+            : isEdit
+              ? t(dict, "ratePlans.updateBtn")
+              : t(dict, "ratePlans.createBtn")}
         </button>
-        <a
-          href="/configuration/rate-plans"
-          className="px-4 py-2 border rounded hover:bg-gray-50"
-        >
-          Cancel
-        </a>
+        <Link href="/configuration/rate-plans" className="btn ghost">
+          {t(dict, "common.cancel")}
+        </Link>
       </div>
     </form>
   );

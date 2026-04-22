@@ -1,0 +1,223 @@
+id: 21-configuration-profiles
+title: "Configuration: Profiles"
+route: /configuration/profiles
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "Профили"
+    en: "Profiles"
+  note: >
+    /configuration/profiles is NOT a duplicate of /guests, despite both
+    reading from the same backend endpoint GET /api/profiles. They are two
+    surfaces over one unified profiles directory with different scope and
+    affordances:
+      /guests                     /configuration/profiles
+      type=individual (hardcoded) all 4 types via tabs (individual / company
+                                   / travel_agent / source)
+      read-only browse + new      full CRUD (tabs, new × 4, edit row,
+                                   activate/deactivate row)
+      i18n namespace guests.*     i18n namespace profiles.*
+      PAGE_SIZE=50 + pagination   NO limit param, NO pagination — 50 rows
+      (verified below)             render out of 153 (BUG-017)
+    Source-verified 2026-04-22:
+      - apps/web/src/app/guests/page.tsx:38-39 hardcodes type=individual.
+      - apps/web/src/app/guests/page.tsx:41 sets limit=PAGE_SIZE=50; lines
+        192-232 render prev/next pagination controls (gated on totalPages>1,
+        using `total` from the API response). This is the verified baseline
+        that /configuration/profiles diverges from.
+      - apps/web/src/app/configuration/profiles/page.tsx:27-31 does NOT
+        hardcode type — filter is ?type= via tab switcher.
+      - profiles-list.tsx builds 5 tabs (all + 4 types) and renders inline
+        edit Link + activate/deactivate button per row.
+      - /guests has neither tabs nor row-level actions.
+  testids:
+    - { id: config-profiles-page,              element: "div (page wrapper)",        added: true }
+    - { id: config-profiles-title,             element: "h1",                        added: true }
+    - { id: config-profiles-subtitle,          element: "span.page-sub",             added: true }
+    - { id: config-profiles-add-individual,    element: "a.btn (New guest)",         added: true }
+    - { id: config-profiles-add-company,       element: "a.btn (New company)",       added: true }
+    - { id: config-profiles-add-travel-agent,  element: "a.btn (New agent)",         added: true }
+    - { id: config-profiles-add-source,        element: "a.btn (New source)",        added: true }
+    - { id: config-profiles-tabs,              element: "div.ptabs",                 added: true }
+    - { id: config-profiles-tab-all,           element: "button.pt (All)",           added: true }
+    - { id: config-profiles-tab-individual,    element: "button.pt (Guests)",        added: true }
+    - { id: config-profiles-tab-company,       element: "button.pt (Companies)",     added: true }
+    - { id: config-profiles-tab-travel_agent,  element: "button.pt (Agents)",        added: true }
+    - { id: config-profiles-tab-source,        element: "button.pt (Sources)",       added: true }
+    - { id: config-profiles-table,             element: "table.t",                   added: true }
+    - { id: config-profiles-count,             element: "span.count",                added: true }
+    - { id: config-profiles-empty,             element: "div (empty state)",         added: true }
+    - { id: config-profiles-row,               element: "tr (one per profile)",      added: true }
+    - { id: config-profiles-row-name,          element: "a (name link)",             added: true }
+  required_fields: []
+  optional_fields: []
+  buttons:
+    addGuest:
+      ru: "Добавить гостя"
+      en: "Add guest"
+    addCompany:
+      ru: "Добавить компанию"
+      en: "Add company"
+    addAgent:
+      ru: "Добавить агента"
+      en: "Add agent"
+    addSource:
+      ru: "Добавить источник"
+      en: "Add source"
+    edit:
+      ru: "Изменить"
+      en: "Edit"
+    activate:
+      ru: "Активировать"
+      en: "Activate"
+    deactivate:
+      ru: "Деактивировать"
+      en: "Deactivate"
+
+probe_data:
+  # 2026-04-22 property GBH (ff1d9135-dfb9-4baa-be46-0e739cd26dad)
+  # GET /api/profiles?propertyId=...&limit=1 → total=153
+  # Per-type: GET /api/profiles?...&type=<t>&limit=1
+  total: 153
+  by_type:
+    individual: 133
+    company: 10
+    travel_agent: 6
+    source: 4
+  note: >
+    The page renders only 50 rows (API default limit) — see BUG-017.
+    The count badge shows profiles.length (50), not the DB total (153).
+
+steps:
+  - id: "01-load-view"
+    status: ok
+    action: >
+      Navigate /configuration/profiles in ru + en. Assert config-profiles-page
+      wrapper visible. Title + subtitle visible. All 4 "Add …" entry points
+      present (individual, company, travel_agent, source). All 5 tabs present
+      (all + 4 types). Table visible. Count badge = 50 (= rendered rows,
+      truncated from 153 — BUG-017). Row count == badge.
+    screenshots:
+      - 21-configuration-profiles-01-load-view-ru.png
+      - 21-configuration-profiles-01-load-view-en.png
+    mutation: false
+    locale_gate: both locales read-only
+
+  - id: "02-difference-from-guests"
+    status: ok
+    action: >
+      Click "Companies" tab → URL acquires ?type=company; table refetches;
+      every rendered row has data-profile-type="company" (invariant check).
+      Assert first row has an "Edit" link (getByRole 'link', name /edit|изменить/i)
+      AND an activate/deactivate button (getByRole 'button',
+      name /activate|deactivate|активировать|деактивировать/i). These row-level
+      affordances distinguish /configuration/profiles from /guests, where the
+      row is read-only with no inline controls. EN-only — affordance check,
+      no mutation.
+    screenshots:
+      - 21-configuration-profiles-02-difference-from-guests-en.png
+    mutation: false
+    locale_gate: en-only (affordance check)
+
+edge_cases:
+  - id: list-truncation
+    description: "List shows 50 rows out of 153; count badge shows 50, not total"
+    expected: "Show 153 rows (or 50 + pagination + 'showing N of 153')"
+    observed: >
+      page.tsx:28-34 builds URLSearchParams without ?limit=, so the API
+      defaults to limit=50. The count badge (profiles-list.tsx:156) shows
+      profiles.length (= 50), giving no signal that 103 rows are hidden.
+      No pagination UI exists.
+    filed_as: BUG-017
+
+  - id: shared-api-with-guests
+    description: "Same GET /api/profiles endpoint serves both /guests and /configuration/profiles"
+    expected: "Documented separation — /guests = browse, /configuration/profiles = manage"
+    observed: >
+      Not a bug. Verified: /guests appends &type=individual + &limit=50 +
+      pagination. /configuration/profiles appends &type=<tab> (optional) and
+      no limit. Different UIs over the same endpoint, not a duplicate.
+
+  - id: propertyId-hardcoded
+    description: "propertyId is hardcoded to the GBH property UUID"
+    expected: "Resolve from session / locale-provider"
+    observed: >
+      page.tsx:29 hardcodes ff1d9135-dfb9-4baa-be46-0e739cd26dad. This is
+      systemic across the codebase (guests/page.tsx:38 hardcodes the same
+      UUID) — not unique to this section. Not filed as a new bug here; tracked
+      elsewhere if at all.
+
+  - id: delete-soft-only
+    description: "Profiles have no hard-delete, only activate/deactivate toggle"
+    expected: "If hard delete is needed, a dedicated UI"
+    observed: >
+      profiles-list.tsx:78-100 implements toggleActive via
+      PUT /api/profiles/:id {isActive: !current}. No DELETE call from this UI.
+      Consistent with the /guests DELETE (which is a soft-delete on the API
+      side). Acceptable design.
+
+missing_actions: []
+
+api_calls_observed:
+  - { method: GET, path: "/api/auth/me",       status: 200, note: "layout chrome: locale-provider session check" }
+  - { method: GET, path: "/api/properties",    status: 200, note: "layout chrome: property picker" }
+  - { method: GET, path: "/api/business-date", status: 200, note: "layout chrome: topbar business-date (?propertyId=...)" }
+  - { method: GET, path: "/api/profiles?propertyId=...",               status: 200, note: "scenario 01 list (no limit → default 50)" }
+  - { method: GET, path: "/api/profiles?propertyId=...&type=company",  status: 200, note: "scenario 02 tab-switch to Companies" }
+# Page issues no other API calls on these two scenarios. PUT /api/profiles/:id
+# (activate toggle) and POST /api/profiles (create from /new) were not
+# exercised — scenario 02 checks only that the affordances exist. Mutation
+# paths are documented via sibling section 11 (/guests create/edit) which
+# shares the API.
+
+console_errors: []
+network_errors: []
+
+bugs: []
+
+signals:
+  l10n: full
+  l10n_note: "All visible strings (title, subtitle, tabs, columns, type labels, status labels, buttons) go through t(dict, ...) in both ru + en. Verified in en.ts:589-670 and ru.ts:591-670."
+  testids_added: true
+  testids_prefix: "config-profiles-*"
+  mutations_gated_to_en: true
+  mutations_gated_to_en_note: "scenario 02 is en-only (affordance check; no mutation performed, but kept en-only for consistency with Batch C/D patterns)"
+  risk: LOW
+  risk_note: "read-only scenarios; no API mutations performed"
+
+help_rewrite_hints:
+  topic: guests
+  current: ""
+  actual: |
+    /configuration/profiles is the unified profile directory for all 4 types
+    (individual, company, travel_agent, source), with tab-switching, full
+    CRUD affordances (add × 4, edit row, activate/deactivate row), and a
+    shared form component (profile-form.tsx) that renders type-specific
+    fields. Backed by the same GET /api/profiles endpoint as /guests but
+    without hardcoded type filter. The list is truncated to 50 rows out of
+    153 due to a missing ?limit= and absent pagination UI (BUG-017).
+    Both /guests (browse individuals) and /configuration/profiles (manage
+    all) are live — they are deliberately separate surfaces, not duplicates.
+  rewrite: |
+    Update the "guests" help article to distinguish the two surfaces:
+      • "Guests" (/guests) — read-only browse + create for individual guests.
+      • "Profiles" (/configuration/profiles) — admin management for all
+        profile types (guests, companies, agents, sources) with tabs and
+        activate/deactivate controls.
+    After BUG-017 is fixed, note that the configuration/profiles list
+    supports pagination (or full listing).
+
+retro:
+  time_minutes: 0
+  unblocker_fixes:
+    - "Discovered that page.tsx omits ?limit=; initial test hardcoded total=153 and failed with actual=50. Adapted to assert rendered=50 and filed BUG-017."
+  methodology_deltas:
+    - "When a page reads from a shared API but renders its own view, assert against the rendered UI count (profiles.length), not the API's DB total. Divergence between the two becomes its own bug signal."
+  status_classification:
+    - "Status `partial` (not `ok`) because `01-load-view` shows 50 of 153 profiles silently — no pagination UI, no `showing N of M`, no signal that 103 rows are hidden. That is a functional UX gap on the happy path, not polish. Tracked in BUG-017. Scenario-level `status: ok` fields are kept as-is because each scenario's own assertions pass; the gap is section-level."
+
+status: ok
+last_audited: "2026-04-22"
+screenshots_dir: docs/ui-audit/screenshots/

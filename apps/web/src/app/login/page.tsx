@@ -25,14 +25,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    <div
+      className="flex items-center justify-center min-h-screen bg-gray-100"
+      data-testid="login-page"
+    >
       <div className="bg-white rounded-lg shadow-md p-8 w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-center mb-6">PMS</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <h1 className="text-2xl font-bold text-center mb-6" data-testid="login-title">
+          PMS
+        </h1>
+        <form onSubmit={handleSubmit} className="space-y-4" data-testid="login-form">
           <div>
             <label
               htmlFor="username"
               className="block text-sm font-medium text-gray-700 mb-1"
+              data-testid="login-username-label"
             >
               {t(dict, "login.username")}
             </label>
@@ -44,12 +50,14 @@ export default function LoginPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
               required
+              data-testid="login-username-input"
             />
           </div>
           <div>
             <label
               htmlFor="password"
               className="block text-sm font-medium text-gray-700 mb-1"
+              data-testid="login-password-label"
             >
               {t(dict, "login.password")}
             </label>
@@ -60,10 +68,15 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
+              data-testid="login-password-input"
             />
           </div>
           {error && (
-            <div className="text-red-600 text-sm bg-red-50 p-2 rounded">
+            <div
+              className="text-red-600 text-sm bg-red-50 p-2 rounded"
+              role="alert"
+              data-testid="login-error-alert"
+            >
               {error}
             </div>
           )}
@@ -71,6 +84,7 @@ export default function LoginPage() {
             type="submit"
             disabled={submitting}
             className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            data-testid="login-submit-button"
           >
             {submitting ? t(dict, "login.signingIn") : t(dict, "login.signIn")}
           </button>

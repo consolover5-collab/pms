@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useLocale } from "@/components/locale-provider";
 import { t } from "@/lib/i18n";
+import type { DictionaryKey } from "@/lib/i18n/locales/en";
 import Link from "next/link";
 
 const CHARGE_GROUP_CODES = [
@@ -82,107 +83,152 @@ export function TransactionCodeForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-xl">
-      {error && <div className="p-3 bg-red-50 text-red-700 rounded">{error}</div>}
+    <form
+      data-testid="tx-code-form"
+      onSubmit={handleSubmit}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+        maxWidth: 640,
+      }}
+    >
+      {error && (
+        <div
+          data-testid="tx-code-error-banner"
+          role="alert"
+          style={{
+            padding: "10px 12px",
+            background: "var(--cancelled-bg)",
+            color: "var(--cancelled-fg)",
+            borderRadius: 6,
+            fontSize: 12.5,
+            lineHeight: 1.4,
+          }}
+        >
+          {error}
+        </div>
+      )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">{t(dict, "txCodes.form.labelCode")}</label>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">{t(dict, "txCodes.form.labelCode")}</label>
           <input
+            data-testid="tx-code-field-code"
             type="text"
             value={form.code}
             onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
             required
             maxLength={20}
-            className="w-full border rounded px-3 py-2 font-mono"
+            className="input"
+            style={{ fontFamily: "var(--font-mono)" }}
             placeholder="ROOM"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">{t(dict, "txCodes.form.labelSortOrder")}</label>
+        <div className="field">
+          <label className="lab">{t(dict, "txCodes.form.labelSortOrder")}</label>
           <input
+            data-testid="tx-code-field-sort-order"
             type="number"
             value={form.sortOrder}
             onChange={(e) => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })}
             min={0}
-            className="w-full border rounded px-3 py-2"
+            className="input tnum"
           />
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">{t(dict, "txCodes.form.labelDescription")}</label>
+      <div className="field">
+        <label className="lab">{t(dict, "txCodes.form.labelDescription")}</label>
         <input
+          data-testid="tx-code-field-description"
           type="text"
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
           required
-          className="w-full border rounded px-3 py-2"
+          className="input"
           placeholder={t(dict, "txCodes.form.placeholderDesc")}
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">{t(dict, "txCodes.form.labelType")}</label>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">{t(dict, "txCodes.form.labelType")}</label>
           <select
+            data-testid="tx-code-field-type"
             value={form.transactionType}
             onChange={(e) => handleTypeChange(e.target.value)}
-            className="w-full border rounded px-3 py-2"
+            className="select"
           >
-            <option value="charge">{t(dict, "txCodes.form.typeCharge")} (charge)</option>
-            <option value="payment">{t(dict, "txCodes.form.typePayment")} (payment)</option>
+            <option value="charge">{t(dict, "txCodes.form.typeCharge")}</option>
+            <option value="payment">{t(dict, "txCodes.form.typePayment")}</option>
           </select>
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">{t(dict, "txCodes.form.labelGroup")}</label>
+        <div className="field">
+          <label className="lab">{t(dict, "txCodes.form.labelGroup")}</label>
           <select
+            data-testid="tx-code-field-group"
             value={form.groupCode}
             onChange={(e) => setForm({ ...form, groupCode: e.target.value })}
-            className="w-full border rounded px-3 py-2"
+            className="select"
           >
             {groupCodes.map((g) => (
-              <option key={g} value={g}>{g}</option>
+              <option key={g} value={g}>
+                {t(dict, `txCodes.groupCode.${g}` as DictionaryKey)}
+              </option>
             ))}
           </select>
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label className="flex items-center gap-2 text-sm">
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <label
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 13,
+            cursor: "pointer",
+          }}
+        >
           <input
+            data-testid="tx-code-field-manual-post"
             type="checkbox"
             checked={form.isManualPostAllowed}
             onChange={(e) => setForm({ ...form, isManualPostAllowed: e.target.checked })}
-            className="rounded"
           />
           {t(dict, "txCodes.form.allowManual")}
         </label>
         {isEdit && (
-          <label className="flex items-center gap-2 text-sm">
+          <label
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 13,
+              cursor: "pointer",
+            }}
+          >
             <input
+              data-testid="tx-code-field-active"
               type="checkbox"
               checked={form.isActive}
               onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-              className="rounded"
             />
             {t(dict, "txCodes.form.isActive")}
           </label>
         )}
       </div>
 
-      <div className="flex gap-3 pt-4">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? t(dict, "txCodes.form.saving") : isEdit ? t(dict, "txCodes.form.update") : t(dict, "txCodes.form.create")}
+      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+        <button data-testid="tx-code-submit" type="submit" disabled={loading} className="btn primary">
+          {loading
+            ? t(dict, "txCodes.form.saving")
+            : isEdit
+              ? t(dict, "txCodes.form.update")
+              : t(dict, "txCodes.form.create")}
         </button>
-        <Link
-          href="/configuration/transaction-codes"
-          className="px-4 py-2 border rounded hover:bg-gray-50"
-        >
+        <Link href="/configuration/transaction-codes" className="btn ghost">
           {t(dict, "txCodes.form.cancel")}
         </Link>
       </div>

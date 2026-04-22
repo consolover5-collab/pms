@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api";
-import { BackButton } from "@/components/back-button";
+import Link from "next/link";
+import { getLocale, getDict, t } from "@/lib/i18n";
 import { RoomTypeForm } from "../../room-type-form";
 
 type RoomType = {
@@ -16,6 +17,8 @@ export default async function EditRoomTypePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const locale = await getLocale();
+  const dict = getDict(locale);
   const { id } = await params;
   const [roomType, properties] = await Promise.all([
     apiFetch<RoomType>(`/api/room-types/${id}`),
@@ -24,22 +27,34 @@ export default async function EditRoomTypePage({
   const propertyId = properties[0]?.id;
 
   return (
-    <main className="p-8 max-w-4xl mx-auto">
-      <BackButton fallbackHref="/configuration/room-types" label="Back to Room Types" />
-      <h1 className="text-2xl font-bold mt-2 mb-6">Edit Room Type: {roomType.name}</h1>
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <Link href="/configuration/room-types" style={{ color: "var(--muted)" }}>
+          ← {t(dict, "roomTypes.title")}
+        </Link>
+      </div>
 
-      <RoomTypeForm
-        roomType={{
-          id: roomType.id,
-          code: roomType.code,
-          name: roomType.name,
-          maxOccupancy: roomType.maxOccupancy,
-          description: roomType.description || "",
-          sortOrder: roomType.sortOrder,
-        }}
-        propertyId={propertyId}
-        isEdit
-      />
-    </main>
+      <div className="page-head">
+        <h1 className="page-title">{t(dict, "roomTypes.editTitle")}</h1>
+        <span className="page-sub">{roomType.name}</span>
+      </div>
+
+      <div className="card">
+        <div className="card-body">
+          <RoomTypeForm
+            roomType={{
+              id: roomType.id,
+              code: roomType.code,
+              name: roomType.name,
+              maxOccupancy: roomType.maxOccupancy,
+              description: roomType.description || "",
+              sortOrder: roomType.sortOrder,
+            }}
+            propertyId={propertyId}
+            isEdit
+          />
+        </div>
+      </div>
+    </>
   );
 }

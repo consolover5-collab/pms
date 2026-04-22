@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useLocale } from "@/components/locale-provider";
 import { t } from "@/lib/i18n";
 
@@ -71,38 +72,51 @@ export function RoomRatesMatrix({
 
   if (roomTypes.length === 0) {
     return (
-      <p className="text-sm text-gray-500">
+      <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
         {t(dict, "roomRates.noTypes")}{" "}
-        <a href="/configuration/room-types" className="text-blue-600 hover:underline">
-          Room Types
-        </a>
+        <Link
+          href="/configuration/room-types"
+          style={{ color: "var(--accent)", textDecoration: "underline" }}
+        >
+          {t(dict, "roomRates.roomTypesLink")}
+        </Link>
         .
       </p>
     );
   }
 
   return (
-    <div className="border rounded overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50">
+    <div>
+      <table className="t">
+        <thead>
           <tr>
-            <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">{t(dict, "roomRates.colRoomType")}</th>
-            <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">{t(dict, "roomRates.colPrice")}</th>
-            <th className="px-4 py-2"></th>
+            <th>{t(dict, "roomRates.colRoomType")}</th>
+            <th className="r">{t(dict, "roomRates.colPrice")}</th>
+            <th className="r" />
           </tr>
         </thead>
-        <tbody className="divide-y">
+        <tbody>
           {roomTypes.map((rt) => {
             const isSaving = saving === rt.id;
             const isSaved = saved === rt.id;
             const hasRate = rt.id in rates;
             return (
-              <tr key={rt.id} className="hover:bg-gray-50">
-                <td className="px-4 py-2">
-                  <span className="font-medium">{rt.name}</span>
-                  <span className="ml-1 text-xs text-gray-400 font-mono">({rt.code})</span>
+              <tr key={rt.id} data-testid="rate-matrix-row">
+                <td>
+                  <span style={{ fontWeight: 500 }}>{rt.name}</span>
+                  <span
+                    className="tnum"
+                    style={{
+                      marginLeft: 6,
+                      fontSize: 11.5,
+                      color: "var(--muted-2)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    ({rt.code})
+                  </span>
                 </td>
-                <td className="px-4 py-2">
+                <td className="r">
                   <input
                     type="number"
                     min={0}
@@ -113,26 +127,45 @@ export function RoomRatesMatrix({
                     }
                     onKeyDown={(e) => e.key === "Enter" && handleSave(rt.id)}
                     placeholder="—"
-                    className="w-32 border rounded px-2 py-1 text-sm"
+                    className="input tnum"
+                    style={{ width: 120, textAlign: "right" }}
                   />
                 </td>
-                <td className="px-4 py-2 text-right space-x-2 whitespace-nowrap">
+                <td
+                  className="r"
+                  style={{
+                    whiteSpace: "nowrap",
+                    display: "flex",
+                    gap: 4,
+                    justifyContent: "flex-end",
+                  }}
+                >
                   {isSaved ? (
-                    <span className="text-xs text-green-600">✓ {t(dict, "roomRates.saved")}</span>
+                    <span
+                      style={{
+                        fontSize: 11.5,
+                        color: "var(--checked-in-fg)",
+                        alignSelf: "center",
+                      }}
+                    >
+                      {t(dict, "roomRates.saved")}
+                    </span>
                   ) : (
                     <button
+                      type="button"
                       onClick={() => handleSave(rt.id)}
                       disabled={isSaving || !rates[rt.id]}
-                      className="text-xs text-blue-600 hover:underline disabled:opacity-40"
+                      className="btn xs"
                     >
-                      {isSaving ? "..." : t(dict, "roomRates.save")}
+                      {isSaving ? "…" : t(dict, "roomRates.save")}
                     </button>
                   )}
                   {hasRate && !isSaved && (
                     <button
+                      type="button"
                       onClick={() => handleClear(rt.id)}
                       disabled={isSaving}
-                      className="text-xs text-red-500 hover:underline disabled:opacity-40"
+                      className="btn xs danger"
                     >
                       {t(dict, "common.delete")}
                     </button>
@@ -143,7 +176,16 @@ export function RoomRatesMatrix({
           })}
         </tbody>
       </table>
-      <p className="px-4 py-2 text-xs text-gray-400 bg-gray-50">
+      <p
+        style={{
+          margin: 0,
+          padding: "8px 12px",
+          fontSize: 11.5,
+          color: "var(--muted)",
+          background: "var(--bg-subtle)",
+          borderTop: "1px solid var(--border)",
+        }}
+      >
         {t(dict, "roomRates.hint")}
       </p>
     </div>

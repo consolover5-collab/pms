@@ -2,11 +2,14 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
 
 export function BookingSearchForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") || "");
+  const { dict } = useLocale();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,14 +33,14 @@ export function BookingSearchForm() {
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search by guest name or confirmation number..."
+        placeholder={t(dict, "bookings.search.placeholder")}
         className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
       <button
         type="submit"
         className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
       >
-        Search
+        {t(dict, "bookings.search.submit")}
       </button>
     </form>
   );

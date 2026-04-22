@@ -2,7 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-
+import Link from "next/link";
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
 
 type RoomType = {
   id?: string;
@@ -23,6 +25,7 @@ export function RoomTypeForm({
   isEdit?: boolean;
 }) {
   const router = useRouter();
+  const { dict } = useLocale();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,102 +58,140 @@ export function RoomTypeForm({
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to save room type");
+        throw new Error(data.error || t(dict, "roomTypes.saveFailed"));
       }
 
       router.replace("/configuration/room-types");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(err instanceof Error ? err.message : t(dict, "roomTypes.saveFailed"));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-xl">
+    <form
+      onSubmit={handleSubmit}
+      data-testid="room-type-form"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+        maxWidth: 640,
+      }}
+    >
       {error && (
-        <div className="p-3 bg-red-50 text-red-700 rounded">{error}</div>
+        <div
+          role="alert"
+          data-testid="room-type-error-banner"
+          style={{
+            padding: "10px 12px",
+            background: "var(--cancelled-bg)",
+            color: "var(--cancelled-fg)",
+            borderRadius: 6,
+            fontSize: 12.5,
+            lineHeight: 1.4,
+          }}
+        >
+          {error}
+        </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Code *</label>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">
+            {t(dict, "roomTypes.fld.code")}
+            <span style={{ color: "var(--cancelled)", marginLeft: 2 }}>*</span>
+          </label>
           <input
             type="text"
             value={form.code}
             onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
             required
             maxLength={10}
-            className="w-full border rounded px-3 py-2"
-            placeholder="STD"
+            className="input"
+            placeholder={t(dict, "roomTypes.ph.code")}
+            data-testid="room-type-field-code"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Name *</label>
+        <div className="field">
+          <label className="lab">
+            {t(dict, "roomTypes.fld.name")}
+            <span style={{ color: "var(--cancelled)", marginLeft: 2 }}>*</span>
+          </label>
           <input
             type="text"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             required
-            className="w-full border rounded px-3 py-2"
-            placeholder="Standard Room"
+            className="input"
+            placeholder={t(dict, "roomTypes.ph.name")}
+            data-testid="room-type-field-name"
           />
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Max Occupancy *</label>
+      <div className="field">
+        <label className="lab">
+          {t(dict, "roomTypes.fld.maxOccupancy")}
+          <span style={{ color: "var(--cancelled)", marginLeft: 2 }}>*</span>
+        </label>
         <input
           type="number"
           value={form.maxOccupancy}
-          onChange={(e) => setForm({ ...form, maxOccupancy: parseInt(e.target.value) || 2 })}
+          onChange={(e) =>
+            setForm({ ...form, maxOccupancy: parseInt(e.target.value) || 2 })
+          }
           required
           min={1}
           max={10}
-          className="w-full border rounded px-3 py-2"
+          className="input tnum"
+          style={{ maxWidth: 140 }}
+          data-testid="room-type-field-max-occupancy"
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Description</label>
+      <div className="field">
+        <label className="lab">{t(dict, "roomTypes.fld.description")}</label>
         <textarea
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
           rows={3}
-          className="w-full border rounded px-3 py-2"
-          placeholder="Room type description..."
+          className="input"
+          style={{ resize: "vertical", minHeight: 72 }}
+          placeholder={t(dict, "roomTypes.ph.description")}
+          data-testid="room-type-field-description"
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Sort Order</label>
+      <div className="field">
+        <label className="lab">{t(dict, "roomTypes.fld.sortOrder")}</label>
         <input
           type="number"
           value={form.sortOrder}
-          onChange={(e) => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })}
+          onChange={(e) =>
+            setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })
+          }
           min={0}
-          className="w-full border rounded px-3 py-2"
+          className="input tnum"
+          style={{ maxWidth: 140 }}
+          data-testid="room-type-field-sort-order"
         />
-        <p className="text-xs text-gray-500 mt-1">
-          Lower numbers appear first in lists
-        </p>
+        <span className="hint">{t(dict, "roomTypes.fld.sortOrderHint")}</span>
       </div>
 
-      <div className="flex gap-3 pt-4">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? "Saving..." : isEdit ? "Update" : "Create"}
+      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+        <button type="submit" disabled={loading} className="btn primary" data-testid="room-type-submit">
+          {loading
+            ? t(dict, "common.saving")
+            : isEdit
+              ? t(dict, "roomTypes.updateBtn")
+              : t(dict, "roomTypes.createBtn")}
         </button>
-        <a
-          href="/configuration/room-types"
-          className="px-4 py-2 border rounded hover:bg-gray-50"
-        >
-          Cancel
-        </a>
+        <Link href="/configuration/room-types" className="btn ghost">
+          {t(dict, "common.cancel")}
+        </Link>
       </div>
     </form>
   );

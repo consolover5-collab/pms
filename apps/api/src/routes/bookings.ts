@@ -446,9 +446,10 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // Check-in with business logic validation
-  app.post<{ Params: { id: string }; Body: { roomId?: string } }>(
+  app.post<{ Params: { id: string }; Body: { roomId?: string; force?: boolean } }>(
     "/api/bookings/:id/check-in",
     async (request, reply) => {
+      const forceCheckIn = request.body?.force === true;
       // Get the booking
       const [booking] = await app.db
         .select()
@@ -519,10 +520,15 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
         }
 
         // Check room is clean or inspected (not dirty, out of order, etc.)
-        if (
-          room.housekeepingStatus !== "clean" &&
-          room.housekeepingStatus !== "inspected"
-        ) {
+        // force=true allows override for dirty/pickup rooms (operator takes responsibility),
+        // but OOO/OOS still block — those are physical unavailability, not a cleanliness gate.
+        const hkClean =
+          room.housekeepingStatus === "clean" ||
+          room.housekeepingStatus === "inspected";
+        const hkForceable =
+          room.housekeepingStatus === "dirty" ||
+          room.housekeepingStatus === "pickup";
+        if (!hkClean && !(forceCheckIn && hkForceable)) {
           throw Object.assign(new Error(`Room ${room.roomNumber} is not ready for check-in (status: ${room.housekeepingStatus}). Wait for housekeeping or choose another room.`), {
             statusCode: 400, code: "ROOM_NOT_READY", roomNumber: room.roomNumber,
             housekeepingStatus: room.housekeepingStatus

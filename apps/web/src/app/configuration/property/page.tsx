@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api";
-import { BackButton } from "@/components/back-button";
+import Link from "next/link";
+import { getLocale, getDict, t } from "@/lib/i18n";
 import { PropertyForm } from "./property-form";
 
 type Property = {
@@ -19,15 +20,29 @@ type Property = {
 };
 
 export default async function PropertySettingsPage() {
+  const locale = await getLocale();
+  const dict = getDict(locale);
   const properties = await apiFetch<Property[]>("/api/properties");
   const property = properties[0];
 
   return (
-    <main className="p-8 max-w-4xl mx-auto">
-      <BackButton fallbackHref="/configuration" label="Back to Configuration" />
-      <h1 className="text-2xl font-bold mt-2 mb-6">Property Settings</h1>
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <Link href="/configuration" style={{ color: "var(--muted)" }}>
+          ← {t(dict, "config.backToConfig")}
+        </Link>
+      </div>
 
-      <PropertyForm property={property} />
-    </main>
+      <div className="page-head">
+        <h1 className="page-title">{t(dict, "property.title")}</h1>
+        <span className="page-sub">{t(dict, "property.subtitle")}</span>
+      </div>
+
+      <div className="card">
+        <div className="card-body">
+          <PropertyForm property={property} />
+        </div>
+      </div>
+    </>
   );
 }

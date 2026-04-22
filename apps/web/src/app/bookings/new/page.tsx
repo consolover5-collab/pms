@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import { BookingForm } from "./booking-form";
+import { getLocale, getDict, t } from "@/lib/i18n";
 
 type Property = {
   id: string;
@@ -8,24 +9,36 @@ type Property = {
 };
 
 export default async function NewBookingPage() {
+  const locale = await getLocale();
+  const dict = getDict(locale);
   const properties = await apiFetch<Property[]>("/api/properties");
   const property = properties[0];
 
   if (!property) {
     return (
-      <main className="p-8">
-        <h1 className="text-2xl font-bold">No property configured</h1>
-      </main>
+      <>
+        <div className="page-head">
+          <h1 className="page-title">{t(dict, "dashboard.noProperty")}</h1>
+        </div>
+      </>
     );
   }
 
   return (
-    <main className="p-8">
-      <Link href="/bookings" className="text-blue-600 hover:underline text-sm">
-        ← Back to bookings
-      </Link>
-      <h1 className="text-2xl font-bold mt-4 mb-6">New Booking</h1>
-      <BookingForm propertyId={property.id} />
-    </main>
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <Link href="/bookings" style={{ color: "var(--muted)" }}>
+          ← {t(dict, "common.backToBookings")}
+        </Link>
+      </div>
+      <div className="page-head">
+        <h1 className="page-title">{t(dict, "nav.newBooking")}</h1>
+      </div>
+      <div className="card">
+        <div className="card-body">
+          <BookingForm propertyId={property.id} />
+        </div>
+      </div>
+    </>
   );
 }

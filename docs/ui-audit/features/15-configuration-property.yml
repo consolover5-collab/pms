@@ -1,0 +1,202 @@
+id: 15-configuration-property
+title: "Configuration: Property"
+route: /configuration/property
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "Настройки отеля"
+    en: "Property Settings"
+    note: "Rendered via t(dict, ...) — fully i18n'd. Page title is a server component wrapper."
+  required_fields:
+    - { id: name, label: { ru: "Название", en: "Name" }, kind: "text",
+        testid: "property-field-name", note: "Required; pre-filled from DB" }
+    - { id: code, label: { ru: "Код", en: "Code" }, kind: "text",
+        testid: "property-field-code", note: "Required; uppercase-forced; maxLength 10" }
+  optional_fields:
+    - { id: address, label: { ru: "Адрес", en: "Address" }, kind: "text",
+        testid: "property-field-address" }
+    - { id: city, label: { ru: "Город", en: "City" }, kind: "text",
+        testid: "property-field-city" }
+    - { id: country, label: { ru: "Страна", en: "Country" }, kind: "text",
+        note: "maxLength=2; placeholder='RU'" }
+    - { id: timezone, label: { ru: "Часовой пояс", en: "Timezone" }, kind: "select",
+        note: "6 options: UTC, Europe/Moscow, Europe/Kaliningrad, Asia/Yekaterinburg, Asia/Novosibirsk, Asia/Vladivostok" }
+    - { id: currency, label: { ru: "Валюта", en: "Currency" }, kind: "select",
+        note: "3 options: RUB, USD, EUR" }
+    - { id: checkInTime, label: { ru: "Время заезда", en: "Check-in time" }, kind: "time" }
+    - { id: checkOutTime, label: { ru: "Время выезда", en: "Check-out time" }, kind: "time" }
+    - { id: taxRate, label: { ru: "Ставка налога", en: "Tax rate" }, kind: "number",
+        testid: "property-field-tax-rate", note: "step=0.01; min=0; max=100; stored as NUMERIC string in DB" }
+    - { id: numberOfRooms, label: { ru: "Количество комнат", en: "Number of rooms" }, kind: "number",
+        testid: "property-field-rooms", note: "min=0; validated server-side against actual room count" }
+    - { id: numberOfFloors, label: { ru: "Количество этажей", en: "Number of floors" }, kind: "number" }
+  buttons:
+    submit:
+      testid: "property-submit"
+      ru: "Сохранить"
+      en: "Save"
+      note: "Submits PUT /api/properties/:id with full form body"
+  banners:
+    success:
+      testid: "property-success-banner"
+      note: "Visible on successful PUT; role=status; styled green"
+    error:
+      testid: "property-error-banner"
+      note: "Wraps ErrorDisplay component; visible on failed PUT"
+
+singleton_note: >
+  Property is a singleton — there is exactly one property (Grand Baltic Hotel, id ff1d9135-…).
+  All mutation scenarios are GLOBAL: 54 rooms, all rate plans, all folios, all bookings
+  reference this property. Any failed restore in extraAfterAll requires manual intervention.
+
+seed_inconsistency_note: >
+  The seed set property.numberOfRooms=50 but the rooms table has 54 rows.
+  The API validates: numberOfRooms >= actual room count. So PUT with numberOfRooms=50 (< 54) fails.
+  Consequence: the property form CANNOT save with its original numberOfRooms value.
+  The spec corrects this by setting numberOfRooms=54 in the edit scenario (ACTUAL_ROOM_COUNT).
+  Restore puts taxRate back to "20.00" and leaves numberOfRooms at 54 (the valid consistent value).
+  The original numberOfRooms=50 probe value was updated to 54 in the spec after the first run.
+
+steps:
+  - id: "01-load-view"
+    status: ok
+    action: "Navigate to /configuration/property; assert property-form visible; assert pre-filled inputs match probe values"
+    screenshots:
+      - 15-configuration-property-01-load-view-ru.png
+      - 15-configuration-property-01-load-view-en.png
+    note: >
+      Read-only; both locales. Asserts: name="Grand Baltic Hotel", code="GBH",
+      address="2 Lake Drive, Kaliningrad", numberOfRooms="54" (corrected from original 50
+      due to seed inconsistency; see seed_inconsistency_note above),
+      taxRate matches /^20(\\.0{0,2})?$/ (browser may render "20", "20.0" or "20.00").
+      No error banner visible on initial load.
+
+  - id: "02-edit-text"
+    status: ok
+    action: "Fill taxRate='20.01' and numberOfRooms=54; click submit; PUT /api/properties/:id returns 200; property-success-banner visible; API re-GET confirms taxRate≈20.01"
+    screenshots:
+      - 15-configuration-property-02-edit-text-saved-en.png
+    note: >
+      Mutation; en-only; ru skipped. Snapshot captured in beforeAll (full property body).
+      Mutation: taxRate "20.00" → "20.01" (primary) + numberOfRooms set to 54 (workaround:
+      the form sends full body; API rejects numberOfRooms=50 < actual 54 rooms).
+      PUT 200 returns full updated property.
+      Restore in extraAfterAll: PUT with taxRate="20.00" + numberOfRooms=max(snapshot,54)
+      → verify all non-rooms fields match snapshot. Any mismatch throws CRITICAL error.
+
+  - id: "03-validation-rooms-count"
+    status: ok
+    action: "Fill numberOfRooms=49 (below actual DB count=54); submit; PUT returns 400 INVALID_ROOM_COUNT; property-error-banner visible; API re-GET confirms numberOfRooms still = ACTUAL_ROOM_COUNT (54) — see BUG-008"
+    screenshots:
+      - 15-configuration-property-03-validation-rooms-count-en.png
+    note: >
+      Mutation attempt; en-only; ru skipped. The API validates numberOfRooms against
+      actual rooms table count BEFORE applying the update. With 54 actual rooms and
+      the stored field at 50, setting 49 triggers validation rejection.
+      No restore needed for this scenario — API guarantees no mutation on 400.
+      extraAfterAll still verifies numberOfRooms = ACTUAL_ROOM_COUNT (54) as belt-and-suspenders — see BUG-008.
+
+edge_cases:
+  - id: property-is-singleton
+    description: "There is exactly one property record; all tests worldwide share it"
+    expected: "Snapshot-restore discipline; extraAfterAll verifies restore landed"
+    observed: >
+      OK — snapshot captured in beforeAll; extraAfterAll re-GETs and throws on any
+      field mismatch. mutationApplied flag ensures restore runs only when needed.
+
+  - id: numberOfRooms-seed-inconsistency
+    description: >
+      Property.numberOfRooms=50 (seed) but rooms table has 54 rows (actual).
+      API validation: numberOfRooms >= actual count. PUT with numberOfRooms=50 fails (50 < 54).
+      This means the property form was BROKEN for any save with the original seed state.
+    expected: "PUT with any full form body should succeed (numberOfRooms field should be consistent with rooms table)"
+    observed: >
+      BLOCKED on first run: scenario 02 PUT returned 400 INVALID_ROOM_COUNT because
+      the form sent numberOfRooms=50 < 54 actual. Spec adapted: scenario 02 also sets
+      numberOfRooms=54 in the form UI before submitting. Property field now reads 54.
+      The seed value (50) was incorrect — this is a latent data inconsistency in the seed.
+      Restore correctly uses numberOfRooms=54 (the consistent value).
+
+  - id: numberOfRooms-validation-below-actual
+    description: "Setting numberOfRooms below actual room count is correctly rejected"
+    expected: "Any set value ≥ 54 should pass; any value < 54 triggers INVALID_ROOM_COUNT"
+    observed: >
+      Confirmed via scenario 03: setting 49 → API rejects with 400 INVALID_ROOM_COUNT.
+      The stored property field is not used in validation — actual DB row count (54) is.
+      No partial mutation: PUT returns 400 before applying any changes.
+
+  - id: taxRate-numeric-rendering
+    description: "taxRate stored as NUMERIC string '20.00'; browser may display '20', '20.0', or '20.00' in a number input"
+    expected: "Flexible assertion: matches /^20(\\.0{0,2})?$/"
+    observed: "OK — pattern match passes regardless of trailing zero rendering"
+
+  - id: i18n-complete
+    description: "All labels/buttons/banners use t(dict, ...) — no hardcoded English strings"
+    expected: "No BUG candidate from i18n perspective"
+    observed: "Verified by reading property-form.tsx: all user-visible text routes through t(dict, ...)"
+
+  - id: error-banner-wraps-error-display
+    description: "ErrorDisplay component has no data-testid; wrapper div added with testid='property-error-banner'"
+    expected: "Playwright can locate error state reliably"
+    observed: "OK — error && <div data-testid='property-error-banner'><ErrorDisplay .../></div>"
+
+api_calls_observed:
+  - { method: GET,  path: "/api/auth/me",            status: 200 }
+  - { method: GET,  path: "/api/properties",          status: 200, note: "server component: GET /api/properties to get properties[0]" }
+  - { method: PUT,  path: "/api/properties/:id",      status: 200, note: "scenario 02 — successful save" }
+  - { method: PUT,  path: "/api/properties/:id",      status: 400, note: "scenario 03 — rejected (INVALID_ROOM_COUNT)" }
+
+console_errors: []
+network_errors:
+  - { method: PUT, path: "/api/properties/:id", status: 400,
+      note: "Expected — scenario 03 validation rejection; not a bug" }
+
+bugs: []
+# property-form.tsx is fully i18n'd via t(dict, ...) — no hardcoded English. No bug candidates.
+# BUG-008 (seed numberOfRooms=50 vs 54 actual) fixed in packages/db/src/seed.ts by deriving
+# numberOfRooms from roomData.length before the property insert.
+
+signals:
+  l10n: full
+  testids_added: true
+  testids_prefix: "property-*"
+  mutations_gated_to_en: true
+  singleton_risk: HIGH
+  restore_mechanism: "beforeAll snapshot + extraAfterAll PUT + re-GET field-by-field verify"
+
+help_rewrite_hints:
+  topic: configuration
+  current: ""
+  actual: |
+    /configuration/property is a singleton settings page for the hotel property.
+    Fields: name (required), code (required, uppercase), address, city, country (2-letter),
+    timezone (select), currency (select), check-in/check-out times, tax rate, number of
+    rooms, number of floors. All editable via PUT /api/properties/:id.
+    Validation: numberOfRooms cannot be set below actual rooms table count.
+  rewrite: |
+    Update the "configuration" help article to include a property settings section covering:
+    - Fields available on the Property Settings page (name, code, contact, capacity, times, tax)
+    - Capacity constraint: numberOfRooms cannot be reduced below the actual number of rooms
+      in the system (to prevent data inconsistency)
+    - All fields are optional except name and code
+    - Changes are saved immediately on submit (no draft mode)
+
+retro:
+  time_minutes: 50
+  unblocker_fixes:
+    - "Client component has no testids by default — added 9 testids to property-form.tsx"
+    - "Next.js production build + server restart required after adding data-testid attrs"
+    - "ErrorDisplay has no testid — wrapped with <div data-testid='property-error-banner'> in form"
+    - "Seed inconsistency: property.numberOfRooms=50 < actual rooms=54. Every PUT rejected. Fixed scenario 02 to also set numberOfRooms=54 in UI before submit; updated PROBE_ROOMS to 54"
+    - "createdAt/updatedAt fields in snapshot caused PUT 500 on restore — stripped from restore body"
+  methodology_deltas:
+    - "HIGH-RISK singleton: implemented beforeAll snapshot + field-by-field restore verification in extraAfterAll"
+    - "Seed data inconsistency was latent bug: property form couldn't save without fixing numberOfRooms first"
+    - "taxRate number input rendering varies by browser — used regex match rather than exact string equality"
+    - "mutationApplied flag is set BEFORE assertions so restore always runs even if assertions fail after PUT"
+
+status: ok
+last_audited: "2026-04-21"
+screenshots_dir: docs/ui-audit/screenshots/

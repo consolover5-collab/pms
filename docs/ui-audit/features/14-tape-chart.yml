@@ -1,0 +1,226 @@
+id: 14-tape-chart
+title: "Tape chart (/tape-chart)"
+route: /tape-chart
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "Шахматка"
+    en: "Tape Chart"
+  page_file: apps/web/src/app/tape-chart/page.tsx
+  api_file: apps/api/src/routes/tape-chart.ts
+  note: >
+    Reservation timeline grid. On mount the page fetches /api/properties,
+    picks properties[0].id, then fires GET /api/tape-chart?propertyId=…&
+    from=<today>&to=<today+14|30|90> to obtain { rooms, dates, bookings }.
+    Rooms are grouped by roomTypeCode with collapsible section headers;
+    bookings render as absolutely-positioned bars spanning
+    checkInDate..checkOutDate. Each bar is a plain <Link href="/bookings/:id">
+    — clicking a bar navigates to the booking detail page.
+
+    The "period toggle" is 14 / 30 / 90 days (not week/month/day as the audit
+    plan's stale note suggested). Prev/Today/Next shift buttons translate the
+    window by ±range days. An "Unassigned bookings" card at the bottom lists
+    bookings without roomId as link badges.
+
+    Drag-and-drop of booking bars is NOT wired up in the UI: bars have no
+    `draggable` attribute and no drag handlers anywhere in the page.
+    The API endpoint `POST /api/bookings/:id/room-move` DOES exist, however
+    (apps/api/src/routes/bookings.ts:886), with full validation and a
+    structured error envelope ({ error, code: 'BOOKING_NOT_FOUND' | ... });
+    the tape chart does not invoke it (the booking-detail page's "Change
+    Room" action does — see section 04). Scenario 04 therefore asserts the
+    tape-chart UI absence AND the backend presence as a two-part regression
+    tripwire (see edge_cases[0] for the full rationale).
+
+  buttons:
+    period14: { ru: "14 дней", en: "14 days", note: "default; POST-mount state" }
+    period30: { ru: "30 дней", en: "30 days" }
+    period90: { ru: "90 дней", en: "90 days" }
+    today:    { ru: "Сегодня", en: "Today",   note: "resets window to [today, today+range)" }
+    prev:     { ru: "",        en: "",        note: "ChevLeft icon only; shift window by -range days" }
+    next:     { ru: "",        en: "",        note: "ChevRight icon only; shift window by +range days" }
+    newBooking: { ru: "Бронь", en: "New booking", note: "Link to /bookings/new" }
+
+  legend:
+    confirmed:   { ru: "Подтверждена", en: "Confirmed" }
+    checkedIn:   { ru: "Заехал",       en: "Checked in" }
+    checkedOut:  { ru: "Выехал",       en: "Checked out" }
+    noShow:      { ru: "No-show",      en: "No-show" }
+    cancelled:   { ru: "Отменена",     en: "Cancelled" }
+
+  testids:
+    - { id: tape-chart-title,                element: "h1.page-title",    added: true }
+    - { id: tape-chart-subtitle,             element: "span.page-sub",    added: true }
+    - { id: tape-chart-period-tabs,          element: "div.ptabs",        added: true }
+    - { id: tape-chart-period-14-button,     element: "div.pt[role=button]", added: true, note: "data-active='true|false'" }
+    - { id: tape-chart-period-30-button,     element: "div.pt[role=button]", added: true, note: "data-active='true|false'" }
+    - { id: tape-chart-period-90-button,     element: "div.pt[role=button]", added: true, note: "data-active='true|false'" }
+    - { id: tape-chart-prev-button,          element: "button.btn.sm",    added: true }
+    - { id: tape-chart-today-button,         element: "button.btn.sm",    added: true }
+    - { id: tape-chart-next-button,          element: "button.btn.sm",    added: true }
+    - { id: tape-chart-new-booking-link,     element: "a.btn.sm.primary", added: true }
+    - { id: tape-chart-legend,               element: "div",              added: true }
+    - { id: tape-chart-loading,              element: "div",              added: true }
+    - { id: tape-chart-error,                element: "div",              added: true }
+    - { id: tape-chart-grid,                 element: "div.card",         added: true }
+    - { id: tape-chart-group,                element: "div",              added: true, note: "data-group-code={roomTypeCode}" }
+    - { id: tape-chart-group-header,         element: "div",              added: true, note: "click toggles collapse (data-group-code lives on the outer tape-chart-group only)" }
+    - { id: tape-chart-room-row,             element: "div",              added: true, note: "data-room-id={r.id}, data-room-number={r.roomNumber}" }
+    - { id: tape-chart-bar,                  element: "a.bar",            added: true, note: "data-booking-id={b.id}, data-booking-status={b.status}" }
+    - { id: tape-chart-no-rooms,             element: "div",              added: true }
+    - { id: tape-chart-unassigned-card,      element: "div.card",         added: true }
+
+steps:
+  - id: "01-render-timeline"
+    status: ok
+    action: >
+      Navigate /tape-chart (both locales). Assert: tape-chart-title localised
+      ('Tape Chart' / 'Шахматка'); tape-chart-subtitle contains '14 days' /
+      '14 дней' (default range); tape-chart-period-14-button has data-active=true
+      while 30/90 are present; prev/today/next buttons and the new-booking link
+      are visible; tape-chart-legend and tape-chart-grid render; >=1 tape-chart-group,
+      >=1 tape-chart-room-row, and >=1 tape-chart-bar are present
+      (preflight: 33 checked_in + 103 confirmed bookings for businessDate 2026-04-20).
+    screenshots:
+      - 14-tape-chart-01-render-timeline-ru.png
+      - 14-tape-chart-01-render-timeline-en.png
+    mutation: false
+    locale_gate: both locales
+
+  - id: "02-switch-period"
+    status: ok
+    action: >
+      Navigate /tape-chart (both locales). Click tape-chart-period-30-button;
+      wait for the next GET /api/tape-chart?... 200 response. Assert:
+      from/to querystring spans exactly 30 days (Math.round on UTC diff);
+      subtitle now contains '30 days' / '30 дней'; grid still visible with
+      >=1 bar.
+    screenshots:
+      - 14-tape-chart-02-switch-period-ru.png
+      - 14-tape-chart-02-switch-period-en.png
+    mutation: false
+    locale_gate: both locales
+
+  - id: "03-click-bar"
+    status: ok
+    action: >
+      EN-only. Navigate /tape-chart. Locate the first tape-chart-bar;
+      read its data-booking-id attribute. Click the bar. Assert URL
+      transitions to /bookings/<data-booking-id> and the booking detail h1
+      renders.
+    screenshots:
+      - 14-tape-chart-03-click-bar-en.png
+    mutation: false
+    locale_gate: en-only
+    note: >
+      Navigation-only check, identical under either locale — run once to
+      avoid duplicating the assertion.
+
+  - id: "04-drag-move-absent-but-api-exists"
+    status: ok
+    action: >
+      EN-only two-part regression tripwire. (a) Assert booking bars have no
+      draggable='true' attribute — confirms the UI does not wire drag-to-move.
+      (b) Probe POST /api/bookings/<crypto.randomUUID()>/room-move with body
+      { newRoomId: '00000000-0000-0000-0000-000000000000' } and assert
+      status === 404 AND response body code === 'BOOKING_NOT_FOUND'. The real
+      endpoint lives at apps/api/src/routes/bookings.ts:886 — this probe
+      confirms it still responds with its documented structured error envelope
+      for unknown IDs. If the endpoint is removed or its envelope changes
+      (different code, bare 404, etc.) the tripwire fires; if the UI wires
+      drag-to-move it also fires. Either way, a real audit of scenario 04 is
+      required next.
+    screenshots: []
+    mutation: false
+    locale_gate: en-only
+
+edge_cases:
+  - id: drag-and-drop-ui-absent-backend-present
+    description: >
+      Plan scenario 04 assumes drag-to-move is wired up end-to-end. The
+      reality is split: the backend endpoint POST /api/bookings/:id/room-move
+      DOES exist (apps/api/src/routes/bookings.ts:886) with full validation,
+      transactional double-room locking, and a structured error envelope
+      ({ error, code: 'BOOKING_NOT_FOUND' | 'ROOM_NOT_FOUND' | ... }) — but
+      the tape chart does not invoke it (section 04's booking-detail audit
+      covers the existing Change Room surface). The tape chart bars are
+      plain <Link>s with no draggable attribute and no drag handlers
+      (page.tsx:159-195).
+    expected: >
+      Tape chart itself wires a drag-to-move affordance (or alternate
+      in-chart action) to POST /api/bookings/:id/room-move, at which point
+      scenario 04 gets a full end-to-end audit instead of a contract
+      tripwire. (Note: the booking-detail page already exposes this endpoint
+      via its "Change Room" button — section 04 — but that surface is out
+      of scope here.)
+    observed: >
+      Two-part tripwire in place instead of a full simulation: asserts
+      (a) bars have `draggable !== 'true'`, and (b) the real endpoint still
+      responds 404 with `code: 'BOOKING_NOT_FOUND'` for a random UUID. If
+      either invariant flips, the test fails and the scenario re-enters the
+      audit backlog.
+    reason: >
+      The UI side of the feature is genuinely not implemented; the backend
+      side is. A tripwire on both sides is the most honest way to encode the
+      current state without either faking a passing simulation or skipping
+      the scenario entirely.
+
+  - id: collapsible-groups
+    description: >
+      Clicking a tape-chart-group-header toggles openGroups[roomTypeCode]
+      and hides/shows the rooms under it. Did not mutate this in the spec
+      (visual-only toggle, state does not persist across reloads, no API call).
+    expected: "Group header click expands/collapses the room list"
+    observed: ok
+    reason: "Visual-only UI state; verified via source review (page.tsx:372-392)"
+
+  - id: unassigned-bookings
+    description: >
+      Bookings without a roomId render in a separate "Unassigned bookings"
+      card at the bottom as link badges. In the current preflight window
+      most bookings have a roomId so the card may or may not render.
+    expected: "Card renders IFF >=1 booking has null roomId in range"
+    observed: not_observed
+    reason: "GBH seed data has roomId assigned for all active bookings in the 14-day window"
+
+api_calls_observed:
+  - { method: GET, path: "/api/auth/me",          status: 200, note: "locale-provider session check" }
+  - { method: GET, path: "/api/properties",       status: 200, note: "picks properties[0].id" }
+  - { method: GET, path: "/api/business-date",    status: 200, note: "queried by layout/header chrome" }
+  - { method: GET, path: "/api/tape-chart",       status: 200, note: "?propertyId=...&from=<today>&to=<today+range>; refetches on range change" }
+
+console_errors: []
+
+network_errors: []
+
+bugs: []
+
+help_rewrite_hints:
+  topic: null
+  current: ""
+  actual: ""
+  rewrite: |
+
+retro:
+  time_minutes: 0
+  unblocker_fixes:
+    - "Added 16 data-testids to apps/web/src/app/tape-chart/page.tsx (tape-chart-* prefix) — bars also carry data-booking-id/status and room rows carry data-room-id/number for stable selection"
+  methodology_deltas:
+    - "Scenario 04 drag-move encoded as a two-part DOM+API tripwire rather than skipped. The spec asserts (a) bars have `draggable !== 'true'` (UI has no drag wiring) and (b) POST /api/bookings/<random-uuid>/room-move still responds 404 with `code: 'BOOKING_NOT_FOUND'` (the real endpoint at bookings.ts:886 still exists). Earlier drafts wrongly claimed the backend endpoint was missing and probed a fabricated path — corrected to probe the real endpoint so the tripwire fires on genuine regression (UI grows drag wiring OR backend endpoint is removed/reshaped)."
+
+status: partial
+last_audited: "2026-04-22"
+screenshots_dir: docs/ui-audit/screenshots/
+
+signals:
+  l10n: ok
+  l10n_note: "All visible strings routed through t(dict, 'tape.*'); full en+ru coverage."
+  testids_added: true
+  testids_prefix: "tape-chart-*"
+  mutations_gated_to_en: "n/a — no mutations performed"
+  risk: NONE
+  restore_mechanism: "n/a — zero mutations"
+  primary_operation_broken: false
+  partial_reason: "scenario 04 (drag-move) is encoded as a UI-absence + backend-presence tripwire rather than a full end-to-end simulation because the UI half of the feature is genuinely not implemented (backend endpoint exists at bookings.ts:886 but nothing invokes it)"

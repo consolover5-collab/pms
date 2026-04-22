@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
-
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
 
 type RatePlan = {
   id: string;
@@ -15,13 +17,19 @@ type RatePlan = {
   isActive: boolean;
 };
 
-export function RatePlansList({ ratePlans, propertyId }: { ratePlans: RatePlan[]; propertyId: string }) {
+export function RatePlansList({
+  ratePlans,
+  propertyId,
+}: {
+  ratePlans: RatePlan[];
+  propertyId: string;
+}) {
   const router = useRouter();
+  const { dict } = useLocale();
   const [deleting, setDeleting] = useState<string | null>(null);
 
   async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this rate plan?")) return;
-
+    if (!confirm(t(dict, "ratePlans.confirmDelete"))) return;
     setDeleting(id);
     try {
       const res = await fetch(`/api/rate-plans/${id}?propertyId=${propertyId}`, {
@@ -30,93 +38,103 @@ export function RatePlansList({ ratePlans, propertyId }: { ratePlans: RatePlan[]
       if (res.ok) {
         router.refresh();
       } else {
-        alert("Failed to delete rate plan");
+        alert(t(dict, "ratePlans.deleteFailed"));
       }
     } finally {
       setDeleting(null);
     }
   }
 
-  if (ratePlans.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        No rate plans configured. Add your first rate plan to get started.
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-white border rounded-lg overflow-hidden">
-      <table className="w-full">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
-              Code
-            </th>
-            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
-              Name
-            </th>
-            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
-              Base Rate
-            </th>
-            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">
-              Status
-            </th>
-            <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {ratePlans.map((rp) => (
-            <tr key={rp.id} className="hover:bg-gray-50">
-              <td className="px-4 py-3 font-mono text-sm">{rp.code}</td>
-              <td className="px-4 py-3">
-                <div className="font-medium flex items-center gap-2">
-                  {rp.name}
-                  {rp.isDefault && (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">
-                      ★ Base Rate
+    <div className="card">
+      <div className="card-head">
+        <div className="card-title">
+          {t(dict, "ratePlans.title")} <span className="count">{ratePlans.length}</span>
+        </div>
+      </div>
+      <div className="card-body" style={{ padding: 0 }}>
+        {ratePlans.length === 0 ? (
+          <div
+            style={{
+              padding: 24,
+              textAlign: "center",
+              color: "var(--muted)",
+              fontSize: 13,
+            }}
+          >
+            {t(dict, "ratePlans.empty")}
+          </div>
+        ) : (
+          <table className="t">
+            <thead>
+              <tr>
+                <th style={{ width: 100 }}>{t(dict, "ratePlans.colCode")}</th>
+                <th>{t(dict, "ratePlans.colName")}</th>
+                <th className="r" style={{ width: 140 }}>
+                  {t(dict, "ratePlans.colBase")}
+                </th>
+                <th style={{ width: 110 }}>{t(dict, "ratePlans.colStatus")}</th>
+                <th className="r">{t(dict, "ratePlans.colActions")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ratePlans.map((rp) => (
+                <tr key={rp.id} data-testid="rate-plan-row">
+                  <td className="tnum" data-testid="rate-plan-code">{rp.code}</td>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <Link
+                        href={`/configuration/rate-plans/${rp.id}/edit`}
+                        style={{ color: "var(--fg)", fontWeight: 500 }}
+                      >
+                        {rp.name}
+                      </Link>
+                      {rp.isDefault && (
+                        <span className="badge confirmed" data-testid="rate-plan-default-badge">
+                          <span className="dot" />
+                          {t(dict, "ratePlans.base")}
+                        </span>
+                      )}
+                    </div>
+                    {rp.description && (
+                      <div style={{ fontSize: 11, color: "var(--muted)" }}>{rp.description}</div>
+                    )}
+                  </td>
+                  <td className="r tnum">
+                    {rp.baseRate ? `${formatCurrency(rp.baseRate)} ₽` : "—"}
+                  </td>
+                  <td>
+                    <span className={`badge ${rp.isActive ? "checked-in" : "cancelled"}`}>
+                      <span className="dot" />
+                      {rp.isActive ? t(dict, "ratePlans.active") : t(dict, "ratePlans.inactive")}
                     </span>
-                  )}
-                </div>
-                {rp.description && (
-                  <div className="text-xs text-gray-500">{rp.description}</div>
-                )}
-              </td>
-              <td className="px-4 py-3">
-                {rp.baseRate ? formatCurrency(rp.baseRate) : "—"}
-              </td>
-              <td className="px-4 py-3">
-                <span
-                  className={`text-xs px-2 py-1 rounded ${
-                    rp.isActive
-                      ? "bg-green-100 text-green-800"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  {rp.isActive ? "Active" : "Inactive"}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-right space-x-2">
-                <a
-                  href={`/configuration/rate-plans/${rp.id}/edit`}
-                  className="text-blue-600 hover:underline text-sm"
-                >
-                  Edit
-                </a>
-                <button
-                  onClick={() => handleDelete(rp.id)}
-                  disabled={deleting === rp.id}
-                  className="text-red-600 hover:underline text-sm disabled:opacity-50"
-                >
-                  {deleting === rp.id ? "..." : "Delete"}
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                  </td>
+                  <td className="r">
+                    <div style={{ display: "inline-flex", gap: 6 }}>
+                      <Link
+                        href={`/configuration/rate-plans/${rp.id}/edit`}
+                        className="btn xs ghost"
+                      >
+                        {t(dict, "ratePlans.edit")}
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(rp.id)}
+                        disabled={deleting === rp.id}
+                        className="btn xs danger"
+                      >
+                        {deleting === rp.id
+                          ? t(dict, "ratePlans.deleting")
+                          : t(dict, "ratePlans.delete")}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }

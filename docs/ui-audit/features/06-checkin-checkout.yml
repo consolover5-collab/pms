@@ -1,0 +1,201 @@
+id: booking.checkin-checkout
+title: "Check-in / Check-out — действия на странице бронирования"
+route: /bookings/[id] (actions)
+depends_on:
+  - auth.login
+  - property.select
+  - business-date
+  - booking.create
+  - booking.detail
+  - housekeeping
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "Кнопки Check-In / Check-Out в блоке BookingActions, модалки RoomPicker / DirtyRoomWarning, баннер Force Checkout"
+    en: "Check-In / Check-Out buttons in BookingActions block, RoomPicker / DirtyRoomWarning modals, Force Checkout banner"
+  required_fields: []
+  optional_fields:
+    - { id: checkInButton, label: { ru: "Check In", en: "Check In" }, kind: "button", note: "видна при status=confirmed && checkInDate<=today" }
+    - { id: checkOutButton, label: { ru: "Check Out", en: "Check Out" }, kind: "button", note: "видна при status=checked_in" }
+    - { id: confirmCheckOut, label: { ru: "Подтвердить выселение", en: "Confirm Check-out" }, kind: "button", note: "в force-checkout banner (EARLY/LATE_CHECKOUT)" }
+    - { id: dirtyWarningTitle, label: { ru: "Внимание: Номер требует уборки", en: "Warning: Room requires housekeeping" }, kind: "modal-title", note: "открывается на ROOM_NOT_READY" }
+    - { id: forceCheckInButton, label: { ru: "Заселить всё равно", en: "Check in anyway" }, kind: "button", note: "в dirty-warning modal; посылает {force:true,roomId} но API это НЕ учитывает — см. BUG-004" }
+    - { id: roomPickerTitle, label: { ru: "Выберите комнату для заселения", en: "Select room for check-in" }, kind: "modal-title", note: "открывается на NO_ROOM_ASSIGNED" }
+    - { id: roomPickerSelect, label: { ru: "— выберите комнату —", en: "— select a room —" }, kind: "select", note: "показывает только clean|inspected + vacant комнаты подходящего типа; out_of_service/out_of_order отфильтрованы" }
+    - { id: roomPickerCancel, label: { ru: "Отмена", en: "Cancel" }, kind: "button" }
+    - { id: roomPickerConfirm, label: { ru: "Подтвердить", en: "Confirm" }, kind: "button" }
+    - { id: errorDisplay, label: { ru: "Сообщение об ошибке", en: "Error message" }, kind: "card", note: "ErrorDisplay компонент; появляется на UNPAID_BALANCE и прочих ошибках без спец. UI" }
+  buttons:
+    checkIn: { ru: "Check In", en: "Check In" }
+    checkOut: { ru: "Check Out", en: "Check Out" }
+    confirmCheckOut: { ru: "Подтвердить выселение", en: "Confirm Check-out" }
+    forceCheckIn: { ru: "Заселить всё равно", en: "Check in anyway" }
+    cancelPicker: { ru: "Отмена", en: "Cancel" }
+    confirmPicker: { ru: "Подтвердить", en: "Confirm" }
+
+steps:
+  - id: "01-checkin-clean-room"
+    action: "en only: create fresh booking BK_A on clean+vacant STD room, checkInDate=bizDate. Open /bookings/{BK_A}, click Check In → POST /check-in=200 → booking.status=checked_in, room.occupancyStatus=occupied"
+    screenshots:
+      - 06-checkin-checkout-01-checkin-clean-room-pre-en.png
+      - 06-checkin-checkout-01-checkin-clean-room-en.png
+  - id: "02-checkin-dirty-force"
+    action: "en only: create BK_B на dirty+vacant room №206. Click Check In → POST /check-in=400 ROOM_NOT_READY → UI открывает dirty-warning modal. Клик 'Check in anyway' шлёт POST /check-in с {force:true,roomId} — API возвращает 400 ROOM_NOT_READY ПОВТОРНО (force не читается сервером), booking.status остаётся confirmed. См. BUG-004"
+    screenshots:
+      - 06-checkin-checkout-02-checkin-dirty-warning-en.png
+      - 06-checkin-checkout-02-checkin-dirty-force-blocked-en.png
+  - id: "03-checkin-oos-blocked"
+    action: "ru + en observation: create BK_C с roomId=null. Click Check In → POST /check-in=400 NO_ROOM_ASSIGNED → UI открывает RoomPickerModal. Убеждаемся, что opt-list не содержит №205 (OOS). Cancel закрывает модалку, booking.status=confirmed"
+    screenshots:
+      - 06-checkin-checkout-03-checkin-oos-blocked-ru.png
+      - 06-checkin-checkout-03-checkin-oos-blocked-en.png
+  - id: "04-checkout-zero-balance"
+    action: "en only: BK_A в checked_in. Оплачиваем PAY_CASH если balance>0 (для свежей брони balance=0). Click Check Out → первый POST /check-out=400 EARLY_CHECKOUT (checkOutDate=bizDate+1) → force-checkout banner → Click 'Confirm Check-out' → POST /check-out=200 с {force:true} → status=checked_out"
+    screenshots:
+      - 06-checkin-checkout-04-checkout-zero-balance-en.png
+  - id: "05-checkout-nonzero-balance-warning"
+    action: "ru + en observation: existing checked_in booking с balance>0. Click Check Out → POST /check-out=400. Эмпирически получаем EARLY_CHECKOUT (чек-аут в будущем), а не UNPAID_BALANCE — порядок проверок на сервере: status→EARLY/LATE→balance. UI рендерит force-checkout banner. Force мы не подтверждаем; booking.status остаётся checked_in"
+    screenshots:
+      - 06-checkin-checkout-05-checkout-nonzero-balance-warning-ru.png
+      - 06-checkin-checkout-05-checkout-nonzero-balance-warning-en.png
+
+edge_cases:
+  - id: checkin-happy-path
+    description: "Чистый вакантный номер → обычный check-in"
+    expected: "POST /check-in=200, booking.status=checked_in, room.occupancyStatus=occupied, Check Out кнопка появляется вместо Check In"
+    observed: "OK — en only, подтверждено API call logом (api-probe: POST /check-in 200 x1 для BK_A). Скриншот 01"
+  - id: force-dirty-check-in
+    description: "Грязный номер → dirty-warning → клик 'Check in anyway' с {force:true,roomId}"
+    expected: "Либо сервер уважает force и заселяет (без BUG), либо оставляет ROOM_NOT_READY и UI показывает ErrorDisplay"
+    observed: "Эмпирически: API возвращает 400 ROOM_NOT_READY ПОВТОРНО (force не читается на сервере, см. apps/api/src/routes/bookings.ts:521-530). UI логика (booking-actions.tsx:169-172) ловит 'ROOM_NOT_READY && action===check-in' и ОПЯТЬ открывает dirty-warning modal — получается бесконечный цикл. BK_B.status остаётся confirmed. BUG-004 зарегистрирован"
+  - id: oos-filtered-from-picker
+    description: "Если комната не назначена → RoomPicker; OOS-комнаты не должны показываться"
+    expected: "Список опций select не содержит №205 (OOS), booking.status не меняется"
+    observed: "OK — option count для №205 = 0 (attachment oos-option-count); 2/2 локали; POST /check-in=400 NO_ROOM_ASSIGNED; booking.status=confirmed после Cancel. Скриншот 03"
+  - id: checkout-zero-balance-early
+    description: "Чек-аут фреш брони с balance=0, но checkOutDate>bizDate → EARLY_CHECKOUT"
+    expected: "Первый POST /check-out=400 EARLY_CHECKOUT → force-banner → второй POST /check-out=200 с {force:true} → status=checked_out"
+    observed: "OK — en only, подтверждено api-probe (POST /check-out 400 x1 + 200 x1 для BK_A); balance фактически 0 (attachment bk-a-balance-before-checkout=0). Скриншот 04"
+  - id: checkout-nonzero-balance-future-date
+    description: "Чек-аут брони с balance>0 и checkOutDate>bizDate"
+    expected: "Ожидалось UNPAID_BALANCE (read-only observation)"
+    observed: "Эмпирически: 400 EARLY_CHECKOUT пришёл РАНЬШЕ UNPAID_BALANCE (порядок проверок: status→EARLY/LATE→balance). UI рендерит force-checkout banner. Это важное наблюдение: если гость выезжает вовремя (checkOutDate==bizDate), тогда балансная проверка дойдёт и заблокирует check-out; иначе первая блокировка — дата. 2/2 локали, scenario 05 не мутирует"
+  - id: mutation-locale-split
+    description: "Отличие от плана: мутирующие сценарии (01, 02, 04) запускаются только под en"
+    expected: "2 локали × 5 сценариев = 10 тестов"
+    observed: "Фактически: read-only сценарии (03, 05) — оба локали; мутирующие (01, 02, 04) — en only. 7 passed + 3 skipped. Обоснование: каждый en-прогон создаёт свежие BK_A/BK_B через lazy-init в самом тесте (beforeAll на ru пропустил бы их создание), это предотвращает коллизию за single-instance dirty-комнату №206"
+
+api_calls_observed:
+  - { method: GET,  path: "/api/auth/me",                                          status: 200, note: "web middleware auth guard" }
+  - { method: GET,  path: "/api/properties",                                       status: 200 }
+  - { method: GET,  path: "/api/business-date?propertyId={propertyId}",            status: 200 }
+  - { method: GET,  path: "/api/rooms?propertyId=...&roomTypeId=...&housekeepingStatus=clean&occupancyStatus=vacant", status: 200, note: "BK_A pre-alloc (lazy в scenario 01)" }
+  - { method: GET,  path: "/api/rooms?propertyId=...&roomTypeId=...&occupancyStatus=vacant&limit=200", status: 200, note: "из RoomPickerModal (client-side fetch, OOS фильтруется на клиенте)" }
+  - { method: GET,  path: "/api/profiles?propertyId=...&type=individual&limit=1",  status: 200 }
+  - { method: GET,  path: "/api/bookings?propertyId=...&status=checked_in&limit=20", status: 200, note: "поиск кандидата на scenario 05" }
+  - { method: GET,  path: "/api/bookings/{id}",                                                status: 200, note: "server-side apiFetch в page.tsx (не в browser network)" }
+  - { method: GET,  path: "/api/bookings/{id}/folio",                              status: 200, note: "для пред-проверки balance scenario 04/05" }
+  - { method: GET,  path: "/api/transaction-codes?propertyId={propertyId}",        status: 200, note: "резолв PAY_CASH id динамически" }
+  - { method: POST, path: "/api/bookings",                                         status: 201, note: "создание BK_A/BK_B/BK_C" }
+  - { method: POST, path: "/api/bookings/{id}/cancel",                             status: 200, note: "pre-run cleanup orphans + scenario safety" }
+  - { method: POST, path: "/api/bookings/{BK_A}/check-in",                         status: 200, note: "scenario 01 happy path" }
+  - { method: POST, path: "/api/bookings/{BK_B}/check-in",                         status: 400, note: "ROOM_NOT_READY (×2: initial + force, BUG-004)" }
+  - { method: POST, path: "/api/bookings/{BK_C}/check-in",                         status: 400, note: "NO_ROOM_ASSIGNED → opens RoomPicker" }
+  - { method: POST, path: "/api/bookings/{BK_A}/check-out",                        status: 400, note: "EARLY_CHECKOUT → force-banner" }
+  - { method: POST, path: "/api/bookings/{BK_A}/check-out",                        status: 200, note: "с {force:true} → scenario 04 success" }
+  - { method: POST, path: "/api/bookings/{BK_E}/check-out",                        status: 400, note: "EARLY_CHECKOUT на existing checked_in booking (scenario 05)" }
+
+console_errors: []
+
+network_errors:
+  - { status: 400, method: POST, path: "/api/bookings/{BK_B}/check-in", note: "ожидаемо: ROOM_NOT_READY × 2" }
+  - { status: 400, method: POST, path: "/api/bookings/{BK_C}/check-in", note: "ожидаемо: NO_ROOM_ASSIGNED" }
+  - { status: 400, method: POST, path: "/api/bookings/{BK_A}/check-out", note: "ожидаемо: EARLY_CHECKOUT перед force" }
+  - { status: 400, method: POST, path: "/api/bookings/{BK_E}/check-out", note: "ожидаемо: EARLY_CHECKOUT (не UNPAID_BALANCE)" }
+
+bugs: []
+
+help_rewrite_hints:
+  topic: check-in-out
+  current: |
+    help-content.tsx не содержит отдельной статьи по процессам заселения/выселения.
+    Раздел /bookings описывает только создание брони (секция 03) и общий просмотр
+    деталей (секция 04), без описания поведения кнопок Check In / Check Out и
+    их модалок.
+  actual: |
+    Поведение кнопок Check In / Check Out на /bookings/{id} (BookingActions):
+
+    **Check In** (видна при status=confirmed && checkInDate<=today):
+    - Happy path: чистый вакантный номер → POST /check-in=200 → status=checked_in.
+    - Номер не назначен → 400 NO_ROOM_ASSIGNED → открывается RoomPickerModal со списком
+      только clean|inspected + vacant комнат подходящего типа (OOS отфильтрованы
+      на клиенте, см. booking-actions.tsx:45-49).
+    - Номер грязный/OOO → 400 ROOM_NOT_READY → открывается dirty-warning modal.
+      Клик 'Check in anyway' ШЛЁТ force:true, но API-handler (bookings.ts:521-530)
+      НЕ ЧИТАЕТ этот флаг — возвращает ту же 400 ROOM_NOT_READY, модалка открывается
+      заново (BUG-004).
+    - checkInDate в будущем → вместо кнопки видна informational span
+      'Check-in available on {date}'.
+
+    **Check Out** (видна при status=checked_in):
+    - checkOutDate==bizDate, balance==0 → POST /check-out=200 → status=checked_out,
+      комната → vacant+dirty.
+    - checkOutDate!=bizDate → 400 EARLY_CHECKOUT / LATE_CHECKOUT → появляется
+      force-checkout banner с кнопкой 'Confirm Check-out' (шлёт {force:true}).
+    - balance>0 (при валидной дате) → 400 UNPAID_BALANCE → ErrorDisplay
+      (без override — оплатить через Accept payment / Payment форму в фолио).
+    - ВАЖНО: порядок проверок сервера — status → EARLY/LATE → balance. Если дата
+      не совпадает, балансная ошибка НЕ дойдёт до UI до force-подтверждения.
+  rewrite: |
+    ## Check-in и Check-out
+
+    Кнопки Check In и Check Out появляются на странице бронирования автоматически
+    в зависимости от статуса и даты. Здесь описаны обычные и нестандартные сценарии.
+
+    ### Check-In
+
+    | Условие | Поведение |
+    |---|---|
+    | Номер назначен, чистый (clean/inspected), свободный | Обычное заселение |
+    | Номер не назначен | Открывается окно **«Выберите комнату для заселения»** со списком свободных чистых комнат того же типа |
+    | Номер грязный | Появляется предупреждение **«Номер требует уборки»**. Можно отправить уборку и вернуться, либо выбрать другую комнату |
+    | Номер out of service / out of order | Не покажется в списке выбора — откройте Housekeeping, верните его в обслуживание |
+    | Дата заезда ещё не наступила | Вместо кнопки — надпись _«Заселение доступно {date}»_ |
+
+    > **Ограничение:** кнопка «Заселить всё равно» в окне с грязным номером
+    > сейчас не обходит проверку — сервер всё равно отказывает. Чтобы заселить
+    > гостя в грязный номер, сначала обновите статус уборки через страницу
+    > Housekeeping (см. BUG-004, будет исправлено).
+
+    ### Check-Out
+
+    | Условие | Поведение |
+    |---|---|
+    | Дата выезда = сегодня, баланс оплачен | Обычное выселение; номер переходит в vacant+dirty |
+    | Дата выезда в будущем | Появляется баннер **«Ранний выезд»** с кнопкой **«Подтвердить выселение»** |
+    | Дата выезда в прошлом | Аналогично, баннер **«Поздний выезд»** |
+    | Баланс гостя > 0 при валидной дате | Окно ошибки **«Неоплаченный остаток»**, выезд блокируется — оплатить через «Accept payment» в фолио |
+
+    > Проверки выполняются в порядке: статус → дата → баланс. Если дата
+     > не совпадает с рабочей датой, ошибка баланса дойдёт до UI только после
+     > подтверждения раннего/позднего выезда.
+
+retro:
+  time_minutes: 75
+  unblocker_fixes:
+    - "Очистка orphan-бронирований в beforeAll: confirmed брони с confirmationNumber >= GBH-000210 и их резервация dirty-room №206 удалялись через POST /cancel — иначе повторные прогоны ломались на ROOM_CONFLICT"
+    - "Lazy-init для BK_A (clean-room) и BK_B (dirty-room) внутри en-only сценариев вместо beforeAll — ru с test.skip() не должен был создавать брони, которые ru-run не использует и en-run не может пере-зарезервировать"
+    - "Scenario 05 clickOut обёрнут в Promise.all([waitForResponse, click]) вместо sequential — иначе на ru-проекте ответ успевал прилететь до listener и тест висел на timeout"
+  methodology_deltas:
+    - "OOS-pathway недостижим через POST /bookings: handler на bookings.ts:262-266 отклоняет OOS roomId с 400 ROOM_UNAVAILABLE. План секции 06 содержал сценарий 'создать бронь на OOS room → check-in blocked', но он нереализуем. Переделано в 'OOS отфильтрована из RoomPicker' как observation"
+    - "Scenario 05 описан как UNPAID_BALANCE observation, но эмпирически получили EARLY_CHECKOUT — порядок валидации на сервере (status → date → balance) означает, что UNPAID_BALANCE видно только если дата выезда ровно==bizDate. У тестовых checked_in броней checkOutDate=2026-04-21, bizDate=2026-04-20 → EARLY. YAML помечен как factual наблюдение, бага это не является"
+    - "BUG-004 эмпирически подтверждён: UI dirty-warning modal посылает {force:true,roomId}, но API на bookings.ts:521-530 не читает force и отклоняет повторно. UI-logic в booking-actions.tsx:169-172 ловит ROOM_NOT_READY и ОПЯТЬ открывает ту же modal — бесконечный цикл без сигнала пользователю, что 'заселить всё равно' нерабочая"
+    - "PAY_CASH transactionCodeId резолвится динамически через GET /api/transaction-codes — не хардкодится, устойчиво к пересеву. Для секции 10 (folio) это тоже понадобится"
+    - "en-only gate для мутирующих сценариев через test.skip(testInfo.project.name !== 'en') — повторный паттерн из секции 04, работает; но в секции 06 пришлось также расширить: lazy-create ВНУТРИ теста вместо beforeAll, иначе ru-beforeAll занимал рекс, который en-beforeAll не мог освободить"
+    - "Fixture extraction candidate: createConfirmedBooking, getFolioBalance, postCashPayment, fetchPayCashCodeId, fetchCheckedInBookingWithBalance, reserveCleanRoomBooking — эти хелперы, вероятно, понадобятся в секциях 10 (folio) и 12 (night-audit). Решение о вынесении в fixtures.ts отложено до ретро Batch A"
+    - "Orphan-cleanup через heuristic 'confirmationNumber suffix >= 210' — хрупко; лучше помечать audit-созданные брони через notes='audit' и чистить по notes. Задача для refactor в Batch C"
+
+status: ok
+last_audited: 2026-04-21
+screenshots_dir: docs/ui-audit/screenshots/

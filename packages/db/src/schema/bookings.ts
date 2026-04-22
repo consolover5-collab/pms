@@ -10,7 +10,9 @@ import {
   decimal,
   index,
   unique,
+  check,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { properties } from "./properties";
 import { rooms, roomTypes } from "./rooms";
 import { profiles } from "./profiles";
@@ -111,4 +113,11 @@ export const bookings = pgTable("bookings", {
   index("bookings_property_id_idx").on(table.propertyId),
   index("bookings_guest_profile_id_idx").on(table.guestProfileId),
   index("bookings_room_id_idx").on(table.roomId),
+  check("bookings_date_range_check", sql`${table.checkOutDate} > ${table.checkInDate}`),
+  check("bookings_adults_positive_check", sql`${table.adults} > 0`),
+  check("bookings_children_nonnegative_check", sql`${table.children} >= 0`),
+  check(
+    "bookings_status_enum_check",
+    sql`${table.status} IN ('confirmed', 'checked_in', 'checked_out', 'cancelled', 'no_show')`,
+  ),
 ]);

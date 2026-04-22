@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
-import Link from "next/link";
 import { DateFilter } from "./date-filter";
 import { BookingSearchForm } from "./search-form";
 import { getLocale, getDict, t } from "@/lib/i18n";
+import { Icon } from "@/components/icon";
+import type { DictionaryKey } from "@/lib/i18n/locales/en";
 
 type Booking = {
   id: string;
@@ -15,55 +17,75 @@ type Booking = {
   children: number;
   totalAmount: string | null;
   actualCheckOut: string | null;
-  guest: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
-  room: {
-    id: string;
-    roomNumber: string;
-  } | null;
-  roomType: {
-    id: string;
-    name: string;
-    code: string;
-  };
+  guest: { id: string; firstName: string; lastName: string };
+  room: { id: string; roomNumber: string } | null;
+  roomType: { id: string; name: string; code: string };
 };
 
-type Property = {
-  id: string;
-  name: string;
-};
-
-const statusColors: Record<string, string> = {
-  confirmed: "bg-blue-100 text-blue-800",
-  checked_in: "bg-green-100 text-green-800",
-  checked_out: "bg-gray-100 text-gray-800",
-  cancelled: "bg-red-100 text-red-800",
-  no_show: "bg-purple-100 text-purple-800",
-};
-
-const statusLabels: Record<string, string> = {
-  confirmed: "Confirmed",
-  checked_in: "Checked In",
-  checked_out: "Checked Out",
-  cancelled: "Cancelled",
-  no_show: "No Show",
-};
-
-const viewLabels: Record<string, string> = {
-  arrivals: "Today's Arrivals",
-  departures: "Today's Departures",
-  inhouse: "In-House Guests",
-};
-
-type BookingsResponse = {
-  data: Booking[];
-  total: number;
-};
+type Property = { id: string; name: string };
+type BookingsResponse = { data: Booking[]; total: number };
 
 const PAGE_SIZE = 50;
+
+type StatusClass = "confirmed" | "checked-in" | "checked-out" | "cancelled" | "no-show";
+
+function statusClass(st: string): StatusClass {
+  switch (st) {
+    case "checked_in":
+      return "checked-in";
+    case "checked_out":
+      return "checked-out";
+    case "cancelled":
+      return "cancelled";
+    case "no_show":
+      return "no-show";
+    default:
+      return "confirmed";
+  }
+}
+
+function statusLabelKey(st: string): DictionaryKey {
+  switch (st) {
+    case "checked_in":
+      return "bookings.status.checkedIn";
+    case "checked_out":
+      return "bookings.status.checkedOut";
+    case "cancelled":
+      return "bookings.status.cancelled";
+    case "no_show":
+      return "bookings.status.noShow";
+    default:
+      return "bookings.status.confirmed";
+  }
+}
+
+function initials(first: string, last: string): string {
+  return `${(first[0] ?? "").toUpperCase()}${(last[0] ?? "").toUpperCase()}`;
+}
+
+const ALL_STATUSES: { key: string; labelKey: DictionaryKey }[] = [
+  { key: "confirmed", labelKey: "bookings.status.confirmed" },
+  { key: "checked_in", labelKey: "bookings.status.checkedIn" },
+  { key: "checked_out", labelKey: "bookings.status.checkedOut" },
+  { key: "cancelled", labelKey: "bookings.status.cancelled" },
+  { key: "no_show", labelKey: "bookings.status.noShow" },
+];
+
+function ErrorState({ message, dict }: { message: string; dict: ReturnType<typeof getDict> }) {
+  return (
+    <div className="card">
+      <div className="card-body">
+        <h2 style={{ color: "var(--cancelled)", margin: 0, fontSize: 15 }}>
+          {t(dict, "dashboard.failedToLoad")}
+        </h2>
+        <p style={{ color: "var(--muted)", fontSize: 12, marginTop: 4 }}>{message}</p>
+        <Link href="/bookings" className="btn sm" style={{ marginTop: 8, display: "inline-flex" }}>
+          {t(dict, "dashboard.retry")}
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 export default async function BookingsPage({
   searchParams,
@@ -94,38 +116,20 @@ export default async function BookingsPage({
     return d.toISOString().split("T")[0];
   })();
 
-  // Get property (single-property MVP)
   let properties: Property[];
   try {
     properties = await apiFetch<Property[]>("/api/properties");
   } catch (err) {
-    return (
-      <main className="p-8">
-        <div className="border-2 border-red-300 bg-red-50 rounded-lg p-4">
-          <h2 className="text-lg font-bold text-red-800">
-            Failed to load bookings
-          </h2>
-          <p className="text-red-700 text-sm mt-1">
-            {err instanceof Error ? err.message : "Could not connect to API"}
-          </p>
-          <Link
-            href="/bookings"
-            className="inline-block mt-3 text-sm text-blue-600 hover:underline"
-          >
-            Retry
-          </Link>
-        </div>
-      </main>
-    );
+    return <ErrorState message={err instanceof Error ? err.message : ""} dict={dict} />;
   }
-
   const property = properties[0];
-
   if (!property) {
     return (
-      <main className="p-8">
-        <h1 className="text-2xl font-bold">No property configured</h1>
-      </main>
+      <div className="card">
+        <div className="card-body">
+          <h2 style={{ margin: 0 }}>{t(dict, "dashboard.noProperty")}</h2>
+        </div>
+      </div>
     );
   }
 
@@ -153,29 +157,18 @@ export default async function BookingsPage({
       apiFetch<{ date: string }>(`/api/business-date?propertyId=${property.id}`),
     ]);
   } catch (err) {
-    return (
-      <main className="p-8">
-        <div className="border-2 border-red-300 bg-red-50 rounded-lg p-4">
-          <h2 className="text-lg font-bold text-red-800">
-            Failed to load bookings
-          </h2>
-          <p className="text-red-700 text-sm mt-1">
-            {err instanceof Error ? err.message : "Could not connect to API"}
-          </p>
-          <Link
-            href="/bookings"
-            className="inline-block mt-3 text-sm text-blue-600 hover:underline"
-          >
-            Retry
-          </Link>
-        </div>
-      </main>
-    );
+    return <ErrorState message={err instanceof Error ? err.message : ""} dict={dict} />;
   }
 
   const { data: bookings, total } = result;
 
-  const pageTitle = view ? (viewLabels[view] || "Bookings") : "Bookings";
+  const viewTitle = (() => {
+    if (view === "arrivals") return t(dict, "bookings.arrivalsToday");
+    if (view === "departures") return t(dict, "bookings.departuresToday");
+    if (view === "inhouse") return t(dict, "bookings.inHouse");
+    return t(dict, "bookings.title");
+  })();
+
   const totalPages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
 
   function pageUrl(p: number) {
@@ -191,239 +184,226 @@ export default async function BookingsPage({
   }
 
   return (
-    <main className="p-8">
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <Link href="/" className="text-blue-600 hover:underline text-sm">
-            &larr; {t(dict, "nav.dashboard")}
+    <>
+      <div className="page-head">
+        <h1 className="page-title">{viewTitle}</h1>
+        {q && (
+          <span className="page-sub">
+            {t(dict, "bookings.resultsFor", { q, total })}
+          </span>
+        )}
+        <div className="actions">
+          <Link href="/bookings/new" className="btn sm primary">
+            <Icon name="plus" size={12} />
+            <span>{t(dict, "bookings.newBooking")}</span>
           </Link>
-          <h1 className="text-2xl font-bold">{pageTitle}</h1>
         </div>
-        <Link
-          href="/bookings/new"
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-        >
-          + New Booking
-        </Link>
       </div>
 
-      <BookingSearchForm />
+      <div className="card">
+        <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <BookingSearchForm />
 
-      {q && (
-        <p className="text-sm text-gray-500 mb-4">
-          Results for &quot;{q}&quot;: {total} found
-        </p>
-      )}
-
-      {/* View tabs */}
-      <div className="flex gap-2 mb-4 border-b pb-2">
-        <Link
-          href="/bookings"
-          className={`px-3 py-1 rounded text-sm ${!view ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
-        >
-          All
-        </Link>
-        <Link
-          href="/bookings?view=arrivals"
-          className={`px-3 py-1 rounded text-sm ${view === "arrivals" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
-        >
-          Arrivals Today
-        </Link>
-        <Link
-          href="/bookings?view=departures"
-          className={`px-3 py-1 rounded text-sm ${view === "departures" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
-        >
-          Departures Today
-        </Link>
-        <Link
-          href="/bookings?view=inhouse"
-          className={`px-3 py-1 rounded text-sm ${view === "inhouse" ? "bg-green-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
-        >
-          In-House
-        </Link>
-      </div>
-
-      {/* Status filters (only show when not in special view) */}
-      {!view && (
-        <div className="flex gap-2 mb-4">
-          <Link
-            href="/bookings"
-            className={`px-3 py-1 rounded text-sm ${!status ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
-          >
-            All
-          </Link>
-          {Object.entries(statusLabels).map(([key, label]) => (
+          <div className="tabs-bar" style={{ marginBottom: 0 }}>
             <Link
-              key={key}
-              href={`/bookings?status=${key}`}
-              className={`px-3 py-1 rounded text-sm ${status === key ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
+              href="/bookings"
+              className={`tb${!view ? " on" : ""}`}
             >
-              {label}
+              {t(dict, "bookings.all")}
             </Link>
-          ))}
-        </div>
-      )}
+            <Link
+              href="/bookings?view=arrivals"
+              className={`tb${view === "arrivals" ? " on" : ""}`}
+            >
+              {t(dict, "bookings.arrivalsToday")}
+            </Link>
+            <Link
+              href="/bookings?view=departures"
+              className={`tb${view === "departures" ? " on" : ""}`}
+            >
+              {t(dict, "bookings.departuresToday")}
+            </Link>
+            <Link
+              href="/bookings?view=inhouse"
+              className={`tb${view === "inhouse" ? " on" : ""}`}
+            >
+              {t(dict, "bookings.inHouse")}
+            </Link>
+          </div>
 
-      {/* Date filters */}
-      {!view && <DateFilter />}
-
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="border-b text-left">
-              <th className="p-2">Confirmation</th>
-              <th className="p-2">{t(dict, "common.guest")}</th>
-              <th className="p-2">{t(dict, "common.room")}</th>
-              <th className="p-2">Check-in</th>
-              <th className="p-2">Check-out</th>
-              <th className="p-2">{t(dict, "common.status")}</th>
-              <th className="p-2">{t(dict, "common.total")}</th>
-              {(view === "arrivals" || view === "departures") && (
-                <th className="p-2">Action</th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {bookings.map((booking) => (
-              <tr key={booking.id} className="border-b hover:bg-gray-50">
-                <td className="p-2">
-                  <Link
-                    href={`/bookings/${booking.id}`}
-                    className="text-blue-600 hover:underline font-mono"
-                  >
-                    {booking.confirmationNumber}
-                  </Link>
-                </td>
-                <td className="p-2">
-                  {booking.guest.lastName}, {booking.guest.firstName}
-                </td>
-                <td className="p-2">
-                  {booking.room ? (
-                    <span className="font-mono">
-                      {booking.room.roomNumber}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">&mdash;</span>
-                  )}
-                  <span className="text-gray-500 text-xs ml-1">
-                    ({booking.roomType.code})
-                  </span>
-                </td>
-                <td className="p-2">{booking.checkInDate}</td>
-                <td className="p-2">{booking.checkOutDate}</td>
-                <td className="p-2">
-                  {(() => {
-                    let color = statusColors[booking.status] || "bg-gray-100 text-gray-800";
-                    let label = statusLabels[booking.status] || booking.status;
-                    const isTodayCheckIn = booking.checkInDate === bizDateRes.date;
-                    const isTodayCheckOut = booking.checkOutDate === bizDateRes.date;
-                    const isTodayActualCheckOut = booking.actualCheckOut?.startsWith(bizDateRes.date);
-
-                    if (booking.status === "confirmed" && isTodayCheckIn) {
-                      color = "bg-orange-100 text-orange-800";
-                      label = "Due In";
-                    } else if (booking.status === "checked_in" && isTodayCheckOut) {
-                      color = "bg-yellow-100 text-yellow-800";
-                      label = "Due Out";
-                    } else if (view === "arrivals" && booking.status === "checked_in" && isTodayCheckIn) {
-                      color = "bg-green-100 text-green-800";
-                      label = t(dict, "bookings.checkedInToday");
-                    } else if (view === "departures" && booking.status === "checked_out" && isTodayActualCheckOut) {
-                      color = "bg-gray-100 text-gray-800";
-                      label = t(dict, "bookings.checkedOutToday");
-                    }
-
-                    return (
-                      <span className={`text-xs px-2 py-1 rounded ${color}`}>
-                        {label}
-                      </span>
-                    );
-                  })()}
-                </td>
-                <td className="p-2 text-right">
-                  {booking.totalAmount
-                    ? `${formatCurrency(booking.totalAmount)} \u20BD`
-                    : "\u2014"}
-                </td>
-                {view === "arrivals" && booking.status === "confirmed" && (
-                  <td className="p-2">
-                    <Link
-                      href={`/bookings/${booking.id}`}
-                      className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
-                    >
-                      Check In
-                    </Link>
-                  </td>
-                )}
-                {view === "departures" && booking.status === "checked_in" && (
-                  <td className="p-2">
-                    <Link
-                      href={`/bookings/${booking.id}`}
-                      className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
-                    >
-                      Check Out
-                    </Link>
-                  </td>
-                )}
-                {(view === "arrivals" || view === "departures") &&
-                  booking.status !== "confirmed" &&
-                  booking.status !== "checked_in" && (
-                    <td className="p-2">&mdash;</td>
-                  )}
-              </tr>
-            ))}
-            {bookings.length === 0 && (
-              <tr>
-                <td
-                  colSpan={view ? 8 : 7}
-                  className="p-4 text-center text-gray-500"
+          {!view && (
+            <div className="filterbar">
+              <Link
+                href="/bookings"
+                className={`fld${!status ? " on" : ""}`}
+              >
+                <span className="key">{t(dict, "common.status")}:</span>
+                {t(dict, "bookings.all")}
+              </Link>
+              {ALL_STATUSES.map((s) => (
+                <Link
+                  key={s.key}
+                  href={`/bookings?status=${s.key}`}
+                  className={`fld${status === s.key ? " on" : ""}`}
                 >
-                  No bookings found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                  {t(dict, s.labelKey)}
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {!view && <DateFilter />}
+        </div>
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-gray-500">
-            Showing {offset + 1}&ndash;{Math.min(offset + PAGE_SIZE, total)} of{" "}
-            {total}
-          </p>
-          <div className="flex gap-2">
-            {currentPage > 1 ? (
-              <Link
-                href={pageUrl(currentPage - 1)}
-                className="px-3 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200"
-              >
-                Previous
-              </Link>
-            ) : (
-              <span className="px-3 py-1 text-sm bg-gray-50 text-gray-400 rounded">
-                Previous
-              </span>
-            )}
-            <span className="px-3 py-1 text-sm">
-              Page {currentPage} of {totalPages}
-            </span>
-            {currentPage < totalPages ? (
-              <Link
-                href={pageUrl(currentPage + 1)}
-                className="px-3 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200"
-              >
-                Next
-              </Link>
-            ) : (
-              <span className="px-3 py-1 text-sm bg-gray-50 text-gray-400 rounded">
-                Next
-              </span>
-            )}
-          </div>
+      <div className="card">
+        <div className="card-body flush" style={{ overflow: "auto" }}>
+          <table className="t">
+            <thead>
+              <tr>
+                <th>{t(dict, "bookings.col.conf")}</th>
+                <th>{t(dict, "common.guest")}</th>
+                <th>{t(dict, "common.room")}</th>
+                <th>{t(dict, "bookings.col.checkIn")}</th>
+                <th>{t(dict, "bookings.col.checkOut")}</th>
+                <th>{t(dict, "common.status")}</th>
+                <th className="r">{t(dict, "common.total")}</th>
+                {(view === "arrivals" || view === "departures") && (
+                  <th className="r">{t(dict, "bookings.col.action")}</th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {bookings.map((b) => {
+                const stCls = statusClass(b.status);
+                const stKey = statusLabelKey(b.status);
+                const isTodayCheckIn = b.checkInDate === bizDateRes.date;
+                const isTodayCheckOut = b.checkOutDate === bizDateRes.date;
+                let badgeCls: StatusClass = stCls;
+                let badgeLabel = t(dict, stKey);
+                if (b.status === "confirmed" && isTodayCheckIn) {
+                  badgeCls = "no-show";
+                  badgeLabel = t(dict, "bookings.dueIn");
+                } else if (b.status === "checked_in" && isTodayCheckOut) {
+                  badgeCls = "no-show";
+                  badgeLabel = t(dict, "bookings.dueOut");
+                }
+
+                return (
+                  <tr key={b.id}>
+                    <td>
+                      <Link href={`/bookings/${b.id}`} className="conf">
+                        {b.confirmationNumber}
+                      </Link>
+                    </td>
+                    <td>
+                      <Link className="guest" href={`/bookings/${b.id}`}>
+                        <span className="av">{initials(b.guest.firstName, b.guest.lastName)}</span>
+                        <span>
+                          <span className="nm">
+                            {b.guest.lastName} {b.guest.firstName}
+                          </span>
+                          <div className="sub">
+                            {b.adults} · {b.roomType.name}
+                          </div>
+                        </span>
+                      </Link>
+                    </td>
+                    <td className="tnum">
+                      {b.room ? b.room.roomNumber : "—"}{" "}
+                      <span style={{ color: "var(--muted)", fontSize: 11 }}>· {b.roomType.code}</span>
+                    </td>
+                    <td className="tnum">{b.checkInDate}</td>
+                    <td className="tnum">{b.checkOutDate}</td>
+                    <td>
+                      <span className={`badge ${badgeCls}`}>
+                        <span className="dot" />
+                        {badgeLabel}
+                      </span>
+                    </td>
+                    <td className="r tnum">
+                      {b.totalAmount ? `${formatCurrency(b.totalAmount)} ₽` : "—"}
+                    </td>
+                    {view === "arrivals" && (
+                      <td className="r">
+                        {b.status === "confirmed" ? (
+                          <Link href={`/bookings/${b.id}`} className="btn xs primary">
+                            <Icon name="key" size={11} />
+                            <span>{t(dict, "bookings.action.checkIn")}</span>
+                          </Link>
+                        ) : (
+                          <Link href={`/bookings/${b.id}`} className="btn xs ghost">
+                            <Icon name="more" size={11} />
+                          </Link>
+                        )}
+                      </td>
+                    )}
+                    {view === "departures" && (
+                      <td className="r">
+                        {b.status === "checked_in" ? (
+                          <Link href={`/bookings/${b.id}`} className="btn xs primary">
+                            <Icon name="logout" size={11} />
+                            <span>{t(dict, "bookings.action.checkOut")}</span>
+                          </Link>
+                        ) : (
+                          <Link href={`/bookings/${b.id}`} className="btn xs ghost">
+                            <Icon name="more" size={11} />
+                          </Link>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+              {bookings.length === 0 && (
+                <tr>
+                  <td colSpan={view === "arrivals" || view === "departures" ? 8 : 7}>
+                    <div className="empty">{t(dict, "bookings.empty")}</div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
-    </main>
+        {totalPages > 1 && (
+          <div className="card-foot">
+            <span>
+              {t(dict, "bookings.showing", {
+                from: offset + 1,
+                to: Math.min(offset + PAGE_SIZE, total),
+                total,
+              })}
+            </span>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              {currentPage > 1 ? (
+                <Link href={pageUrl(currentPage - 1)} className="btn xs">
+                  <Icon name="chevLeft" size={11} />
+                  <span>{t(dict, "bookings.prev")}</span>
+                </Link>
+              ) : (
+                <span className="btn xs" style={{ opacity: 0.5, cursor: "not-allowed" }}>
+                  <Icon name="chevLeft" size={11} />
+                  <span>{t(dict, "bookings.prev")}</span>
+                </span>
+              )}
+              <span style={{ fontSize: 11, fontFamily: "var(--font-mono)" }}>
+                {t(dict, "bookings.pageOf", { current: currentPage, total: totalPages })}
+              </span>
+              {currentPage < totalPages ? (
+                <Link href={pageUrl(currentPage + 1)} className="btn xs">
+                  <span>{t(dict, "bookings.next")}</span>
+                  <Icon name="chevRight" size={11} />
+                </Link>
+              ) : (
+                <span className="btn xs" style={{ opacity: 0.5, cursor: "not-allowed" }}>
+                  <span>{t(dict, "bookings.next")}</span>
+                  <Icon name="chevRight" size={11} />
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

@@ -1,71 +1,52 @@
-import { BackButton } from "@/components/back-button";
+import Link from "next/link";
 import { getLocale, getDict, t } from "@/lib/i18n";
+import { GUARANTEE_CODES } from "@/lib/constants/guarantee-codes";
 
 export default async function GuaranteeCodesPage() {
   const locale = await getLocale();
   const dict = getDict(locale);
 
-  const GUARANTEE_CODES = [
-    {
-      code: "cc_guaranteed",
-      label: t(dict, "gc.cc.label"),
-      description: t(dict, "gc.cc.desc"),
-    },
-    {
-      code: "company_guaranteed",
-      label: t(dict, "gc.co.label"),
-      description: t(dict, "gc.co.desc"),
-    },
-    {
-      code: "deposit_guaranteed",
-      label: t(dict, "gc.dep.label"),
-      description: t(dict, "gc.dep.desc"),
-    },
-    {
-      code: "non_guaranteed",
-      label: t(dict, "gc.ng.label"),
-      description: t(dict, "gc.ng.desc"),
-    },
-    {
-      code: "travel_agent_guaranteed",
-      label: t(dict, "gc.ta.label"),
-      description: t(dict, "gc.ta.desc"),
-    },
-  ];
-
   return (
-    <main className="p-8 max-w-3xl mx-auto">
-      <BackButton fallbackHref="/configuration" label="Back to Configuration" />
-      <h1 className="text-2xl font-bold mt-2 mb-2">{t(dict, "guaranteeCodes.title")}</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        {t(dict, "guaranteeCodes.subtitle")}
-      </p>
-      <div className="border rounded overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase w-52">
-                {t(dict, "guaranteeCodes.colCode")}
-              </th>
-              <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase w-48">
-                {t(dict, "guaranteeCodes.colName")}
-              </th>
-              <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">
-                {t(dict, "guaranteeCodes.colDesc")}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {GUARANTEE_CODES.map((g) => (
-              <tr key={g.code} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-mono text-blue-700">{g.code}</td>
-                <td className="px-4 py-3 font-medium">{g.label}</td>
-                <td className="px-4 py-3 text-gray-600">{g.description}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div data-testid="config-guarantee-codes-page">
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <Link href="/configuration" style={{ color: "var(--muted)" }}>
+          ← {t(dict, "config.backToConfig")}
+        </Link>
       </div>
-    </main>
+
+      <div className="page-head">
+        <h1 className="page-title" data-testid="config-guarantee-codes-title">
+          {t(dict, "guaranteeCodes.title")}
+        </h1>
+        <span className="page-sub" data-testid="config-guarantee-codes-subtitle">
+          {t(dict, "guaranteeCodes.subtitle")}
+        </span>
+      </div>
+
+      <div className="card">
+        <div className="card-body" style={{ padding: 0 }}>
+          <table className="t" data-testid="config-guarantee-codes-table">
+            <thead>
+              <tr>
+                <th style={{ width: 220 }}>{t(dict, "guaranteeCodes.colCode")}</th>
+                <th style={{ width: 220 }}>{t(dict, "guaranteeCodes.colName")}</th>
+                <th>{t(dict, "guaranteeCodes.colDesc")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {GUARANTEE_CODES.map((g) => (
+                <tr key={g.code} data-testid={`config-guarantee-codes-row-${g.code}`}>
+                  <td className="tnum" style={{ color: "var(--accent)" }}>
+                    {g.code}
+                  </td>
+                  <td style={{ fontWeight: 500 }}>{t(dict, g.labelKey)}</td>
+                  <td style={{ color: "var(--muted)" }}>{t(dict, g.descKey)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   );
 }

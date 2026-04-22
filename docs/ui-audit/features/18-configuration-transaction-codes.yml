@@ -1,0 +1,230 @@
+id: 18-configuration-transaction-codes
+title: "Configuration: Transaction Codes"
+route: /configuration/transaction-codes
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  list_page:
+    server_component: apps/web/src/app/configuration/transaction-codes/page.tsx
+    note: >
+      Mostly i18n'd. Two i18n gaps filed as BUG-010:
+      (a) badge text "charge"/"payment" hardcoded (lines 84, 128);
+      (b) CHARGE_GROUP_CODES select options rendered as raw snake_case strings (form lines 167-169).
+      No delete button exists anywhere in UI — API-only operation.
+    testids:
+      - { id: tx-codes-title,         element: "h1",                    added: true }
+      - { id: tx-codes-new,           element: "Link (New code btn)",   added: true }
+      - { id: tx-codes-empty,         element: "div (empty state card)",added: true }
+      - { id: tx-codes-charges-card,  element: "div.card (charges)",    added: true }
+      - { id: tx-codes-payments-card, element: "div.card (payments)",   added: true }
+      - { id: tx-code-row,            element: "tbody tr",              added: true, note: "also data-tx-code-id={id}" }
+      - { id: tx-code-code,           element: "td (code)",             added: true }
+      - { id: tx-code-description,    element: "td (description)",      added: true }
+      - { id: tx-code-group,          element: "td (groupCode)",        added: true }
+      - { id: tx-code-type-badge,     element: "span.badge",            added: true }
+      - { id: tx-code-edit,           element: "Link (Edit)",           added: true }
+
+  form:
+    component: apps/web/src/app/configuration/transaction-codes/transaction-code-form.tsx
+    note: "Fully i18n'd for labels and buttons. Group-code option texts are raw snake_case — BUG-010."
+    testids:
+      - { id: tx-code-form,               element: "form",              added: true }
+      - { id: tx-code-error-banner,       element: "div[role=alert]",   added: true }
+      - { id: tx-code-field-code,         element: "input[text]",       added: true }
+      - { id: tx-code-field-description,  element: "input[text]",       added: true }
+      - { id: tx-code-field-sort-order,   element: "input[number]",     added: true }
+      - { id: tx-code-field-type,         element: "select",            added: true }
+      - { id: tx-code-field-group,        element: "select",            added: true }
+      - { id: tx-code-field-manual-post,  element: "input[checkbox]",   added: true }
+      - { id: tx-code-field-active,       element: "input[checkbox]",   added: true, note: "edit mode only" }
+      - { id: tx-code-submit,             element: "button[submit]",    added: true }
+
+  edit_page:
+    component: apps/web/src/app/configuration/transaction-codes/[id]/edit/page.tsx
+    note: "All labels i18n'd via t(dict, 'txCodes.form.*'). Clean."
+    testids:
+      - { id: tx-code-edit-title, element: "h1", added: true }
+
+seed_data:
+  property: "Grand Baltic Hotel (GBH) — ff1d9135-dfb9-4baa-be46-0e739cd26dad"
+  total: 14
+  charges:
+    count: 11
+    codes:
+      - { code: ADJ_ROOM,  id: "5186a9e1-4e76-4c8d-9d77-13d4c5794d0e",  manual: true }
+      - { code: ADJ_FB,    id: "c958d48f-aa1f-4103-8a78-24b9bd42ccb1",  manual: true }
+      - { code: ROOM,      id: "c4d15cc0-d75e-4d3c-ae5c-a38fcc4f6a2e",  manual: false, note: "288 folio refs → delete-blocked target" }
+      - { code: ROOM_TAX,  id: "edf78018-502f-4064-94d8-d040883d661f",  manual: false }
+      - { code: EXTRA_BED, id: "86abd7a3-85ae-4480-94ac-bf947c124c6f",  manual: true }
+      - { code: NO_SHOW,   id: "43f40a09-e1db-47ff-a096-0902fc308d7e",  manual: false }
+      - { code: FB_REST,   id: "3dc304ff-76d1-4939-a435-2df6ee6df8b7",  manual: true }
+      - { code: FB_BAR,    id: "82cf1ea7-d19c-46e5-b9c9-19d69c2f170b",  manual: true }
+      - { code: MINIBAR,   id: "25462d33-7748-4725-bbe3-3484e53557fe",  manual: true, note: "scenario 02 toggle-manual-post target" }
+      - { code: BREAKFAST, id: "83b646b7-ec41-4879-965c-990e3d17b649",  manual: true, note: "scenario 03 edit-description target" }
+      - { code: PARKING,   id: "d87a8b30-df0a-4eb7-94a6-ac7462360b97",  manual: true }
+  payments:
+    count: 3
+    codes:
+      - { code: PAY_CASH,     id: "5dc56b37-7756-4279-8136-d2e6c6ce1e18", manual: true }
+      - { code: PAY_CARD,     id: "81eff7fc-6729-4b0a-8af9-84063864226e", manual: true }
+      - { code: PAY_TRANSFER, id: "2a0a86dd-ea27-4557-b132-e0e5c44fa313", manual: true }
+
+steps:
+  - id: "01-list-create"
+    status: ok
+    action: >
+      Navigate /configuration/transaction-codes; assert tx-codes-charges-card visible with 11 rows,
+      tx-codes-payments-card visible with 3 rows; assert representative codes (ADJ_ROOM, ROOM, MINIBAR,
+      PAY_CASH, PAY_CARD, PAY_TRANSFER) present in tx-code-code cells.
+      RU: read-only, screenshot, return.
+      EN: click tx-codes-new → /new; fill code=AUD_TC, description="Audit test code (C7)",
+      type=charge, group=misc, manual=true, sortOrder=100; submit → POST 201; redirect;
+      AUD_TC row visible; charge rowCount=12.
+      Capture createdTcId for cleanup in extraAfterAll.
+    screenshots:
+      - 18-configuration-transaction-codes-01-list-view-ru.png
+      - 18-configuration-transaction-codes-01-list-create-en.png
+    mutation: true
+    locale_gate: mutation runs en-only; list read ru+en
+
+  - id: "02-toggle-manual-post"
+    status: ok
+    action: >
+      Snapshot MINIBAR in beforeAll (manual=true). Navigate /configuration/transaction-codes/MINIBAR_ID/edit.
+      Assert tx-code-field-manual-post is checked; uncheck it.
+      Submit → PUT /api/transaction-codes/MINIBAR_ID 200; no error banner; redirect to list.
+      API re-GET via list: assert isManualPostAllowed=false. Set minibarMutationApplied=true BEFORE assertions.
+      extraAfterAll: PUT snapshot back; re-GET field-by-field; throw CRITICAL on mismatch.
+    screenshots:
+      - 18-configuration-transaction-codes-02-toggle-manual-post-en.png
+    mutation: true
+    locale_gate: en-only
+    restore_mechanism: "beforeAll MINIBAR snapshot + extraAfterAll PUT + list re-GET field-by-field verify"
+
+  - id: "03-edit"
+    status: ok
+    action: >
+      Snapshot BREAKFAST in beforeAll. Navigate /configuration/transaction-codes/BREAKFAST_ID/edit.
+      Change description to "Breakfast — edited by UI audit (will be restored)".
+      Submit → PUT 200; no error banner; redirect to list.
+      API re-GET via list: assert description changed. Set breakfastMutationApplied=true BEFORE assertions.
+      extraAfterAll: PUT snapshot back; re-GET; assert description matches; throw CRITICAL on mismatch.
+    screenshots:
+      - 18-configuration-transaction-codes-03-edit-en.png
+    mutation: true
+    locale_gate: en-only
+    restore_mechanism: "beforeAll BREAKFAST snapshot + extraAfterAll PUT + list re-GET verify"
+
+  - id: "04-delete-blocked"
+    status: ok
+    action: >
+      No UI delete path exists for transaction codes. This scenario uses a direct API call.
+      Direct DELETE /api/transaction-codes/ROOM_ID?propertyId=... → 400 { code: 'HAS_FOLIO_TRANSACTIONS',
+      error: 'Cannot delete: code is used in N folio transactions.' }.
+      Assert body.code='HAS_FOLIO_TRANSACTIONS'; assert body.error matches /\d+/.
+      Reload list; assert ROOM row still present. API list re-GET confirms ROOM still exists.
+      No cleanup needed (400 = validation before mutation; DB unchanged).
+      NOTE: API response does NOT include a separate `cnt` field — count is embedded in `error` string.
+    screenshots:
+      - 18-configuration-transaction-codes-04-delete-blocked-en.png
+    mutation: false
+    locale_gate: en-only
+    note: "API-only test — no UI delete path exists for transaction codes. See missing_actions below."
+
+missing_actions:
+  - action: "delete transaction code via UI"
+    ui_path: "none — confirmed via grep: no delete button or link anywhere in /configuration/transaction-codes"
+    api_path: "DELETE /api/transaction-codes/:id?propertyId=..."
+    api_protection: >
+      API validates before mutation: if code has folio transactions → 400 HAS_FOLIO_TRANSACTIONS.
+      Codes with zero folio usage (e.g. freshly-created AUD_TC) are deletable via API.
+    workaround: "Admin must use direct API call to delete unused codes."
+    recommendation: >
+      Either add a Delete button to the edit page with a confirm dialog
+      (shown only when transactionCount=0 or with a hard-block warning),
+      or keep it admin-API-only and document explicitly in the help system.
+      Current UX gap: users cannot clean up test/obsolete codes without API access.
+    test_approach: "Scenario 04 uses direct API call to validate the protection gate."
+
+edge_cases:
+  - id: "no-direct-get-endpoint"
+    description: "GET /api/transaction-codes/:id returns 404 (Route not found)"
+    expected: "Individual tc fetch should be supported for edit page pre-population"
+    observed: >
+      Confirmed: GET /api/transaction-codes/25462d33... → 404 'Route not found'.
+      Edit page works because it fetches the full list and finds by id client-side.
+      Tests use list-GET + find() for snapshot/verify instead of direct GET.
+    impact: "Minor — edit page works; tests adapted. No user-facing breakage."
+
+  - id: "badge-text-hardcoded-en"
+    description: "Type badges 'charge'/'payment' in both tables are hardcoded English"
+    expected: "Should use t(dict, 'txCodes.badge.charge') / t(dict, 'txCodes.badge.payment')"
+    observed: "page.tsx lines 84, 128 render literal strings 'charge' and 'payment'"
+    filed_as: BUG-010
+
+  - id: "group-code-options-raw-snake-case"
+    description: "CHARGE_GROUP_CODES select options show raw identifiers (room_charge, tax, minibar…)"
+    expected: "Should display human-readable labels localised per locale"
+    observed: >
+      transaction-code-form.tsx lines 167-169: options rendered as {g} (raw snake_case string).
+      Users see 'room_charge', 'tax', 'minibar', 'restaurant', 'spa', 'laundry', 'phone', 'parking', 'misc'.
+    filed_as: BUG-010
+
+  - id: "groupCode-seed-values"
+    description: "Seeded codes use 'FB' and 'room_charge' style groupCodes inconsistently"
+    observed: >
+      MINIBAR groupCode='FB', BREAKFAST groupCode='FB', ROOM groupCode='room_charge'.
+      Form shows CHARGE_GROUP_CODES but seed used different strings (FB vs restaurant etc).
+      No validation on groupCode in API — accepts any string. Purely a display/UX issue.
+    impact: "Low — no breakage; display is cosmetic."
+
+api_calls_observed:
+  - { method: GET,    path: "/api/transaction-codes?propertyId=...", status: 200, note: "list load (server + beforeAll + extraAfterAll)" }
+  - { method: POST,   path: "/api/transaction-codes",                status: 201, note: "scenario 01 — create AUD_TC" }
+  - { method: PUT,    path: "/api/transaction-codes/:id",            status: 200, note: "scenario 02/03 mutations + extraAfterAll restores" }
+  - { method: DELETE, path: "/api/transaction-codes/:id?propertyId=...", status: 400, note: "scenario 04 — HAS_FOLIO_TRANSACTIONS blocked (ROOM code)" }
+  - { method: DELETE, path: "/api/transaction-codes/:id?propertyId=...", status: 200, note: "extraAfterAll — AUD_TC cleanup" }
+
+console_errors: []
+network_errors:
+  - { method: DELETE, path: "/api/transaction-codes/:id?propertyId=...", status: 400,
+      note: "Expected — scenario 04 HAS_FOLIO_TRANSACTIONS validation; not a bug" }
+
+bugs: []
+
+signals:
+  l10n: partial
+  l10n_note: "Page/form labels i18n'd; badge text and group-code options hardcoded English (BUG-010)"
+  testids_added: true
+  testids_prefix: "tx-code-*"
+  mutations_gated_to_en: true
+  risk: MEDIUM
+  restore_mechanism: >
+    beforeAll snapshots (MINIBAR + BREAKFAST) + extraAfterAll PUT restores +
+    list re-GET field-by-field verify + belt-and-suspenders total-count check (must equal 14)
+
+help_rewrite_hints:
+  topic: transaction-codes-configuration
+  actual: |
+    /configuration/transaction-codes lists all codes split into Charges and Payments cards.
+    Each row shows code, description, groupCode, type badge, and Edit link.
+    Create via /new, edit via /[id]/edit. No delete UI — delete is API-only with folio-usage guard.
+    14 seed codes: 11 charges + 3 payments. Manual-post flag controls which codes users can post manually.
+  rewrite: |
+    Add transaction codes help section:
+    - What transaction codes are (charge types, payment types; tie to folio posting)
+    - Creating a new code (code string, description, type, group, manual-post flag, sort order)
+    - Editing a code (all fields editable except restriction on codes with heavy folio usage)
+    - isManualPostAllowed flag: when unchecked, code is system-only (cannot be manually posted by frontdesk)
+    - No delete via UI; codes with folio transactions are permanently protected
+
+retro:
+  time_minutes: 0
+  unblocker_fixes: []
+  methodology_deltas:
+    - "Retro block back-filled during Batch D finalisation to satisfy validate-yaml schema (field added to _template.yml after Batch C shipped)."
+
+status: ok
+last_audited: "2026-04-21"
+screenshots_dir: docs/ui-audit/screenshots/

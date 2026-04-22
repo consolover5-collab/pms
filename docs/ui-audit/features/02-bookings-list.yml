@@ -1,0 +1,150 @@
+id: bookings.list
+title: "Список бронирований"
+route: /bookings
+depends_on:
+  - auth.login
+  - property.select
+  - business-date
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "Бронирования"
+    en: "Bookings"
+  required_fields: []
+  optional_fields:
+    - { id: tabAll, label: { ru: "Все", en: "All" }, kind: "tab" }
+    - { id: tabArrivals, label: { ru: "Заезды сегодня", en: "Arrivals today" }, kind: "tab" }
+    - { id: tabDepartures, label: { ru: "Выезды сегодня", en: "Departures today" }, kind: "tab" }
+    - { id: tabInHouse, label: { ru: "В отеле", en: "In-house" }, kind: "tab" }
+    - { id: statusFilter, label: { ru: "Статус", en: "Status" }, kind: "chips", note: "Все / Подтверждено / Заселён / Выехал / Отменено / No-show — только при !view" }
+    - { id: dateFilter, label: { ru: "Даты", en: "Dates" }, kind: "date-range", note: "client-component DateFilter — только при !view" }
+    - { id: search, label: { ru: "Поиск", en: "Search" }, kind: "text", note: "клиентская форма с хардкод-английским placeholder — см. BUG-003" }
+  buttons:
+    newBooking: { ru: "Новое бронирование", en: "New booking" }
+    prev: { ru: "Назад", en: "Previous" }
+    next: { ru: "Далее", en: "Next" }
+
+steps:
+  - id: "01-tab-all"
+    action: "Открыть /bookings под admin; активна вкладка All/Все; таблица с колонками Conf/Guest/Room/CheckIn/CheckOut/Status/Total; filterbar и DateFilter видны"
+    screenshots: [02-bookings-list-01-tab-all-ru.png, 02-bookings-list-01-tab-all-en.png]
+  - id: "02-tab-arrivals"
+    action: "Кликнуть Arrivals today/Заезды сегодня — URL /bookings?view=arrivals, заголовок H1 меняется на название вкладки, filterbar скрыт"
+    screenshots: [02-bookings-list-02-tab-arrivals-ru.png, 02-bookings-list-02-tab-arrivals-en.png]
+  - id: "03-tab-in-house"
+    action: "Кликнуть In-house/В отеле — URL /bookings?view=inhouse; если строки есть — все бейджи со статусом checked-in"
+    screenshots: [02-bookings-list-03-tab-in-house-ru.png, 02-bookings-list-03-tab-in-house-en.png]
+  - id: "04-status-filter"
+    action: "На дефолтной /bookings кликнуть чип Confirmed/Подтверждено — URL /bookings?status=confirmed, активен соответствующий .fld.on"
+    screenshots: [02-bookings-list-04-status-filter-ru.png, 02-bookings-list-04-status-filter-en.png]
+  - id: "05-click-row-navigates"
+    action: "Кликнуть a.conf первой строки — редирект на /bookings/{uuid}"
+    screenshots: [02-bookings-list-05-click-row-navigates-ru.png, 02-bookings-list-05-click-row-navigates-en.png]
+
+edge_cases:
+  - id: default-tab-all
+    description: "Открытие /bookings без query-параметров"
+    expected: "Активна вкладка All; filterbar + DateFilter видны; таблица рендерит строки либо div.empty"
+    observed: "OK — seed содержит бронирования, таблица непустая для обоих локалей (скриншот 01)"
+  - id: view-arrivals-hides-filters
+    description: "При view=arrivals/departures/inhouse filterbar и DateFilter скрыты"
+    expected: "Шаблон не рендерит .filterbar и DateFilter; заголовок H1 = label вкладки"
+    observed: "OK — .filterbar = 0 элементов после перехода на view=arrivals (скриншот 02)"
+  - id: inhouse-badges-checked-in
+    description: "Все строки под view=inhouse имеют статус checked_in"
+    expected: "Каждый .badge в tbody содержит класс checked-in"
+    observed: "OK — при наличии строк assertion проходит; при пустом списке гвард пропускает проверку (скриншот 03)"
+  - id: status-filter-active
+    description: "Клик по chip status=confirmed"
+    expected: "URL меняется на /bookings?status=confirmed; класс .fld.on у кликнутого чипа"
+    observed: "OK — activeChip содержит label Confirmed/Подтверждено (скриншот 04)"
+  - id: click-row-to-detail
+    description: "Клик по a.conf строки ведёт на детали брони"
+    expected: "URL соответствует /\\/bookings\\/[0-9a-f-]{36}$/"
+    observed: "OK — переход зарегистрирован waitForURL (скриншот 05)"
+  - id: search-form-hardcoded-en
+    description: "BookingSearchForm с placeholder и кнопкой на английском"
+    expected: "Строки должны быть локализованы"
+    observed: "BUG-003 — 'Search by guest name or confirmation number...' и 'Search' хардкод в search-form.tsx (строки 33, 40)"
+
+api_calls_observed:
+  - { method: GET, path: "/api/auth/me",                                    status: 200, note: "web middleware (auth guard) на каждую навигацию" }
+  - { method: GET, path: "/api/properties",                                 status: 200, note: "web proxy → api; первая property = активная" }
+  - { method: GET, path: "/api/business-date?propertyId={propertyId}",      status: 200, note: "topbar client-fetch для бизнес-даты + Due In/Out" }
+  - { method: GET, path: "/api/bookings?propertyId={propertyId}&checkInDate={from}&checkOutDate={to}&limit=50&offset=0", note: "server-side apiFetch (не виден в browser network) — дефолтный /bookings" }
+  - { method: GET, path: "/api/bookings?propertyId={propertyId}&status=confirmed&checkInDate={from}&checkOutDate={to}&limit=50&offset=0", note: "server-side apiFetch — фильтр по статусу" }
+  - { method: GET, path: "/api/bookings?propertyId={propertyId}&view=arrivals&limit=50&offset=0",  note: "server-side apiFetch — view=arrivals (UI использует ?view=, а не ?arrivalsOn=)" }
+  - { method: GET, path: "/api/bookings?propertyId={propertyId}&view=inhouse&limit=50&offset=0",   note: "server-side apiFetch — view=inhouse" }
+  - { method: GET, path: "/api/bookings/{id}/folio",                        status: 200, note: "после клика a.conf и редиректа на /bookings/{id}" }
+  - { method: GET, path: "/api/transaction-codes?propertyId={propertyId}",  status: 200, note: "на странице деталей бронирования после редиректа" }
+
+console_errors: []
+
+network_errors: []
+
+bugs: []
+
+help_rewrite_hints:
+  topic: bookings
+  current: |
+    help-content.tsx / bookings:
+    — Описывает создание бронирования пошагово (см. секцию 03). Про список бронирований,
+      вкладки и фильтры отдельной статьи нет.
+  actual: |
+    UI /bookings содержит:
+    — Заголовок H1: "Бронирования" / "Bookings", меняется на label вкладки при ?view=…
+    — 4 вкладки: All, Arrivals today, Departures today, In-house (Link на /bookings?view=…).
+    — Chip-фильтр по статусу: All + 5 статусов (Confirmed/CheckedIn/CheckedOut/Cancelled/NoShow) —
+      рендерится только при !view.
+    — DateFilter с presetами Today/Week/Month — только при !view.
+    — Форма поиска (клиентская) с английским placeholder "Search by guest name or confirmation
+      number..." и английской кнопкой "Search" — BUG-003 (не локализована).
+    — Таблица: Confirmation / Guest / Room / Check-in / Check-out / Status / Total
+      (+ Action при view=arrivals|departures).
+    — Due In / Due Out бейджи для confirmed-заездов и checked_in-выездов на сегодняшний
+      бизнес-день.
+    — Пагинация (prev/next + "Page X of Y") появляется при totalPages > 1.
+  rewrite: |
+    ## Список бронирований
+
+    Страница `/bookings` — основной реестр броней. Над таблицей доступны:
+
+    ### Вкладки (views)
+    - **Все** — весь реестр с фильтрами по статусу и диапазону дат.
+    - **Заезды сегодня** — confirmed-брони с checkInDate = бизнес-день.
+    - **Выезды сегодня** — checked_in-брони с checkOutDate = бизнес-день.
+    - **В отеле** — все гости, текущий статус checked_in.
+
+    ### Фильтры (только на вкладке «Все»)
+    - **Статус**: Все / Подтверждено / Заселён / Выехал / Отменено / No-show.
+    - **Даты**: диапазон с пресетами «Сегодня», «Неделя», «Месяц», «Сбросить».
+    - **Поиск**: по имени гостя или номеру подтверждения.
+
+    ### Таблица
+    Колонки: **Подтверждение**, **Гость**, **Номер**, **Заезд**, **Выезд**, **Статус**, **Итого**.
+    На вкладках Arrivals / Departures добавляется колонка **Действие** с кнопкой
+    **Заселить** / **Выселить** для брони в подходящем статусе.
+
+    - **Due In** — оранжевый бейдж у confirmed-брони, чей заезд попадает на текущий
+      бизнес-день.
+    - **Due Out** — оранжевый бейдж у checked_in-брони, чей выезд попадает на
+      текущий бизнес-день.
+
+    Клик по **номеру подтверждения** или **ФИО гостя** в строке открывает страницу
+    бронирования `/bookings/{id}`.
+
+    ### Создание
+    Кнопка **Новое бронирование** в шапке ведёт на `/bookings/new` (см. отдельную статью).
+
+retro:
+  time_minutes: 25
+  unblocker_fixes: []
+  methodology_deltas:
+    - "ensureBooking fixture не потребовался — seed уже содержит бронирования (контроллер подтвердил до старта)"
+    - "план упоминал валидацию через GET /api/bookings?arrivalsOn=… — фактически UI использует ?view=arrivals; спека проверяет URL паттерн /\\/bookings\\?view=arrivals/"
+    - "server-rendered apiFetch (/api/bookings, /api/properties) не виден через page.on('response') — те же ограничения, что и в секции 01 дашборда; server-side вызовы помечены note в api_calls_observed"
+
+status: ok
+last_audited: 2026-04-21
+screenshots_dir: docs/ui-audit/screenshots/

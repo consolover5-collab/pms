@@ -1,0 +1,117 @@
+id: 09-housekeeping
+title: "Housekeeping"
+route: /housekeeping
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "Уборка номеров"
+    en: "Housekeeping"
+  required_fields: []
+  optional_fields:
+    - { id: statusFilter, label: { ru: "Все статусы", en: "All statuses" }, kind: "select",
+        note: "Filters task list by status: all / pending / in_progress / completed" }
+    - { id: maidFilter, label: { ru: "Фильтр по горничной...", en: "Attendant name…" }, kind: "text",
+        note: "Client-side filter on assignedTo field" }
+    - { id: assignedTo, label: { ru: "Имя горничной...", en: "Attendant name…" }, kind: "text",
+        note: "Per-task attendant input inside kcard; saves on blur via PATCH" }
+  buttons:
+    generateTasks:
+      ru: "Сгенерировать задания на сегодня"
+      en: "Generate today's tasks"
+      note: "Always rendered; disabled only when businessDate is null"
+    actionStart:
+      ru: "Начать"
+      en: "Start"
+      note: "Shown on pending tasks; sets status=in_progress"
+    actionDone:
+      ru: "Готово"
+      en: "Done"
+      note: "Shown on pending and in_progress tasks; sets status=completed"
+    actionSkip:
+      ru: "Пропустить"
+      en: "Skip"
+      note: "Shown on non-skipped, non-completed tasks; sets status=skipped"
+
+steps:
+  - id: "01-list-render"
+    action: "Load /housekeeping; kanban board renders tasks grouped by room.housekeepingStatus"
+    screenshots:
+      - 09-housekeeping-01-list-render-ru.png
+      - 09-housekeeping-01-list-render-en.png
+
+  - id: "02-generate-tasks"
+    action: "Click 'Generate today's tasks' button; POST /api/housekeeping/generate fires; button re-enables after response"
+    screenshots:
+      - 09-housekeeping-02-generate-tasks-ru.png
+      - 09-housekeeping-02-generate-tasks-en.png
+    note: "With tasks already seeded for today, API returns {created:0, businessDate}; this is correct behavior"
+
+  - id: "03-assign-task"
+    action: "Type attendant name into kcard input; blur → PATCH /api/housekeeping/tasks/:id fires; assignedTo saved"
+    screenshots:
+      - 09-housekeeping-03-assign-task-en.png
+    note: "Mutation runs en-only; ru skipped intentionally"
+
+  - id: "04-complete-task"
+    action: "Click 'Done' on a pending task → PATCH /api/housekeeping/tasks/:id {status:completed} → 200; status badge updates"
+    screenshots:
+      - 09-housekeeping-04-complete-task-en.png
+    note: "Mutation runs en-only; room housekeepingStatus snapshot captured as attachment"
+
+edge_cases:
+  - id: rush-priority-badge
+    description: "Task with priority=1 renders '● Rush' badge inline in kcard header"
+    expected: "Badge visible in UI; 1 rush task present in seed data (room 206)"
+    observed: "Not directly asserted — visible in screenshots; rush styling uses var(--no-show) color"
+  - id: generate-when-tasks-exist
+    description: "Generate button clicked when tasks already exist for today"
+    expected: "API returns {created:0}; no error shown; task list unchanged"
+    observed: "OK — test 02 confirmed; button re-enables cleanly"
+  - id: unassigned-task-input
+    description: "Task with assignedTo=null shows empty input with placeholder"
+    expected: "Input renders with placeholder text, not a disabled state"
+    observed: "OK — observed in scenario 03 precondition"
+  - id: filter-by-status
+    description: "Status filter select changes shown tasks"
+    expected: "Client-side filtering; no additional API call"
+    observed: "Not exercised — render-only test confirms select presence"
+
+api_calls_observed:
+  - { method: GET,  path: "/api/auth/me", status: 200 }
+  - { method: GET,  path: "/api/properties", status: 200 }
+  - { method: GET,  path: "/api/business-date", status: 200 }
+  - { method: GET,  path: "/api/housekeeping/tasks", status: 200 }
+  - { method: POST, path: "/api/housekeeping/generate", status: 200 }
+  - { method: PATCH, path: "/api/housekeeping/tasks/:id", status: 200, note: "assign attendant" }
+  - { method: PATCH, path: "/api/housekeeping/tasks/:id", status: 200, note: "complete task" }
+
+console_errors: []
+network_errors: []
+
+bugs: []
+
+help_rewrite_hints:
+  topic: null
+  current: ""
+  actual: |
+    /housekeeping route exists and renders a full kanban board with task management.
+    Help content at /help/[topic] mentions dirty rooms and notifying housekeeping only
+    in the context of the dashboard, not a dedicated housekeeping article.
+  rewrite: |
+    Add a dedicated help article "housekeeping" covering: kanban board layout (columns
+    by room HK status), generating daily tasks, assigning attendants, status transitions
+    (pending → in_progress → completed / skipped), and rush priority indicator.
+
+retro:
+  time_minutes: 30
+  unblocker_fixes:
+    - "Assign flow uses onBlur on a plain text input, not a dropdown — spec uses maidInput.fill + blur pattern"
+    - "No GET /api/housekeeping/tasks/:id endpoint — task lookup uses list+filter"
+  methodology_deltas:
+    - "extraAfterAll safety-net in registerSectionHooks cleans up mutated tasks reliably"
+
+status: ok
+last_audited: "2026-04-21"
+screenshots_dir: docs/ui-audit/screenshots/

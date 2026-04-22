@@ -1,0 +1,180 @@
+id: 05-booking-edit
+title: "Booking Edit"
+route: /bookings/[id]/edit
+depends_on: [02-bookings-list, 04-booking-detail]
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "Edit Booking #{confirmationNumber}"
+    en: "Edit Booking #{confirmationNumber}"
+    note: >
+      Hardcoded string in page.tsx line 49 — NOT driven by i18n. Identical on ru and en.
+      Template placeholder {confirmationNumber} is interpolated by the server component
+      (e.g. "Edit Booking #GBH-000092").
+  required_fields:
+    - { id: guest, label: { ru: "Guest", en: "Guest" }, kind: "select",
+        note: "data-testid='booking-edit-guest'; disabled when status ≠ confirmed" }
+    - { id: roomType, label: { ru: "Room Type", en: "Room Type" }, kind: "select",
+        note: "data-testid='booking-edit-room-type'; disabled when status ≠ confirmed" }
+    - { id: checkIn, label: { ru: "Check-in", en: "Check-in" }, kind: "date",
+        note: "data-testid='booking-edit-checkin'; disabled when status ≠ confirmed" }
+    - { id: checkOut, label: { ru: "Check-out", en: "Check-out" }, kind: "date",
+        note: "data-testid='booking-edit-checkout'; remains editable when status=checked_in (extend stay)" }
+  optional_fields:
+    - { id: confirmation, label: { ru: "Confirmation Number", en: "Confirmation Number" }, kind: "text",
+        note: "data-testid='booking-edit-confirmation'; always disabled (read-only)" }
+    - { id: company, label: { ru: "Company", en: "Company" }, kind: "select",
+        note: "disabled when canEditFinancials=false" }
+    - { id: agent, label: { ru: "Travel Agent", en: "Travel Agent" }, kind: "select" }
+    - { id: source, label: { ru: "Source", en: "Source" }, kind: "select" }
+    - { id: room, label: { ru: "Room", en: "Room" }, kind: "select",
+        note: "canEditRoom = confirmed OR checked_in; roommove allowed while checked-in" }
+    - { id: adults, label: { ru: "Adults", en: "Adults" }, kind: "number",
+        note: "data-testid='booking-edit-adults'; disabled when status ≠ confirmed" }
+    - { id: children, label: { ru: "Children", en: "Children" }, kind: "number",
+        note: "data-testid='booking-edit-children'; disabled when status ≠ confirmed" }
+    - { id: ratePlan, label: { ru: "Rate Plan", en: "Rate Plan" }, kind: "select" }
+    - { id: rateAmount, label: { ru: "Rate/Night", en: "Rate/Night" }, kind: "number" }
+    - { id: guarantee, label: { ru: "Guarantee", en: "Guarantee" }, kind: "select" }
+    - { id: paymentMethod, label: { ru: "Payment Method", en: "Payment Method" }, kind: "select" }
+    - { id: notes, label: { ru: "Notes", en: "Notes" }, kind: "textarea",
+        note: "data-testid='booking-edit-notes'; always editable for all statuses" }
+  buttons:
+    submit:
+      ru: "Save Changes"
+      en: "Save Changes"
+      note: >
+        data-testid='booking-edit-submit'. Disabled when saving | isTerminal | dateError.
+        Label switches to 'Saving...' during PUT.
+    cancel:
+      ru: "Cancel"
+      en: "Cancel"
+      note: "data-testid='booking-edit-cancel'; Link back to /bookings/:id"
+
+steps:
+  - id: "01-load-edit-form"
+    action: "Open /bookings/:id/edit for a confirmed booking; form renders; all core fields editable; submit enabled"
+    screenshots:
+      - 05-booking-edit-01-load-edit-form-ru.png
+      - 05-booking-edit-01-load-edit-form-en.png
+    note: >
+      Read-only observation using first confirmed booking from API. Neither the terminal
+      banner nor the blue status-info banner is present for confirmed status (explanation
+      dict has no entry for 'confirmed').
+
+  - id: "02-edit-dates-save"
+    action: "Create fresh confirmed booking via fixture; open edit page; force checkOutDate+1 via native setter; submit; PUT /api/bookings/:id 200; redirect to /bookings/:id; re-fetch confirms checkOutDate changed"
+    screenshots:
+      - 05-booking-edit-02-edit-dates-initial-en.png
+      - 05-booking-edit-02-edit-dates-saved-en.png
+    note: >
+      Mutation scenario; en-only; ru skipped. Uses createConfirmedBooking
+      with marker='audit-section-05' and future bizDate '2026-05-15' to stay clear of
+      seed check-in windows. Cleanup via cleanupAuditBookings('audit-section-05') in
+      registerSectionHooks extraAfterAll. PUT body contains guestProfileId, roomTypeId,
+      checkInDate, checkOutDate, adults, children, roomId, financials subset, notes.
+
+  - id: "03-edit-blocked-after-checkin"
+    action: "Open edit page for a checked_in booking; form does NOT redirect; guest / roomType / checkIn / adults / children selects+inputs are disabled; checkOut input remains enabled (extend-stay affordance); status-info banner visible with 'checked in' copy"
+    screenshots:
+      - 05-booking-edit-03-edit-blocked-after-checkin-ru.png
+      - 05-booking-edit-03-edit-blocked-after-checkin-en.png
+    note: >
+      Observe-only (no save). Locked fields carry the 🔒 icon via FormField's
+      lockedReason prop. Notes textarea always editable. Submit button stays enabled
+      when there's no dateError — per booking-edit-form.tsx line 634.
+
+  - id: "04-validation-checkout-before-checkin"
+    action: "Open edit page for a confirmed booking; force checkIn=2026-05-10 and checkOut=2026-05-09 via native setValue (bypassing the min-attr); dateError text 'Check-out date must be after check-in date' is visible under the checkOut input; submit button disabled"
+    screenshots:
+      - 05-booking-edit-04-validation-checkout-before-checkin-ru.png
+      - 05-booking-edit-04-validation-checkout-before-checkin-en.png
+    note: >
+      Observe-only (no save). dateError memo fires whenever canEditCoreFields || canExtendStay
+      is true AND checkOutDate <= checkInDate. Inline error rendered via
+      data-testid='booking-edit-date-error'. Submit disabled via !!dateError guard.
+
+edge_cases:
+  - id: terminal-banner-absent-for-confirmed
+    description: "Yellow 'cannot be edited' banner + blue status-info banner both rely on booking.status. For confirmed status neither should render."
+    expected: "booking-edit-terminal-banner + booking-edit-status-info both have count 0"
+    observed: "OK — scenario 01 asserts toHaveCount(0) for both testids"
+
+  - id: i18n-missing-on-edit-form
+    description: "booking-edit-form.tsx uses only hardcoded English strings — no i18n keys in en.ts/ru.ts"
+    expected: "Form labels differ between ru and en"
+    observed: >
+      Form labels IDENTICAL on ru and en: 'Edit Booking #', 'Guest', 'Check-in', 'Save Changes'
+      all rendered in English regardless of the locale cookie. Mirrors BUG-003 pattern
+      (hardcoded English on client components). Filed as BUG-005.
+
+  - id: status-info-banner-checkedin
+    description: "Blue status-info banner shows for checked_in/checked_out/cancelled/no_show; NOT for confirmed"
+    expected: "For checked_in: banner reads 'Status: checked in' + extend-stay explanation"
+    observed: "OK — scenario 03 asserts visible + contains 'checked in'"
+
+  - id: extend-stay-while-checkedin
+    description: "Only checkOut date editable after check-in (room-move + notes also allowed, but dates specifically)"
+    expected: "checkIn disabled, checkOut enabled"
+    observed: "OK — scenario 03 asserts toBeDisabled + toBeEnabled respectively"
+
+  - id: submit-disabled-on-date-error
+    description: "Submit guard combines (saving || isTerminal || !!dateError)"
+    expected: "Disabled when dateError is truthy, even if form is confirmed and otherwise valid"
+    observed: "OK — scenario 04 asserts toBeDisabled after forcing checkOut < checkIn"
+
+api_calls_observed:
+  - { method: GET,  path: "/api/auth/me", status: 200 }
+  - { method: GET,  path: "/api/properties", status: 200 }
+  - { method: GET,  path: "/api/bookings?propertyId=:id&status=confirmed&limit=1", status: 200, note: "scenario 01/04 read-only pick" }
+  - { method: GET,  path: "/api/bookings?propertyId=:id&status=checked_in&limit=1", status: 200, note: "scenario 03 read-only pick" }
+  - { method: POST, path: "/api/bookings", status: 201, note: "scenario 02 fixture — createConfirmedBooking" }
+  - { method: GET,  path: "/api/bookings/:id", status: 200, note: "page SSR + re-fetch verification" }
+  - { method: GET,  path: "/api/profiles?propertyId=:id&type=individual", status: 200 }
+  - { method: GET,  path: "/api/profiles?propertyId=:id&type=company", status: 200 }
+  - { method: GET,  path: "/api/profiles?propertyId=:id&type=travel_agent", status: 200 }
+  - { method: GET,  path: "/api/profiles?propertyId=:id&type=source", status: 200 }
+  - { method: GET,  path: "/api/room-types?propertyId=:id", status: 200 }
+  - { method: GET,  path: "/api/rooms?propertyId=:id", status: 200 }
+  - { method: GET,  path: "/api/rate-plans?propertyId=:id", status: 200 }
+  - { method: GET,  path: "/api/business-date?propertyId=:id", status: 200 }
+  - { method: PUT,  path: "/api/bookings/:id", status: 200, note: "scenario 02 mutation" }
+  - { method: POST, path: "/api/bookings/:id/cancel", status: 200, note: "cleanup teardown via cleanupAuditBookings('audit-section-05')" }
+
+console_errors: []
+network_errors: []
+
+bugs: []
+
+help_rewrite_hints:
+  topic: bookings
+  current: ""
+  actual: |
+    /bookings/[id]/edit route exists with status-aware field locking:
+      - confirmed → all fields editable
+      - checked_in → only checkOut / room / financials / notes editable (guest, roomType,
+        checkIn, adults, children are locked with 🔒 tooltip)
+      - checked_out / cancelled / no_show → terminal banner; submit disabled; only
+        notes are editable (via handleSubmit body gate).
+    Date validation fires when checkOut <= checkIn; submit button guarded.
+  rewrite: |
+    Extend the 'bookings' help article to describe:
+      1. What can / cannot be edited after check-in (extend stay vs. full edit).
+      2. How to Reinstate a cancelled / checked-out booking before editing.
+      3. Why the Save Changes button may be disabled (terminal state or invalid dates).
+      4. Notes are always editable — useful for post-stay commentary.
+
+retro:
+  time_minutes: 35
+  unblocker_fixes:
+    - "Stale next-server process (PID 227853 from 16:15) was still serving the pre-rebuild chunk manifest and returning 404 for cb278ddfa0de7594.js even though the file existed on disk. Killing + restarting `next start` with the new build fixed form rendering."
+    - "Mutation booking created with future bizDate 2026-05-15 so the +1-day extend never clashed with seed check-in windows (businessDate=2026-04-20)."
+  methodology_deltas:
+    - "Stale next-server detection: if getByTestId times out AND page body is 'Loading...' AND .next/static chunk 404s, the running server predates the rebuild. Symptom-based debugging pattern."
+    - "Status-aware locking best verified at the testid level: adding data-testid on the <select> + <input> lets Playwright use toBeDisabled() directly instead of sniffing CSS (opacity-60 / bg-gray-100)."
+    - "setNativeValue with CSS attribute selector '[data-testid=...]' works for native date inputs; no need for specialized helpers."
+
+status: ok
+last_audited: "2026-04-21"
+screenshots_dir: docs/ui-audit/screenshots/

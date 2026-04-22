@@ -1,33 +1,230 @@
 {
   "project": "pms",
-  "updated": "2026-04-11",
+  "updated": "2026-04-22",
   "note": "Только подтверждённые проблемы — проверены по реальному коду, не по планам",
   "items": [
     {
       "id": "BUG-001",
-      "title": "Auth plugin отключён — API полностью открыто",
+      "title": "Auth plugin отключён — API-уровень preHandler guard не зарегистрирован",
       "severity": "critical",
-      "status": "deferred",
-      "defer_reason": "Намеренно отключено до принятия решений по MVP-релизу",
-      "source": "A7",
-      "file": "apps/api/src/app.ts",
-      "lines": "6-7, 35-36",
-      "description": "authPlugin закомментирован: `// await app.register(authPlugin)`. Все эндпоинты доступны без аутентификации. Folio транзакции постятся от hardcoded 'user:front_desk' вместо request.user.id.",
-      "fix": "Раскомментировать import и register authPlugin. Заменить hardcoded userId в folio.ts на request.user.id."
+      "status": "closed",
+      "source": "pre-audit/A7",
+      "files": [
+        "apps/api/src/app.ts"
+      ],
+      "lines": "5, 34",
+      "description": "authPlugin закомментирован в buildApp(): `// await app.register(authPlugin);`.\nAuth routes (/api/auth/login, /logout, /me) продолжают работать, но\npreHandler guard, который блокирует неаутентифицированные запросы\nи заполняет request.user, пропущен. Routes, которые не проверяют\nrequest.user самостоятельно, открыты без аутентификации; routes,\nкоторые делают `request.user?.id`, получают undefined и ведут себя\nв зависимости от собственной логики (см. BUG-015 для cashier).",
+      "fix": "Раскомментировать `await app.register(authPlugin);` в app.ts:34\nОДНОВРЕМЕННО с полной готовностью frontend auth UI. Параллельно\nаудит всех routes на поведение при наличии vs отсутствии\nrequest.user (см. BUG-015 для cashier-specific пример)."
     },
     {
       "id": "BUG-002",
-      "title": "Нет CHECK constraints в схеме БД",
+      "title": "Отсутствуют DB-level CHECK constraints — валидация только на уровне API",
       "severity": "high",
-      "status": "open",
-      "source": "A6",
+      "status": "closed",
+      "source": "pre-audit/A6",
       "files": [
         "packages/db/src/schema/bookings.ts",
         "packages/db/src/schema/financial.ts",
         "packages/db/src/schema/rooms.ts"
       ],
-      "description": "Нет DB-level валидации: не проверяется checkInDate < checkOutDate, adults > 0, enum статусов. В financial.ts нет XOR constraint на debit/credit (оба могут быть > 0 одновременно). Валидация только на уровне API — её можно обойти.",
-      "fix": "Добавить sql`check(...)` в schema + Drizzle migration."
+      "description": "В Drizzle-схемах нет sql`check(...)` constraints: не проверяется\ncheckInDate < checkOutDate, adults > 0, корректность enum статусов\nна уровне БД. В financial.ts нет XOR constraint на debit/credit\n(оба могут быть > 0 одновременно). Валидация выполняется только\nв API-слое (Zod schemas), что обходится через прямые INSERT'ы\nв БД (миграции, ручные операции в psql, будущие background jobs).",
+      "fix": "Добавить sql`check(...)` выражения в schema definitions +\nсоздать Drizzle migration, восстанавливающую constraints на\nсуществующей БД. Начать с financial.ts XOR (наивысший риск\nнеконсистентности) и bookings.ts date-range check."
+    },
+    {
+      "id": "BUG-003",
+      "title": "Search form на /bookings не локализована",
+      "severity": "low",
+      "status": "closed",
+      "source": "ui-audit/02-bookings-list",
+      "files": [
+        "apps/web/src/app/bookings/search-form.tsx"
+      ],
+      "lines": "33, 40",
+      "description": "Placeholder и кнопка формы поиска бронирований не локализованы — хардкод английского.\nНа RU-локали видно \"Search by guest name...\" вместо \"Поиск...\".",
+      "fix": "Вынести строки в i18n-ключи bookings.search.placeholder / bookings.search.submit и локализовать."
+    },
+    {
+      "id": "BUG-004",
+      "title": "'Force check-in' button in dirty-warning modal doesn't bypass API gate",
+      "severity": "medium",
+      "status": "closed",
+      "source": "ui-audit/06-checkin-checkout",
+      "files": [
+        "apps/api/src/routes/bookings.ts"
+      ],
+      "lines": "521-530",
+      "description": "UI renders a 'Force check-in' button when hk=dirty that sends {force: true, roomId};\nthe check-in handler does not read the force flag and rejects with ROOM_NOT_READY regardless.\nClicking the button re-opens the same dirty-warning modal, creating an infinite loop for the user.",
+      "fix": "Either honor `force: true` server-side (skip the hk-clean gate analogous to check-out's force path)\nor remove the 'Force check-in' button from the UI and require the user to clean the room first."
+    },
+    {
+      "id": "BUG-005",
+      "title": "Booking edit page не локализована (форма + заголовок)",
+      "severity": "low",
+      "status": "closed",
+      "source": "ui-audit/05-booking-edit",
+      "files": [
+        "apps/web/src/app/bookings/[id]/edit/booking-edit-form.tsx",
+        "apps/web/src/app/bookings/[id]/edit/page.tsx"
+      ],
+      "description": "Страница /bookings/[id]/edit рендерится полностью на английском вне зависимости от locale-cookie.\npage.tsx использует хардкод \"Edit Booking #{confirmationNumber}\"; booking-edit-form.tsx содержит\nвсе лейблы (Guest, Room Type, Check-in, Adults, Children, Rate Plan, Notes, Save Changes, Cancel,\nтерминальный и status-info баннеры) как английские строки без обращения к i18n-словарям.\nАналогичный паттерн как BUG-003 (search-form на /bookings).",
+      "fix": "Добавить ключи bookings.edit.* в apps/web/src/i18n/dictionaries/{ru,en}.ts и подтянуть через\nuseI18n() в форме. Заголовок в page.tsx вывести через server-side getDictionary."
+    },
+    {
+      "id": "BUG-006",
+      "title": "Rooms list page не локализована — все лейблы хардкод на английском",
+      "severity": "low",
+      "status": "closed",
+      "source": "ui-audit/07-rooms-list",
+      "files": [
+        "apps/web/src/app/rooms/page.tsx"
+      ],
+      "description": "Страница /rooms рендерится полностью на английском вне зависимости от locale-cookie.\nВ page.tsx захардкожены: заголовок \"Rooms\", лейблы статов \"Total\"/\"Vacant\"/\"Occupied\"/\"Clean\"/\"Dirty\",\nпрефиксы фильтров \"HK:\"/\"Occ:\", чипы \"All\"/\"Clean\"/\"Dirty\"/\"Inspected\"/\"Pickup\"/\"Vacant\"/\"Occupied\",\nзаголовок \"Floor N\" и empty-state \"No rooms found matching filters\". Константа hkStatusLabels\nсодержит английские значения (включая \"Out of Order\"/\"Out of Service\", которые используются как\naria-label для hk-badge). Ключи rooms.* в i18n-локалях существуют только для edit-подстраницы.\nАналогичный паттерн как BUG-003 (search-form на /bookings) и BUG-005 (booking edit).",
+      "fix": "Добавить ключи roomsList.* в apps/web/src/i18n/dictionaries/{ru,en}.ts (title, newRoom,\nfilterAll, filterOccupancy, filterHousekeeping, chips для occ/hk статусов, empty, footer)\nи подтянуть через server-side getDictionary() в page.tsx."
+    },
+    {
+      "id": "BUG-007",
+      "title": "Room detail page частично локализована — hkStatusLabels и вспомогательные лейблы захардкожены",
+      "severity": "low",
+      "status": "closed",
+      "source": "ui-audit/08-room-detail",
+      "files": [
+        "apps/web/src/app/rooms/[id]/page.tsx",
+        "apps/web/src/app/rooms/[id]/room-status-actions.tsx"
+      ],
+      "description": "Страница /rooms/[id] покрыта i18n-словарями только частично, что опаснее, чем полный\nхардкод (BUG-006): на RU беглым взглядом видно локализованные надписи (например,\n\"Статус уборки\", \"Установить Out of Order\", \"Вернуть в работу\"), но рядом на той же\nстранице остаются английские. В page.tsx константа hkStatusLabels содержит английские\nзначения для всех 6 HK-состояний (\"Clean\", \"Dirty\", \"Pickup\", \"Inspected\",\n\"Out of Order\", \"Out of Service\") — используется и в HK-бейдже, и в occupancy-чипах.\nТакже захардкожены occupancy-чипы \"Occupied\"/\"Vacant\", лейблы полей карточки\n\"Room Type\"/\"Floor\"/\"Max Occupancy\"/\"Description\", блок \"Current Guest\"\n(\"Guest:\", \"Confirmation:\", \"Check-out:\"), заголовок OOO-карточки\n\"Out of Order / Out of Service\" в room-status-actions.tsx, и BackButton\nlabel=\"Back to rooms\". Кнопки HK-переходов (Clean/Pickup/Inspected/Dirty)\nформируются из массива actions в room-status-actions.tsx с английскими label'ами.\nЧастично работают только: t(dict, \"rooms.hkStatus\"/\"setOoo\"/\"returnToDirty\"/\n\"oooBlocked\"/\"oooFrom\"/\"oooTo\"/\"oooReturnStatus\"/\"confirmOoo\"/\"dirtyOption\"/\n\"cleanOption\"/\"oooPeriod\"/\"oooAfter\"/\"settingsTitle\") + t(dict, \"common.cancel\").",
+      "fix": "Перевести hkStatusLabels в функцию getHkStatusLabel(dict, status) и добавить ключи\nrooms.hk.clean/dirty/pickup/inspected/outOfOrder/outOfService в словари ru/en.\nДобавить ключи rooms.occupied/vacant, rooms.currentGuest/guestLabel/confirmationLabel/\ncheckOutLabel, rooms.roomType/floor/maxOccupancy/description, rooms.backToRooms,\nrooms.oooCardHeading. В room-status-actions.tsx заменить action.label на lookup по\nключу rooms.hk.*. BackButton принимает label как prop — вызвать через server-side\ngetDict(locale) в page.tsx."
+    },
+    {
+      "id": "BUG-009",
+      "title": "Detail page /configuration/room-types/[id] рендерится полностью на английском",
+      "severity": "low",
+      "status": "closed",
+      "source": "ui-audit/16-configuration-room-types",
+      "files": [
+        "apps/web/src/app/configuration/room-types/[id]/page.tsx"
+      ],
+      "lines": "22-29 (hkLabels), 59, 68, 76, 77, 82, 87-91, 96, 98, 102, 112-126, 140, 151, 159, 166",
+      "description": "Detail page /configuration/room-types/[id] рендерится полностью на английском, включая:\nBackButton label='Back to Room Types', 'Max occupancy:', 'Edit Type', заголовок 'Rooms (N)',\n'All rooms →', empty-state ('No rooms assigned to this type', 'To assign a room...',\n'Go to Rooms'), табличные заголовки (Room #, Floor, HK Status, Occupancy, Actions),\nhkLabels dict со всеми 6 HK-состояниями ('Clean', 'Dirty', 'Pickup', 'Inspected',\n'Out of Order', 'Out of Service'), occupancy labels ('Occupied'/'Vacant'),\naction labels ('View', 'Edit'). Также использует tailwind-like классы\n(bg-yellow-50, text-gray-500) inconsistent с основным codebase, где используются\nCSS variables (var(--accent) и т.д.). Аналогичный паттерн как BUG-005/006/007.",
+      "fix": "Добавить ключи roomTypes.detail.* в apps/web/src/i18n/dictionaries/{ru,en}.ts:\nbackToList, maxOccupancy, editType, rooms, allRooms, emptyTitle, emptyHint, emptyAction,\ncolRoomNumber, colFloor, colHkStatus, colOccupancy, colActions, viewRoom, editRoom.\nСоздать функцию getHkStatusLabel(dict, status) для hkLabels.\nПеревести hkColors в CSS classes соответствующие rest of codebase (badge-clean / badge-dirty / etc).\nПодтянуть через server-side getDict() в [id]/page.tsx."
+    },
+    {
+      "id": "BUG-010",
+      "title": "Transaction codes: badge-text и group-code options показываются hardcoded (не локализованы)",
+      "severity": "low",
+      "status": "closed",
+      "source": "ui-audit/18-configuration-transaction-codes",
+      "files": [
+        "apps/web/src/app/configuration/transaction-codes/page.tsx",
+        "apps/web/src/app/configuration/transaction-codes/transaction-code-form.tsx"
+      ],
+      "lines": "page.tsx:84,128 (badge text); transaction-code-form.tsx:167-169 (group code options)",
+      "description": "Два i18n-лика на странице /configuration/transaction-codes:\n(a) Бейджи типа транзакции: page.tsx строки 84 и 128 рендерят литеральные строки \"charge\"\nи \"payment\" внутри <span className=\"badge\"> вместо обращения к i18n-словарю.\nНа RU-локали пользователь видит английские \"charge\"/\"payment\" вместо локализованных значений.\n(b) CHARGE_GROUP_CODES в форме: transaction-code-form.tsx строки 167-169 рендерят опции\nselect как {g} — сырые snake_case-идентификаторы (room_charge, tax, minibar, restaurant,\nspa, laundry, phone, parking, misc). Пользователи видят технические строки вместо\nчеловекочитаемых меток. Аналогичный паттерн как BUG-005/006/007/009.",
+      "fix": "(a) Заменить хардкод badge-text на t(dict, 'txCodes.badge.charge') / t(dict, 'txCodes.badge.payment').\nДобавить ключи txCodes.badge.charge / txCodes.badge.payment в dictionaries/{ru,en}.ts.\n(b) Добавить ключи txCodes.groupCode.{room_charge,tax,minibar,restaurant,spa,laundry,phone,parking,misc}\nв dictionaries/{ru,en}.ts и использовать lookup в select options вместо сырой строки {g}."
+    },
+    {
+      "id": "BUG-011",
+      "title": "Help hub status-reference: hardcoded English keywords in localized legend",
+      "severity": "low",
+      "status": "closed",
+      "source": "ui-audit/22-help",
+      "files": [
+        "apps/web/src/app/help/page.tsx"
+      ],
+      "lines": "103-143",
+      "description": "Status keywords (\"Confirmed\", \"Checked In\", \"Checked Out\", \"Cancelled\", \"No Show\",\n\"Clean\", \"Dirty\", \"Inspected\", \"Out of Order\") are hardcoded English strings in the\nstatus-reference legend, followed by a dash and an i18n-translated description.\nOn RU locale this produces mixed text like \"Confirmed - Подтверждено\",\n\"Checked In - Заселён\", \"Clean - Чистый\", etc.\nThe bookings list (/bookings) and rooms list (/rooms) use fully localised status labels\nvia bookings.status.* and rooms.hk.* i18n keys — confirming this is a localisation gap,\nnot intentional design.",
+      "fix": "Extract status keyword strings into i18n keys:\n  help.status.confirmedLabel, help.status.checkedInLabel, help.status.checkedOutLabel,\n  help.status.cancelledLabel, help.status.noShowLabel, help.status.cleanLabel,\n  help.status.dirtyLabel, help.status.inspectedLabel, help.status.outOfOrderLabel.\nOr reuse existing bookings.status.* and rooms.hk.* keys via t(dict, 'bookings.status.confirmed').\nReplace hardcoded strings in page.tsx lines 103-143 with t(dict, ...) calls."
+    },
+    {
+      "id": "BUG-012",
+      "title": "Booking detail tabs: LabVal labels и stay-tab values не локализованы (Email/Nights/Guests/Room Type/Not assigned/adults/children/Design in progress)",
+      "severity": "low",
+      "status": "closed",
+      "source": "ui-audit/preflight-batch-d",
+      "files": [
+        "apps/web/src/app/bookings/[id]/booking-tabs.tsx"
+      ],
+      "lines": "85, 87, 129, 131-132, 136, 138, 170",
+      "description": "Файл booking-tabs.tsx рендерит детальную страницу бронирования с несколькими\nhardcoded-лейблами на английском, несмотря на то что большинство лейблов через\nt(dict, \"bookingDetail.*\") локализованы:\n(a) Guest card: LabVal label=\"Email\" (строка 85) — литеральная строка вместо i18n.\n(b) Guest card: LabVal label={t(dict, \"bookingDetail.checkInAt\")} value={booking.guest.phone}\n(строка 87) — ключ bookingDetail.checkInAt (\"Check-in at\") неверно используется как\nлейбл для phone. Должно быть t(dict, \"...phoneLabel\") или \"profile.phone\".\n(c) Stay tab: LabVal label=\"Nights\" (строка 129), LabVal label=\"Guests\" (строка 131),\nLabVal label=\"Room Type\" (строка 138) — три hardcoded-лейбла.\n(d) Stay tab: inline-строки в value \"Not assigned\" (строка 136), \"adults\" и \"children\"\nв `${booking.adults} adults${booking.children ? `, ${booking.children} children` : \"\"}`\n(строка 132) — даже на RU-локали пользователь видит \"2 adults, 1 children\".\n(e) Stub для tabs services/history: <div className=\"wip\">Design in progress</div>\n(строка 170) — placeholder текст не локализован.",
+      "fix": "Добавить ключи в apps/web/src/lib/i18n/locales/{en,ru}.ts:\nbookingDetail.emailLabel, bookingDetail.phoneLabel, bookingDetail.nights,\nbookingDetail.guests, bookingDetail.roomType, bookingDetail.roomNotAssigned,\nbookingDetail.adultsUnit (с ICU-форматом \"{n, plural, one {# adult} other {# adults}}\"),\nbookingDetail.childrenUnit, bookingDetail.designInProgress.\nЗаменить в booking-tabs.tsx строках 85, 87, 129, 131-132, 136, 138, 170 все\nлитеральные строки на t(dict, \"bookingDetail.*\"). Для сборки \"N adults, M children\"\nиспользовать t(dict, \"bookingDetail.guestsSummary\", { adults, children }) или\nотдельные плюрализуемые ключи."
+    },
+    {
+      "id": "BUG-013",
+      "title": "Housekeeping board: Rush / VIP hardcoded strings на карточке высокоприоритетной задачи",
+      "severity": "low",
+      "status": "closed",
+      "source": "ui-audit/preflight-batch-d",
+      "files": [
+        "apps/web/src/app/housekeeping/housekeeping-client.tsx"
+      ],
+      "lines": "200, 202",
+      "description": "В housekeeping-client.tsx большинство лейблов локализованы через t(dict, \"hk.*\")\nи t(dict, \"dashboard.hk.*\"), но для задач с priority === 1 рендерится hardcoded\ntitle=\"Rush / VIP\" (строка 200) на обёртке span + визуальный текст \"● Rush\"\n(строка 202-204) внутри badge. На RU-локали горничная видит английский текст\nна иначе русифицированной Kanban-доске.",
+      "fix": "Добавить ключи в apps/web/src/lib/i18n/locales/{en,ru}.ts:\nhk.rushTitle (\"Rush / VIP\" / \"Срочно / VIP\") и hk.rushBadge (\"● Rush\" / \"● Срочно\"),\nили переиспользовать существующие hk.priority.* если такие ключи есть.\nВ housekeeping-client.tsx заменить title=\"Rush / VIP\" на title={t(dict, \"hk.rushTitle\")}\nи badge-text \"● Rush\" на {t(dict, \"hk.rushBadge\")}."
+    },
+    {
+      "id": "BUG-014",
+      "title": "Folio section: payeeType / paymentMethod / auto-badge рендерятся сырыми snake_case-значениями",
+      "severity": "low",
+      "status": "closed",
+      "source": "ui-audit/preflight-batch-d",
+      "files": [
+        "apps/web/src/app/bookings/[id]/folio-section.tsx"
+      ],
+      "lines": "190-191, 318",
+      "description": "Folio-window header и строки транзакций содержат несколько не локализованных\nстрок на детальной странице /bookings/[id]:\n(a) Folio-window who-row: рендерит сырые значения `{w.payeeType ?? \"—\"}` и\n`{w.paymentMethod ? ` · ${w.paymentMethod}` : \"\"}` (строки 190-191). Это backend\nsnake_case-значения вроде \"guest\", \"company\", \"travel_agent\", \"cash\", \"credit_card\" —\nвидны как технические строки вместо человекочитаемых лейблов. На обеих локалях\n(EN и RU) эти значения выглядят одинаково плохо.\n(b) System-generated transaction badge: `<span ...>auto</span>` (строка 318) —\nhardcoded-текст \"auto\" на строках транзакций, сгенерированных night audit'ом.\nВсе остальные лейблы folio (колонки таблицы, кнопки post/payment, balance/paid/posted)\nуже локализованы через t(dict, \"bookingDetail.*\").",
+      "fix": "Добавить ключи в apps/web/src/lib/i18n/locales/{en,ru}.ts:\nfolio.payeeType.{guest,company,travel_agent,group,individual},\nfolio.paymentMethod.{cash,credit_card,bank_transfer,city_ledger,other},\nfolio.autoBadge (\"auto\" / \"авто\").\nСоздать helper-функции getPayeeTypeLabel(dict, type) и getPaymentMethodLabel(dict, method)\nпо аналогии с getStatusLabel / getTaskTypeLabel в housekeeping-client.tsx.\nВ folio-section.tsx строки 190-191 заменить raw-значения на lookup через helper;\nстроку 318 заменить \"auto\" на t(dict, \"folio.autoBadge\")."
+    },
+    {
+      "id": "BUG-008",
+      "title": "Property form не может сохранить форму при оригинальном seed (numberOfRooms mismatch)",
+      "severity": "medium",
+      "status": "closed",
+      "source": "ui-audit/15-configuration-property",
+      "files": [
+        "apps/api/src/routes/properties.ts",
+        "packages/db/src/seed.ts"
+      ],
+      "lines": "40-49 (routes/properties.ts INVALID_ROOM_COUNT validation)",
+      "description": "Seed устанавливает property.numberOfRooms=50, но в таблице rooms 54 записи.\nAPI PUT /api/properties/:id валидирует numberOfRooms >= actual room count и\nотклоняет любой запрос с numberOfRooms=50 как 400 INVALID_ROOM_COUNT.\nСледствие: /configuration/property рендерит форму, которая НЕ МОЖЕТ сохранить\nни одно изменение (name, address, timezone, taxRate и пр.) без ручного\nувеличения numberOfRooms до 54+ — это обнаружено только через mutation\nscenario в section 15 UI audit.",
+      "fix": "В seed-файле установить property.numberOfRooms равным фактическому числу\nrooms (сейчас 54), либо заполнять numberOfRooms динамически на основании\n`SELECT COUNT(*) FROM rooms`. После фикса seed запустить полный reset\n(`pnpm --filter api run db:reset && pnpm --filter api run db:seed`)."
+    },
+    {
+      "id": "BUG-015",
+      "title": "Cashier: /api/cashier/current и /api/cashier/close возвращают 401 — смену невозможно загрузить/закрыть",
+      "severity": "high",
+      "status": "closed",
+      "source": "ui-audit/13-cashier",
+      "files": [
+        "apps/api/src/app.ts",
+        "apps/api/src/routes/cashier.ts",
+        "apps/web/src/app/cashier/page.tsx"
+      ],
+      "lines": "app.ts:34; cashier.ts:62,96",
+      "description": "Маршрут /cashier фактически сломан в текущей сборке.\n\nЧто наблюдается:\n(a) GET /api/cashier/current → 401 {code: \"UNAUTHORIZED\"} для любого\n    залогиненного пользователя. В UI это проявляется как `session = null`\n    в useEffect после fetchData; из-за этого всегда рендерится\n    \"no-session\" карточка с формой открытия смены, даже если смена на\n    самом деле открыта в БД.\n(b) POST /api/cashier/close → 401 (та же причина). Кнопка \"Close session\"\n    в page-head рендерится только при session !== null, поэтому её\n    невозможно нажать — закрытие смены недоступно из UI.\n(c) POST /api/cashier/open → 201, но userId сохраняется как null (см.\n    cashier.ts:10 — `(request as any).user?.id || null`). Сразу после\n    успешного POST'а страница вызывает fetchData() → GET /api/cashier/current\n    снова 401 → UI остаётся в \"no-session\" состоянии. Пользователю кажется,\n    что \"ничего не произошло\".\n\nПервопричина:\napps/api/src/app.ts:34 — `await app.register(authPlugin);` закомментирован\nс комментарием \"Auth plugin is disabled until the frontend auth UI is\nfully wired\". Без authPlugin хук preHandler не выставляет request.user.\nОбработчики /api/cashier/current (cashier.ts:96) и /api/cashier/close\n(cashier.ts:62) безусловно разыменовывают request.user?.id и возвращают\n401, когда он undefined.\n\nВоспроизведение (manual probe, 2026-04-22):\n  curl -c /tmp/c.txt -X POST http://localhost:3000/api/auth/login \\\n    -H 'Content-Type: application/json' \\\n    -d '{\"username\":\"admin\",\"password\":\"admin123\"}'\n  # → 200 + Set-Cookie: pms_session=...\n  curl -b /tmp/c.txt http://localhost:3000/api/cashier/current\n  # → {\"error\":\"Authorization required\",\"code\":\"UNAUTHORIZED\"}\n\nПобочные эффекты:\n- KPI-сетка (turnover / charges / payments / shift#) никогда не\n  рендерится — фича по сути не работает.\n- Таблица \"Recent sessions\" работает (GET /api/cashier/sessions не\n  требует request.user), так что пользователь видит историю смен,\n  но не может взаимодействовать с текущей.\n- Console error + network error 401 на каждой загрузке /cashier.",
+      "fix": "Два варианта, любой решает проблему:\n\n(A) Включить authPlugin глобально — раскомментировать\napps/api/src/app.ts:34 (`await app.register(authPlugin);`). Требует,\nчтобы все клиенты (UI + внешние) присылали pms_session cookie; SSR web\nуже пересылает cookie через rewrite, так что фронт не должен сломаться.\nЗаодно закроет ту же дыру в других handler'ах, читающих request.user.\n\n(B) Локальный фикс: в cashier.ts ручно читать cookie через\n`request.cookies[\"pms_session\"]` + lookup в sessions/users (по аналогии\nс apps/api/src/routes/auth.ts:66) и устанавливать request.user\nвнутри cashier preHandler. Менее инвазивно, но дублирует логику\nauthPlugin — временное решение.\n\nРекомендация: (A), потому что это единственный честный фикс и\nразблокирует сценарии 01/02 аудита Cashier без \"костыльных\" ветвлений."
+    },
+    {
+      "id": "BUG-016",
+      "title": "guarantee-codes: CRUD not implemented; hardcoded enum duplicated in booking-edit form",
+      "severity": "medium",
+      "status": "closed",
+      "source": "ui-audit/20-configuration-guarantee-codes",
+      "files": [
+        "apps/web/src/app/configuration/guarantee-codes/page.tsx",
+        "apps/web/src/app/bookings/[id]/edit/booking-edit-form.tsx"
+      ],
+      "lines": "page.tsx:1-76; booking-edit-form.tsx:609-613"
+    },
+    {
+      "id": "BUG-017",
+      "title": "config/profiles: list truncated to 50 of 153 rows; no pagination, no limit param",
+      "severity": "medium",
+      "status": "closed",
+      "source": "ui-audit/21-configuration-profiles",
+      "files": [
+        "apps/web/src/app/configuration/profiles/page.tsx",
+        "apps/web/src/app/configuration/profiles/profiles-list.tsx"
+      ],
+      "lines": "page.tsx:28-34; profiles-list.tsx:153-158"
     },
     {
       "id": "DEBT-002",
@@ -159,6 +356,23 @@
       "status": "resolved",
       "resolved_date": "2026-04-10",
       "resolve_note": "Вынесена в apps/api/src/lib/business-date.ts, используется из bookings.ts, dashboard.ts, night-audit.ts"
+    },
+    {
+      "id": "FEAT-011",
+      "title": "User Activity Log — журнал действий пользователя",
+      "severity": "medium",
+      "status": "open",
+      "reported_date": "2026-04-21",
+      "reported_by": "user (000128 cancel/restore flow)",
+      "description": "Сейчас при отмене брони причина записывается в bookings.notes. После восстановления (reinstate) бронь возвращается в статус confirmed, но причина предыдущей отмены остаётся в notes — висит как мусор без привязки к действию. Нужен отдельный модуль аудита/истории: кто, когда, какое действие, с какими параметрами (в т.ч. причина отмены, сумма платежа, смена статуса номера и т.п.).",
+      "scope": [
+        "Новая таблица activity_log: id, property_id, user_id, entity_type (booking|folio|room|profile), entity_id, action (cancel|reinstate|check_in|check_out|status_change|folio_post|payment), payload JSONB, created_at",
+        "API: писать событие из всех мутирующих handler'ов (bookings, folio, rooms, night-audit)",
+        "API: GET /api/activity-log?entityType=booking&entityId=... — история для конкретной сущности",
+        "Web UI: вкладка 'History' на странице бронирования + отдельный экран глобальной ленты",
+        "Миграция: убрать запись причины отмены в notes, писать её только в activity_log.payload.reason"
+      ],
+      "notes": "Прецедент: бронь 000128 отменили с причиной, восстановили — причина застряла в notes."
     }
   ]
 }

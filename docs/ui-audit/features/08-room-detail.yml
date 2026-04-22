@@ -1,0 +1,236 @@
+id: 08-room-detail
+title: "Room detail"
+route: /rooms/[id]
+depends_on: [07-rooms-list]
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "#{roomNumber}"
+    en: "#{roomNumber}"
+  notes: |
+    Server component (page.tsx) renders the read-only detail card; client
+    component (room-status-actions.tsx) handles HK transitions + OOO form.
+    Single mutation endpoint: POST /api/rooms/:id/status (plan said PUT).
+    API auto-clears oooFromDate/oooToDate/returnStatus on transition to a
+    non-OOO status — so "restore from OOO" is just a HK-status POST.
+
+    HK state machine (per @pms/domain VALID_HK_TRANSITIONS):
+      dirty → clean, pickup, out_of_order, out_of_service
+      pickup → clean, dirty, out_of_order, out_of_service
+      clean → inspected, dirty, out_of_order, out_of_service
+      inspected → dirty, clean, out_of_order, out_of_service
+      out_of_order / out_of_service → dirty, clean
+    UI-side: `actions` array in room-status-actions.tsx renders only a subset
+    of the allowed transitions as buttons (Dirty→Clean|Pickup, Clean→Inspected|
+    Dirty, Inspected→Dirty, Pickup→Clean). So UI is MORE restrictive than API.
+
+    OOO gates (server-side, in rooms.ts:152-191):
+      - occupancyStatus=occupied → 400 ROOM_IS_OCCUPIED
+      - missing oooFromDate/oooToDate → 400 OOO_DATES_REQUIRED
+      - active booking in [oooFromDate, oooToDate] → 400 ROOM_HAS_BOOKINGS_IN_PERIOD
+    UI-side: when occupied, renders room-detail-occupied-warning banner
+    ("Room is occupied. Out of Order unavailable...") in place of OOO form.
+
+    i18n status: PARTIAL (see bugs[] → BUG-007). hkStatusLabels is hardcoded
+    English; HK-action buttons, occupancy chips, field labels, and Current
+    Guest card are all hardcoded. Localized: hkStatus heading, setOoo, OOO
+    form labels, returnToDirty, oooBlocked.
+  required_fields: []
+  optional_fields: []
+  buttons:
+    backToRooms:        { ru: "Back to rooms", en: "Back to rooms",      note: "BackButton passed fallbackHref=/rooms + literal label='Back to rooms' (hardcoded — BUG-007)" }
+    roomSettings:       { ru: "Настройки комнаты", en: "Room Settings", note: "Link to /rooms/[id]/edit; localized via t(dict, 'rooms.settingsTitle')" }
+    hkActionClean:      { ru: "Clean",     en: "Clean",     note: "Visible when current hk ∈ {dirty, pickup}; button text hardcoded English (BUG-007)" }
+    hkActionPickup:     { ru: "Pickup",    en: "Pickup",    note: "Visible when current hk=dirty; hardcoded English (BUG-007)" }
+    hkActionInspected:  { ru: "Inspected", en: "Inspected", note: "Visible when current hk=clean; hardcoded English (BUG-007)" }
+    hkActionDirty:      { ru: "Dirty",     en: "Dirty",     note: "Visible when current hk ∈ {clean, inspected}; hardcoded English (BUG-007)" }
+    setOoo:             { ru: "Установить Out of Order", en: "Set Out of Order", note: "Localized via rooms.setOoo" }
+    confirmOoo:         { ru: "Подтвердить OOO",   en: "Confirm OOO",    note: "Submit inside OOO form; localized via rooms.confirmOoo" }
+    cancelOoo:          { ru: "Отмена",     en: "Cancel",    note: "Cancel inside OOO form; localized via common.cancel" }
+    returnToDirty:      { ru: "Вернуть в работу (dirty)", en: "Return to service (dirty)", note: "Clears OOO; localized via rooms.returnToDirty" }
+
+steps:
+  - id: "01-load-detail"
+    action: >
+      Open /rooms/[id] for a clean+vacant room. Detail renders: room-detail-number
+      shows '#<roomNumber>'; room-detail-hk-badge has data-hk-status='clean';
+      room-detail-occ-badge has data-occ-status='vacant'; NO
+      room-detail-current-guest-card (room is vacant); NO room-detail-ooo-banner
+      (room is not OOO/OOS); "Set OOO" button (room-detail-set-ooo) is visible;
+      NO room-detail-occupied-warning.
+    screenshots:
+      - 08-room-detail-01-load-detail-ru.png
+      - 08-room-detail-01-load-detail-en.png
+    note: >
+      Read-only; runs on both locales. Room picked dynamically at test start via
+      GET /api/rooms?housekeepingStatus=clean&occupancyStatus=vacant (first match).
+
+  - id: "02-hk-transition"
+    action: >
+      Mutation (en-only). Open /rooms/[id] for a dirty+vacant room. Click
+      room-detail-hk-action-clean → POST /api/rooms/:id/status {housekeepingStatus:
+      clean} returns 200; hk-badge data-hk-status becomes 'clean';
+      room-detail-hk-action-inspected button appears. Click it → POST returns
+      200; hk-badge data-hk-status becomes 'inspected'.
+    screenshots:
+      - 08-room-detail-02-hk-transition-clean-en.png
+      - 08-room-detail-02-hk-transition-inspected-en.png
+    note: >
+      Two POST calls. Router.refresh() after each causes the server component
+      to re-render with the new hk. The UI enforces the allowed-next-status
+      subset: after Dirty→Clean, only Inspected/Dirty buttons are in the
+      actions array; after Clean→Inspected, only Dirty button remains.
+      Cleanup: extraAfterAll POSTs original hk ('dirty') to restore the room.
+      API state-machine blocks self-transitions (dirty→dirty = 400), so the
+      cleanup helper checks current state first and skips the POST if already
+      at target.
+
+  - id: "03-set-ooo"
+    action: >
+      Mutation (en-only). Open /rooms/[id] for a clean+vacant room (different
+      from scenarios 01/02). Click room-detail-set-ooo → OOO form appears.
+      Fill room-detail-ooo-from=2027-01-01, room-detail-ooo-to=2027-01-03,
+      room-detail-ooo-return-status=dirty. Click room-detail-ooo-submit → POST
+      /api/rooms/:id/status {housekeepingStatus: out_of_order, oooFromDate,
+      oooToDate, returnStatus} returns 200. After server refresh:
+      room-detail-ooo-banner visible; hk-badge data-hk-status='out_of_order';
+      room-detail-ooo-restore visible; room-detail-ooo-period contains the
+      submitted dates.
+    screenshots:
+      - 08-room-detail-03-set-ooo-en.png
+    note: >
+      Dates picked in 2027 to guarantee zero conflict with any seeded booking
+      (no active booking in the property extends into 2027-01). OOO gate paths
+      are tested structurally — the occupied-room path is not explicitly
+      exercised but documented in edge_cases.
+
+  - id: "04-restore-from-ooo"
+    action: >
+      Mutation (en-only). Depends on scenario 03 leaving the room in OOO. Open
+      /rooms/[id] for that room. Click room-detail-ooo-restore → POST
+      /api/rooms/:id/status {housekeepingStatus: dirty} returns 200. After
+      server refresh: hk-badge data-hk-status='dirty'; room-detail-ooo-banner
+      gone; room-detail-set-ooo visible again. API verification via GET
+      /api/rooms/:id — oooFromDate/oooToDate/returnStatus all NULL (auto-cleared).
+    screenshots:
+      - 08-room-detail-04-restore-from-ooo-en.png
+    note: >
+      The restore button hardcodes target='dirty' in room-status-actions.tsx
+      (line 148). API auto-clears OOO date fields on the non-OOO transition
+      (rooms.ts:213-217). Cleanup: extraAfterAll restores the room to its
+      original hk ('clean'), and skip-if-at-target guard prevents a 400 when
+      the restore already left the room at 'dirty' on the cleanup path. The
+      `clean → dirty` transition is always legal per VALID_HK_TRANSITIONS.
+
+edge_cases:
+  - id: ooo-gate-occupancy
+    description: >
+      API rejects OOO when occupancyStatus=occupied with 400 ROOM_IS_OCCUPIED.
+      UI hides the OOO form entirely and renders room-detail-occupied-warning
+      banner (rooms.oooBlocked key) when the room is occupied.
+    expected: "Occupied rooms must check out before OOO can be set"
+    observed: >
+      Confirmed in code (room-status-actions.tsx:228-231, rooms.ts:159-163).
+      Not exercised in this spec — all four scenarios use vacant rooms to
+      keep the test surface focused on HK + OOO happy paths.
+
+  - id: ooo-gate-bookings
+    description: >
+      API rejects OOO when active bookings exist in [oooFromDate, oooToDate]
+      with 400 ROOM_HAS_BOOKINGS_IN_PERIOD + conflictingBookings array.
+      UI does not preemptively warn — form submission surfaces the 400 via
+      ErrorDisplay.
+    expected: "OOO must fail if the period overlaps active bookings"
+    observed: >
+      Confirmed in code (rooms.ts:173-190). We use 2027-01-01..03 in scenario
+      03 to guarantee no conflict. Not explicitly exercised as a negative case.
+
+  - id: hk-self-transition-blocked
+    description: >
+      POST /status with housekeepingStatus === current returns 400
+      INVALID_HK_TRANSITION because VALID_HK_TRANSITIONS excludes self-loops.
+    expected: "Self-transition should either be a no-op or a 400"
+    observed: >
+      Empirically 400. Cleanup helper restoreRoom() checks current state first
+      and skips the POST if the room is already at the target state.
+
+  - id: hk-ui-vs-api-transition-subset
+    description: >
+      API allows more HK transitions than the UI exposes as buttons. E.g.,
+      dirty → out_of_order is API-legal but not a UI button (must go through
+      the OOO form). Inspected → clean is API-legal but not rendered. This is
+      a UX decision: UI-level guidance is stricter than the API.
+    expected: "Either UI exposes all API-legal transitions, or documents the split"
+    observed: >
+      Documented in ui.notes. Not a bug — intentional UX scoping (actions
+      array in room-status-actions.tsx:100-112). No backlog entry at this time.
+
+  - id: partial-i18n-hkStatusLabels
+    description: >
+      hkStatusLabels is hardcoded English on the detail page, contrasting with
+      fully-localized OOO form and rooms.hkStatus heading. On RU, users see
+      "Статус уборки" above an English "Clean"/"Dirty" badge.
+    expected: "hkStatusLabels lookup via dict (same approach as the OOO-form labels)"
+    observed: >
+      Partial i18n — see bugs[] → BUG-007. The issue is more insidious than
+      fully-hardcoded: a cursory glance at a RU screenshot suggests
+      localization is present, masking the regression.
+
+api_calls_observed:
+  - { method: GET,  path: "/api/auth/me",                 status: 200 }
+  - { method: GET,  path: "/api/properties",              status: 200 }
+  - { method: GET,  path: "/api/business-date",           status: 200 }
+  - { method: GET,  path: "/api/rooms/:id",               status: 200, note: "server component fetch on page load" }
+  - { method: GET,  path: "/api/rooms?propertyId=:id&housekeepingStatus=clean&occupancyStatus=vacant", status: 200, note: "test-time room picker (beforeAll)" }
+  - { method: GET,  path: "/api/rooms?propertyId=:id&housekeepingStatus=dirty&occupancyStatus=vacant", status: 200, note: "test-time room picker (scenario 02)" }
+  - { method: POST, path: "/api/rooms/:id/status",        status: 200, note: "scenario 02 (×2), scenario 03, scenario 04 + cleanup" }
+  - { method: GET,  path: "/api/bookings?propertyId=:id&roomId=:rid&status=checked_in", status: 200, note: "page.tsx fetches active booking when occupied — not hit in our scenarios (all rooms vacant)" }
+
+console_errors: []
+network_errors: []
+
+bugs: []
+
+help_rewrite_hints:
+  topic: rooms
+  current: ""
+  actual: |
+    Route /rooms/[id] is a detail view with HK + OOO mutation surface.
+    - Read-only card: room number, HK status badge, occupancy chip, room type
+      grid, optional Current-Guest banner (when occupied + active booking
+      exists).
+    - HK action buttons (client): rendered based on current HK state
+      (dirty→Clean|Pickup, clean→Inspected|Dirty, inspected→Dirty,
+      pickup→Clean). Click → POST /api/rooms/:id/status with the new status;
+      UI re-fetches via router.refresh().
+    - OOO form (client): toggle "Set OOO" → inline form with from/to dates +
+      return status (clean|dirty). Submit → POST with housekeepingStatus=
+      out_of_order + dates + returnStatus. API auto-clears dates on any
+      non-OOO transition.
+    - "Return to Dirty" button (client): visible when hk ∈ {out_of_order,
+      out_of_service}; clears OOO and sets hk=dirty.
+    - When occupancyStatus='occupied', OOO form is hidden and a yellow warning
+      banner appears ("Out of Order unavailable until guest checks out").
+    Partial i18n today — English-only action-button labels and HK-status
+    labels.
+  rewrite: |
+    Add "rooms" help article covering room-detail workflow: HK state machine,
+    OOO setting (dates + return status), OOO gates (occupied room, booking
+    conflicts), restore from OOO, and the Current-Guest banner. Note that
+    hk-action button labels and hk-badge text are currently English-only
+    (BUG-007) — the OOO form itself is localized.
+
+retro:
+  time_minutes: 45
+  unblocker_fixes:
+    - "Restore-room cleanup initially hit 400 INVALID_HK_TRANSITION because the state machine blocks self-transitions (e.g. dirty→dirty). Added a pre-check in restoreRoom() that fetches the current state and skips the POST if already at target — this lets the helper run safely on both the ru skip-path (no mutations) and the en post-mutation path."
+    - "Web was running in production mode (next start, BUILD_ID cached); confirmed new testids required a full `pnpm --filter @pms/web build` + server restart, not just a dev HMR. RSC HTML payload only shows server-component testids (room-detail-number/hk-badge/occ-badge) — client-component testids (room-detail-set-ooo, ooo-form, hk-action-*) appear after hydration and are visible to Playwright."
+  methodology_deltas:
+    - "For HK-state assertions without CSS coupling, added data-hk-status + data-occ-status attributes to the respective badge <span>s in page.tsx. Gives Playwright toHaveAttribute() without depending on label text (which is currently English-only and subject to BUG-007)."
+    - "Mutation scenarios that chain (03 sets OOO → 04 restores) run serially within the en project; cleanup runs per describe.afterAll + must tolerate both 'mutation never happened' (ru skip path) and 'mutation happened' (en path) states."
+    - "Room-picker via GET /api/rooms?hk=X&occ=Y at beforeAll avoids hardcoding UUIDs — if the seed's probe matrix shifts, the test picks the first matching room dynamically. Original state is captured and used for cleanup targets."
+
+status: ok
+last_audited: "2026-04-21"
+screenshots_dir: docs/ui-audit/screenshots/

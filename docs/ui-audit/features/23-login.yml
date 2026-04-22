@@ -1,0 +1,315 @@
+id: 23-login
+title: "Login"
+route: /login
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "PMS"
+    en: "PMS"
+  note: >
+    /login is a logged-OUT flow. It renders OUTSIDE the main app chrome:
+    no topbar, no property picker, no business-date badge. The route bypasses
+    the `if (!user && pathname !== '/login') redirect('/login')` guard in
+    auth-provider.tsx:62-64 — the provider still mounts and calls
+    `/api/auth/me`, which 401s (expected; logged out). If the user is ALREADY
+    authenticated and lands on /login, the provider auto-redirects to '/' via
+    auth-provider.tsx:65-67.
+
+    Only 4 login.* i18n keys exist:
+      login.username, login.password, login.signIn, login.signingIn
+    (apps/web/src/lib/i18n/locales/{en,ru}.ts around lines 489-494).
+
+    The error message shown on invalid credentials is NOT taken from the i18n
+    dictionaries — it is returned from the API
+    (apps/api/src/routes/auth.ts:32,40 → "Invalid username or password") and
+    rendered verbatim by the login page (page.tsx:65-69 via `error` state from
+    auth-provider.tsx:85). So the error surfaces as English regardless of UI
+    locale. This is a mild i18n gap, documented below, but not filed as a new
+    bug for this section — the "error messages bleed English" pattern is a
+    known systemic backend-owned issue.
+  testids:
+    - { id: login-page,              element: "div (page wrapper)",          added: true }
+    - { id: login-title,             element: "h1 (PMS)",                    added: true }
+    - { id: login-form,              element: "form",                        added: true }
+    - { id: login-username-label,    element: "label[for=username]",         added: true }
+    - { id: login-username-input,    element: "input#username (type=text)",  added: true }
+    - { id: login-password-label,    element: "label[for=password]",         added: true }
+    - { id: login-password-input,    element: "input#password (type=password)", added: true }
+    - { id: login-submit-button,     element: "button[type=submit]",         added: true }
+    - { id: login-error-alert,       element: "div[role=alert] (error)",     added: true }
+  required_fields:
+    - { id: username, label: { ru: "Логин",  en: "Username" }, kind: "text" }
+    - { id: password, label: { ru: "Пароль", en: "Password" }, kind: "password" }
+  optional_fields: []
+  buttons:
+    submit:
+      ru: "Войти"
+      en: "Sign In"
+    submitBusy:
+      ru: "Вход..."
+      en: "Signing in…"
+  error_messages:
+    invalid_credentials:
+      ru: "Invalid username or password"
+      en: "Invalid username or password"
+      note: >
+        API-owned English string (apps/api/src/routes/auth.ts:32,40). Same
+        text for unknown-username and wrong-password paths — no user
+        enumeration (verified via scenario 04).
+
+steps:
+  - id: "01-load"
+    status: ok
+    action: >
+      Clear cookies, set locale cookie, navigate /login while logged out.
+      Assert login-page, login-form, login-username-input, login-password-input,
+      and login-submit-button are all visible. Username/password labels and
+      the submit button render in the expected locale. Password input has
+      type=password. No login-error-alert is rendered on fresh load. No
+      pms_session cookie present.
+    screenshots:
+      - 23-login-01-load-ru.png
+      - 23-login-01-load-en.png
+    mutation: false
+    locale_gate: both locales
+
+  - id: "02-happy-login"
+    status: ok
+    action: >
+      From the logged-out /login page, fill admin/admin123 and click submit.
+      Wait for URL to change to /. Assert the pathname is '/' and the
+      pms_session cookie is present on the context (httpOnly, non-empty
+      value). Screenshot the post-redirect dashboard.
+    screenshots:
+      - 23-login-02-happy-login-ru.png
+      - 23-login-02-happy-login-en.png
+    mutation: true
+    mutation_note: "Creates a sessions row via POST /api/auth/login. No seed data modified."
+    locale_gate: both locales
+
+  - id: "03-invalid-credentials"
+    status: ok
+    action: >
+      From the logged-out /login page, fill admin/wrong-password and click
+      submit. Wait for POST /api/auth/login to return 401. Assert the
+      login-error-alert is visible, has role="alert", and contains the exact
+      string "Invalid username or password". Assert URL is still /login and
+      no pms_session cookie was set.
+    screenshots:
+      - 23-login-03-invalid-credentials-ru.png
+      - 23-login-03-invalid-credentials-en.png
+    mutation: false
+    locale_gate: both locales
+
+  - id: "04-no-user-enumeration"
+    status: ok
+    action: >
+      Direct API evidence: POST /api/auth/login with an unknown username
+      AND POST /api/auth/login with a known username + wrong password both
+      return 401 with identical body:
+        { error: "Invalid username or password", code: "INVALID_CREDENTIALS" }
+      Confirms the API does NOT leak whether a username exists — a
+      deliberate security property worth pinning with a test.
+    screenshots: []
+    mutation: false
+    locale_gate: en-only (API contract evidence)
+
+edge_cases:
+  - id: api-owned-error-text
+    description: "Error message on invalid credentials is English regardless of UI locale"
+    expected: "RU users see a Russian error, e.g. «Неверный логин или пароль»"
+    observed: >
+      apps/api/src/routes/auth.ts:32 returns a hard-coded English string
+      ("Invalid username or password"). apps/web/src/components/auth-provider.tsx:85
+      forwards err.error to the form. The login page has no local fallback
+      into login.* i18n keys. Not filed as a new bug for this section —
+      backend-owned i18n leak tracked elsewhere; scope here is the /login
+      surface itself, which renders its own labels correctly via t(dict, ...).
+
+  - id: no-csrf-token
+    description: "POST /api/auth/login accepts a JSON body with no CSRF token"
+    expected: "CSRF token or double-submit cookie on state-changing endpoints"
+    observed: >
+      apps/api/src/routes/auth.ts:12-62 — the handler reads body.username /
+      body.password directly. No CSRF token is issued in GET /api/auth/me,
+      and none is checked in POST /api/auth/login. The `pms_session` cookie
+      is set with sameSite=lax (apps/api/src/routes/auth.ts:57), which
+      mitigates cross-site login-CSRF for modern browsers, but this is the
+      only defence. Not filed as a new bug — login CSRF on an app without a
+      SSO/registration flow is low-severity, and the project has no
+      cross-site attack surface yet. Flagged here for the security reviewer.
+
+  - id: redirect-when-already-logged-in
+    description: "GET /login while authenticated auto-redirects to /"
+    expected: "Yes — prevents the already-signed-in user seeing the form"
+    observed: >
+      Verified at apps/web/src/components/auth-provider.tsx:65-67. Works
+      correctly; this is why scenario 02's redirect assertion on
+      url.pathname === '/' is reliable.
+
+  - id: password-field-masked
+    description: "Password input must have type=password"
+    expected: "Masked input so the password is not rendered as plaintext"
+    observed: "Verified — login-password-input has attribute type=password."
+
+missing_actions: []
+
+api_calls_observed:
+  # Extracted from audit-data/23-login-errors.json after the 2026-04-22 run.
+  # /login has no app chrome (no topbar / property picker / business-date),
+  # so those layout calls do NOT fire on scenarios 01/03 (only on 02 AFTER
+  # the redirect into the authenticated dashboard).
+  - { method: GET,  path: "/api/auth/me",      status: 401, note: "fires on every /login load — auth-provider's session probe when logged out" }
+  - { method: POST, path: "/api/auth/login",   status: 200, note: "scenario 02 happy path — issues pms_session cookie" }
+  - { method: POST, path: "/api/auth/login",   status: 401, note: "scenario 03 invalid credentials — no cookie issued" }
+  # After scenario 02 redirects to /, the dashboard kicks off the normal
+  # layout chrome calls:
+  - { method: GET,  path: "/api/properties",   status: 200, note: "post-login dashboard load (scenario 02)" }
+  - { method: GET,  path: "/api/business-date?propertyId=...", status: 200, note: "post-login dashboard load (scenario 02)" }
+
+console_errors:
+  - locale: ru
+    scenario: "01-load"
+    text: "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    verdict: expected
+    note: "auth-provider calls /api/auth/me on mount; expected 401 for a logged-out visit"
+  - locale: ru
+    scenario: "02-happy-login"
+    text: "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    verdict: expected
+    note: "pre-login /api/auth/me probe; succeeds after submit"
+  - locale: ru
+    scenario: "03-invalid-credentials"
+    text: "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    verdict: expected
+    note: "one from /api/auth/me (session probe), one from the failed /api/auth/login POST"
+  - locale: en
+    scenario: "01-load"
+    text: "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    verdict: expected
+  - locale: en
+    scenario: "02-happy-login"
+    text: "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    verdict: expected
+  - locale: en
+    scenario: "03-invalid-credentials"
+    text: "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    verdict: expected
+
+network_errors:
+  - locale: ru
+    scenario: "01-load"
+    status: 401
+    method: GET
+    url: "http://localhost:3000/api/auth/me"
+    verdict: expected
+  - locale: ru
+    scenario: "02-happy-login"
+    status: 401
+    method: GET
+    url: "http://localhost:3000/api/auth/me"
+    verdict: expected
+  - locale: ru
+    scenario: "03-invalid-credentials"
+    status: 401
+    method: GET
+    url: "http://localhost:3000/api/auth/me"
+    verdict: expected
+  - locale: ru
+    scenario: "03-invalid-credentials"
+    status: 401
+    method: POST
+    url: "http://localhost:3000/api/auth/login"
+    verdict: expected
+    note: "invalid credentials → 401 is the expected behaviour tested here"
+  - locale: en
+    scenario: "01-load"
+    status: 401
+    method: GET
+    url: "http://localhost:3000/api/auth/me"
+    verdict: expected
+  - locale: en
+    scenario: "02-happy-login"
+    status: 401
+    method: GET
+    url: "http://localhost:3000/api/auth/me"
+    verdict: expected
+  - locale: en
+    scenario: "03-invalid-credentials"
+    status: 401
+    method: GET
+    url: "http://localhost:3000/api/auth/me"
+    verdict: expected
+  - locale: en
+    scenario: "03-invalid-credentials"
+    status: 401
+    method: POST
+    url: "http://localhost:3000/api/auth/login"
+    verdict: expected
+
+bugs: []
+# No new bugs filed. Considered and rejected:
+#   - "Error message not localised" — API-owned; part of the systemic
+#     backend-English-leak pattern tracked elsewhere (not section-scoped).
+#   - "No CSRF token" — login is not a state-change on a pre-existing session
+#     and sameSite=lax on pms_session mitigates login-CSRF for modern
+#     browsers; flagged under edge_cases for the security reviewer.
+#   - "User enumeration" — verified ABSENT (scenario 04). Not a bug.
+
+signals:
+  l10n: partial
+  l10n_note: >
+    All static UI strings (labels, submit button) are correctly localised
+    via t(dict, "login.*"). The inline error text is API-owned and English
+    only (see edge_cases.api-owned-error-text). Not scoped as a blocker for
+    this section.
+  testids_added: true
+  testids_prefix: "login-*"
+  mutations_gated_to_en: false
+  mutations_gated_to_en_note: >
+    Scenario 02 runs in both locales — the mutation (POST /api/auth/login)
+    is idempotent w.r.t. the seed: it creates a short-lived sessions row
+    keyed by a random UUID and the session cookie dies with the Playwright
+    context. Scenario 04 is en-only as an API-contract check.
+  risk: LOW
+  risk_note: >
+    Login itself is a narrow, well-understood surface. Only added change to
+    apps/web is additive data-testid attributes and a role="alert" on the
+    existing error div. No behavioural change to the auth flow.
+  security_notes:
+    - "No user enumeration — same error text for unknown user + wrong password (verified)."
+    - "No CSRF token on POST /api/auth/login; sameSite=lax on pms_session is the only mitigation."
+    - "Password input is type=password (masked)."
+    - "Session cookie is httpOnly (verified via context.cookies() in scenario 02)."
+
+help_rewrite_hints:
+  topic: null
+  current: ""
+  actual: ""
+  rewrite: |
+
+retro:
+  time_minutes: 0
+  unblocker_fixes:
+    - >
+      Added data-testid to all interactive elements of the login form
+      (login-page, login-form, login-username-input, login-password-input,
+      login-submit-button, login-error-alert) + role="alert" on the error
+      div. Pure additive — no CSS or behavioural change.
+  methodology_deltas:
+    - >
+      Logged-out flows need a local gotoLoggedOut helper; do NOT promote
+      to shared.ts because every other spec depends on setLocaleAndGoto
+      doing the login POST. Scenario isolation relies on Playwright's
+      fresh-context-per-test default; cookies are also explicitly cleared
+      at the top of each test for documentation.
+    - >
+      API contract tests (scenario 04) make good "security property"
+      regression guards — pin no-user-enumeration now so a future refactor
+      that accidentally splits the error paths gets caught.
+
+status: ok
+last_audited: "2026-04-22"
+screenshots_dir: docs/ui-audit/screenshots/

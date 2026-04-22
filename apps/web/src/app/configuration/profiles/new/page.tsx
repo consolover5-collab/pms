@@ -1,56 +1,39 @@
-import { apiFetch } from "@/lib/api";
 import Link from "next/link";
-import { BackButton } from "@/components/back-button";
+import { getLocale, getDict, t, type DictionaryKey } from "@/lib/i18n";
 import { ProfileForm } from "../profile-form";
-
-type Profile = {
-  id: string;
-  type: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  notes: string | null;
-  isActive: boolean;
-  firstName: string | null;
-  lastName: string | null;
-  dateOfBirth: string | null;
-  nationality: string | null;
-  gender: string | null;
-  language: string | null;
-  passportNumber: string | null;
-  documentType: string | null;
-  vipStatus: string | null;
-  shortName: string | null;
-  taxId: string | null;
-  registrationNumber: string | null;
-  address: string | null;
-  creditLimit: string | null;
-  paymentTermDays: number | null;
-  arAccountNumber: string | null;
-  iataCode: string | null;
-  commissionPercent: string | null;
-  sourceCode: string | null;
-  channelType: string | null;
-  contactPerson: string | null;
-  contactTitle: string | null;
-};
 
 export default async function NewProfilePage({
   searchParams,
 }: {
   searchParams: Promise<{ type?: string }>;
 }) {
+  const locale = await getLocale();
+  const dict = getDict(locale);
   const { type } = await searchParams;
 
+  const titleKey = (
+    type === "individual" || type === "company" || type === "travel_agent" || type === "source"
+      ? `profiles.newTitle.${type}`
+      : "profiles.newTitle.default"
+  ) as DictionaryKey;
+
   return (
-    <main className="p-8 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <BackButton fallbackHref="/configuration/profiles" label="Back to Profiles" />
-        <h1 className="text-2xl font-bold mt-2">
-          New {type === "travel_agent" ? "Travel Agent" : type ? type.charAt(0).toUpperCase() + type.slice(1) : "Profile"}
-        </h1>
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <Link href="/configuration/profiles" style={{ color: "var(--muted)" }}>
+          ← {t(dict, "profiles.backToList")}
+        </Link>
       </div>
-      <ProfileForm />
-    </main>
+
+      <div className="page-head">
+        <h1 className="page-title">{t(dict, titleKey)}</h1>
+      </div>
+
+      <div className="card">
+        <div className="card-body">
+          <ProfileForm />
+        </div>
+      </div>
+    </>
   );
 }

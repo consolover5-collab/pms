@@ -1,0 +1,159 @@
+id: 17-configuration-rate-plans
+title: "Rate Plans Configuration"
+route: /configuration/rate-plans
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "Тарифные планы"
+    en: "Rate Plans"
+  required_fields: []
+  optional_fields:
+    - { id: code, label: { ru: "Код", en: "Code" }, kind: "text",
+        note: "Uppercase-forced, maxLength 20; required on create" }
+    - { id: name, label: { ru: "Название", en: "Name" }, kind: "text",
+        note: "Required on create/edit" }
+    - { id: baseRate, label: { ru: "Базовая ставка", en: "Base rate" }, kind: "number",
+        note: "Optional; leave empty if rate varies by room type" }
+    - { id: description, label: { ru: "Описание", en: "Description" }, kind: "textarea",
+        note: "Optional; shown as sub-text in list" }
+    - { id: isDefault, label: { ru: "Базовый тариф", en: "Default rate plan" }, kind: "checkbox",
+        note: "Exactly one plan has isDefault=true (RACK); badge shown in list" }
+    - { id: isActive, label: { ru: "Активен", en: "Active" }, kind: "checkbox",
+        note: "Controls availability for new reservations; all 5 seed plans are active" }
+  buttons:
+    addRatePlan:
+      ru: "Добавить тариф"
+      en: "Add rate plan"
+      note: "Link to /configuration/rate-plans/new; always visible"
+    createBtn:
+      ru: "Создать тариф"
+      en: "Create rate plan"
+      note: "Submit button on new plan form; POSTs to /api/rate-plans"
+    updateBtn:
+      ru: "Сохранить"
+      en: "Save changes"
+      note: "Submit button on edit form; PUTs to /api/rate-plans/:id"
+    editBtn:
+      ru: "Изменить"
+      en: "Edit"
+      note: "Link to /configuration/rate-plans/:id/edit"
+    deleteBtn:
+      ru: "Удалить"
+      en: "Delete"
+      note: "Triggers window.confirm then DELETE /api/rate-plans/:id; 400 when plan has bookings"
+    saveRateBtn:
+      ru: "Сохранить"
+      en: "Save"
+      note: "Per-row save in room rates matrix; PUTs /api/rate-plans/:id/room-rates"
+
+steps:
+  - id: "01-list-render"
+    action: "Load /configuration/rate-plans; table renders 5 rows; RACK and PROMO codes visible"
+    screenshots:
+      - 17-configuration-rate-plans-01-list-render-ru.png
+      - 17-configuration-rate-plans-01-list-render-en.png
+    note: "5 plans seeded: BAR, CORP, LONG, PROMO, RACK; all isActive=true"
+
+  - id: "02-one-is-default"
+    action: "Assert exactly 1 row has default badge (★ Base rate / ★ Базовый); that row is RACK"
+    screenshots:
+      - 17-configuration-rate-plans-02-one-is-default-ru.png
+      - 17-configuration-rate-plans-02-one-is-default-en.png
+    note: >
+      Plan drift: plan spec used 'isBaseRate', actual field is 'isDefault'. RACK is the
+      only plan with isDefault=true. Badge rendered via data-testid='rate-plan-default-badge'.
+
+  - id: "03-create-new-plan"
+    action: "Open /configuration/rate-plans/new; fill code+name; submit; POST /api/rate-plans returns 201; plan appears in list (rowCount=6)"
+    screenshots:
+      - 17-configuration-rate-plans-03-create-new-plan-en.png
+    note: >
+      Mutation; en-only; ru skipped. Unique code prefix AUD + timestamp suffix.
+      POST returns 201 with plan JSON including id. Redirect to list after create.
+      Plan deleted in extraAfterAll cleanup.
+
+  - id: "04-matrix-edit"
+    action: "Open BAR edit page; matrix renders 6 room-type rows; edit STD row (4275→4300); PUT /api/rate-plans/:id/room-rates 200; reload; value persists"
+    screenshots:
+      - 17-configuration-rate-plans-04-matrix-edit-saved-en.png
+      - 17-configuration-rate-plans-04-matrix-edit-reloaded-en.png
+    note: >
+      Mutation; en-only; ru skipped. Matrix fully populated (not empty) — 6 room types
+      with existing rates for BAR. ✓ Saved flash appears post-save. STD rate reset to
+      4275.00 in extraAfterAll cleanup.
+
+  - id: "05-delete-blocked-when-booked"
+    action: "Attempt DELETE of RACK (isDefault=true, has bookings); API returns 400; RACK remains in list"
+    screenshots:
+      - 17-configuration-rate-plans-05-delete-blocked-en.png
+    note: >
+      Attempt-only; en-only; RACK NOT deleted. API returns HTTP 400 Bad Request
+      (not 409 as plan expected — 400 is the actual error code). RACK confirmed
+      present after attempt via API re-probe and UI reload.
+
+edge_cases:
+  - id: isDefault-field-vs-plan
+    description: "Plan spec referenced 'isBaseRate'; actual DB/API field is 'isDefault'"
+    expected: "Spec adapts — assertions use isDefault throughout"
+    observed: "OK — RACK.isDefault=true confirmed via API probe and badge in UI"
+  - id: matrix-populated
+    description: "Plan noted roomTypes=0 in probe — may be empty. Actual: 6 room types fully assigned for BAR"
+    expected: "If empty: skip scenario 04 as not_applicable"
+    observed: "Matrix has 6 rows for BAR; scenario 04 ran fully with PUT 200"
+  - id: delete-status-code
+    description: "Delete attempt on RACK returns 400 Bad Request (not 409 Conflict as plan expected)"
+    expected: "Any non-2xx is acceptable — plan is protected"
+    observed: "400 received; RACK confirmed not deleted; test passed"
+  - id: create-redirect
+    description: "After POST create, form redirects to /configuration/rate-plans list"
+    expected: "router.replace('/configuration/rate-plans') called on success"
+    observed: "OK — page.waitForURL('**/configuration/rate-plans') succeeded after create"
+  - id: save-flash
+    description: "Matrix cell save shows ✓ Saved flash before button re-renders"
+    expected: "Flash visible briefly (1500ms timeout via setTimeout)"
+    observed: "OK — toBeVisible on '✓ Saved' text passed"
+
+api_calls_observed:
+  - { method: GET,  path: "/api/auth/me", status: 200 }
+  - { method: GET,  path: "/api/properties", status: 200 }
+  - { method: GET,  path: "/api/business-date", status: 200 }
+  - { method: GET,  path: "/api/rate-plans?propertyId=:id", status: 200 }
+  - { method: POST, path: "/api/rate-plans", status: 201, note: "create new plan" }
+  - { method: PUT,  path: "/api/rate-plans/:id/room-rates", status: 200, note: "matrix cell save" }
+  - { method: DELETE, path: "/api/rate-plans/:id", status: 400, note: "RACK delete blocked" }
+
+console_errors: []
+network_errors:
+  - { method: DELETE, path: "/api/rate-plans/f47aaf7f…", status: 400,
+      note: "Expected — RACK delete correctly rejected by API" }
+
+bugs: []
+
+help_rewrite_hints:
+  topic: null
+  current: ""
+  actual: |
+    /configuration/rate-plans route exists with full CRUD.
+    No dedicated help article at /help/rate-plans found in help-content.tsx.
+  rewrite: |
+    Add a dedicated help article "rate-plans" covering: list view with default badge,
+    creating/editing a rate plan (code, name, baseRate, isDefault, isActive fields),
+    room-rates matrix (price per room type with per-row save), and delete protection
+    for plans with active bookings.
+
+retro:
+  time_minutes: 35
+  unblocker_fixes:
+    - "Server restart needed: original server.js (PID 4472) served old build without data-testid attrs; kill + next start required"
+    - "Build gate was ZfoideDLIz5nbdMBSR14X (from pre-rebuild), global-setup ran against new build fine"
+    - "DELETE RACK returns 400 (not 409) — plan spec said 'expect 409'; actual is 400; test handles both via non-2xx check"
+  methodology_deltas:
+    - "After adding data-testid to a client component, full web rebuild + server restart is mandatory"
+    - "Serial mode correctly gates mutations: 01+02 (read-only ru+en) run first, then 03+04+05 (mutation en-only)"
+    - "extraAfterAll cleanup verified via API re-probe: count=5, STD rate=4275.00"
+
+status: ok
+last_audited: "2026-04-21"
+screenshots_dir: docs/ui-audit/screenshots/

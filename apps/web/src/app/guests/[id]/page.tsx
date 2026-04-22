@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
-import { BackButton } from "@/components/back-button";
+import { getLocale, getDict, t } from "@/lib/i18n";
+import { Icon } from "@/components/icon";
 
 type Guest = {
   id: string;
@@ -20,11 +21,11 @@ type Guest = {
   updatedAt: string;
 };
 
-function Field({ label, value }: { label: string; value: string | null }) {
+function LabVal({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div>
-      <dt className="text-xs text-gray-500 uppercase">{label}</dt>
-      <dd className="text-sm">{value || "\u2014"}</dd>
+      <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 13, color: "var(--fg)" }}>{value || "—"}</div>
     </div>
   );
 }
@@ -34,55 +35,118 @@ export default async function GuestDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const locale = await getLocale();
+  const dict = getDict(locale);
   const { id } = await params;
   const guest = await apiFetch<Guest>(`/api/profiles/${id}`);
 
-  const genderLabel: Record<string, string> = { M: "Male", F: "Female" };
+  const genderLabel: Record<string, string> = {
+    M: t(dict, "guests.genderMale"),
+    F: t(dict, "guests.genderFemale"),
+  };
+
+  const initials =
+    (guest.firstName?.[0] || "") + (guest.lastName?.[0] || "") || "?";
 
   return (
-    <main className="p-8 max-w-2xl">
-      <BackButton fallbackHref="/guests" label="Back to guests" />
-
-      <div className="mt-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">
-            {guest.firstName} {guest.lastName}
-          </h1>
-          {guest.vipStatus && (
-            <span className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-800">
-              VIP {guest.vipStatus}
-            </span>
-          )}
-        </div>
-        <Link
-          href={`/guests/${guest.id}/edit`}
-          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
-        >
-          Edit Guest
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <Link href="/guests" style={{ color: "var(--muted)" }}>
+          ← {t(dict, "guests.backToGuests")}
         </Link>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-4">
-        <Field label="Email" value={guest.email} />
-        <Field label="Phone" value={guest.phone} />
-        <Field label="Nationality" value={guest.nationality} />
-        <Field label="Gender" value={guest.gender ? (genderLabel[guest.gender] || guest.gender) : null} />
-        <Field label="Language" value={guest.language} />
-        <Field label="Date of Birth" value={guest.dateOfBirth} />
-        <Field label="Document Type" value={guest.documentType} />
-        <Field label="Document Number" value={guest.documentNumber} />
+      <div className="page-head" style={{ alignItems: "center" }}>
+        <div
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: "50%",
+            background: "var(--accent-soft)",
+            color: "var(--accent)",
+            display: "grid",
+            placeItems: "center",
+            fontSize: 18,
+            fontWeight: 600,
+            flexShrink: 0,
+            marginRight: 8,
+          }}
+        >
+          {initials.toUpperCase()}
+        </div>
+        <div>
+          <h1
+            className="page-title"
+            style={{ display: "flex", alignItems: "center", gap: 10 }}
+            data-testid="guest-detail-name"
+          >
+            {guest.firstName} {guest.lastName}
+            {guest.vipStatus != null && (
+              <span className="badge no-show">
+                <span className="dot" />
+                VIP {guest.vipStatus}
+              </span>
+            )}
+          </h1>
+          <span className="page-sub">
+            {guest.email || "—"} · {guest.phone || "—"}
+          </span>
+        </div>
+        <div className="actions">
+          <Link
+            href={`/guests/${guest.id}/edit`}
+            className="btn sm primary"
+            data-testid="guest-detail-edit-button"
+          >
+            <Icon name="settings" size={12} />
+            {t(dict, "guests.editGuest")}
+          </Link>
+        </div>
+      </div>
+
+      <div className="card" data-testid="guest-detail-personal">
+        <div className="card-head">
+          <div className="card-title">{t(dict, "profiles.section.personal")}</div>
+        </div>
+        <div
+          className="card-body"
+          style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}
+        >
+          <div data-testid="guest-detail-email">
+            <LabVal label={t(dict, "guests.fld.email")} value={guest.email} />
+          </div>
+          <div data-testid="guest-detail-phone">
+            <LabVal label={t(dict, "guests.fld.phone")} value={guest.phone} />
+          </div>
+          <LabVal label={t(dict, "guests.fld.nationality")} value={guest.nationality} />
+          <LabVal
+            label={t(dict, "guests.fld.gender")}
+            value={guest.gender ? genderLabel[guest.gender] || guest.gender : null}
+          />
+          <LabVal label={t(dict, "guests.fld.language")} value={guest.language} />
+          <LabVal label={t(dict, "guests.fld.dob")} value={guest.dateOfBirth} />
+          <LabVal label={t(dict, "guests.fld.docType")} value={guest.documentType} />
+          <LabVal label={t(dict, "guests.fld.docNumber")} value={guest.documentNumber} />
+        </div>
       </div>
 
       {guest.notes && (
-        <div className="mt-6">
-          <h2 className="text-xs text-gray-500 uppercase mb-1">Notes</h2>
-          <p className="text-sm bg-gray-50 p-3 rounded">{guest.notes}</p>
+        <div className="card">
+          <div className="card-head">
+            <div className="card-title">{t(dict, "guests.fld.notes")}</div>
+          </div>
+          <div className="card-body" style={{ fontSize: 13, whiteSpace: "pre-wrap" }}>
+            {guest.notes}
+          </div>
         </div>
       )}
 
-      <div className="mt-6 text-xs text-gray-400">
-        Created: {new Date(guest.createdAt).toLocaleDateString()} | Updated: {new Date(guest.updatedAt).toLocaleDateString()}
+      <div style={{ fontSize: 11, color: "var(--muted)" }}>
+        {t(dict, "guests.createdUpdated", {
+          created: new Date(guest.createdAt).toLocaleDateString(),
+          updated: new Date(guest.updatedAt).toLocaleDateString(),
+        })}
       </div>
-    </main>
+    </>
   );
 }

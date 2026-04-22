@@ -33,27 +33,27 @@ export default async function HousekeepingPage() {
   let businessDate: string | null = null;
 
   if (propertyId) {
-    const res = await apiFetch<{ data: HousekeepingTask[], businessDate: string | null }>(
-      `/api/housekeeping/tasks?propertyId=${propertyId}`
+    const res = await apiFetch<{ data: HousekeepingTask[]; businessDate: string | null }>(
+      `/api/housekeeping/tasks?propertyId=${propertyId}`,
     );
     tasks = res.data;
     businessDate = res.businessDate;
   }
 
   return (
-    <main className="p-8 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">
-            {businessDate ? t(dict, "hk.titleWithDate", { date: businessDate }) : t(dict, "hk.title")}
-          </h1>
-          <p className="text-gray-600 text-sm mt-1">{t(dict, "hk.subtitle")}</p>
-        </div>
+    <>
+      <div className="page-head">
+        <h1 className="page-title">{t(dict, "hk.title")}</h1>
+        <span className="page-sub">
+          {businessDate ? businessDate : t(dict, "hk.subtitle")}
+        </span>
       </div>
 
       {!propertyId ? (
-        <div className="text-center py-12 text-gray-500">
-          {t(dict, "hk.noProperty")}
+        <div className="card">
+          <div className="card-body">
+            <div className="empty">{t(dict, "hk.noProperty")}</div>
+          </div>
         </div>
       ) : (
         <HousekeepingClient
@@ -62,6 +62,6 @@ export default async function HousekeepingPage() {
           businessDate={businessDate}
         />
       )}
-    </main>
+    </>
   );
 }

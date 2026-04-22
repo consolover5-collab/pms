@@ -2,10 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Link from "next/link";
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
 
+const required = (
+  <span style={{ color: "var(--cancelled)", marginLeft: 2 }}>*</span>
+);
 
 export function GuestForm({ propertyId }: { propertyId: string }) {
   const router = useRouter();
+  const { dict } = useLocale();
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -25,8 +32,17 @@ export function GuestForm({ propertyId }: { propertyId: string }) {
       name: `${firstName} ${lastName}`,
     };
 
-    // Optional fields — only include if non-empty
-    for (const key of ["email", "phone", "nationality", "gender", "language", "dateOfBirth", "documentType", "documentNumber", "notes"]) {
+    for (const key of [
+      "email",
+      "phone",
+      "nationality",
+      "gender",
+      "language",
+      "dateOfBirth",
+      "documentType",
+      "documentNumber",
+      "notes",
+    ]) {
       const val = form.get(key);
       if (val && String(val).trim()) body[key] = String(val).trim();
     }
@@ -43,67 +59,118 @@ export function GuestForm({ propertyId }: { propertyId: string }) {
       const guest = await res.json();
       router.replace(`/guests/${guest.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save");
+      setError(err instanceof Error ? err.message : t(dict, "guests.saveFailed"));
       setSaving(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
+    <form
+      onSubmit={handleSubmit}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+        maxWidth: 720,
+      }}
+    >
       {error && (
-        <div className="p-3 bg-red-50 text-red-700 rounded text-sm">{error}</div>
+        <div
+          role="alert"
+          style={{
+            padding: "10px 12px",
+            background: "var(--cancelled-bg)",
+            color: "var(--cancelled-fg)",
+            borderRadius: 6,
+            fontSize: 12.5,
+            lineHeight: 1.4,
+          }}
+        >
+          {error}
+        </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">First Name *</label>
-          <input name="firstName" required className="w-full px-3 py-2 border rounded" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">
+            {t(dict, "guests.fld.firstName")}
+            {required}
+          </label>
+          <input
+            name="firstName"
+            required
+            className="input"
+            data-testid="guest-form-first-name"
+          />
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Last Name *</label>
-          <input name="lastName" required className="w-full px-3 py-2 border rounded" />
+        <div className="field">
+          <label className="lab">
+            {t(dict, "guests.fld.lastName")}
+            {required}
+          </label>
+          <input
+            name="lastName"
+            required
+            className="input"
+            data-testid="guest-form-last-name"
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Email</label>
-          <input name="email" type="email" className="w-full px-3 py-2 border rounded" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.email")}</label>
+          <input
+            name="email"
+            type="email"
+            className="input"
+            data-testid="guest-form-email"
+          />
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Phone</label>
-          <input name="phone" type="tel" className="w-full px-3 py-2 border rounded" />
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.phone")}</label>
+          <input name="phone" type="tel" className="input" />
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Gender</label>
-          <select name="gender" className="w-full px-3 py-2 border rounded">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.gender")}</label>
+          <select name="gender" className="select">
             <option value="">—</option>
-            <option value="M">Male</option>
-            <option value="F">Female</option>
+            <option value="M">{t(dict, "guests.opt.male")}</option>
+            <option value="F">{t(dict, "guests.opt.female")}</option>
           </select>
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Nationality</label>
-          <input name="nationality" maxLength={3} placeholder="RU" className="w-full px-3 py-2 border rounded" />
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.nationality")}</label>
+          <input
+            name="nationality"
+            maxLength={3}
+            placeholder={t(dict, "guests.ph.nationality")}
+            className="input"
+          />
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Language</label>
-          <input name="language" maxLength={10} placeholder="ru" className="w-full px-3 py-2 border rounded" />
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.language")}</label>
+          <input
+            name="language"
+            maxLength={10}
+            placeholder={t(dict, "guests.ph.language")}
+            className="input"
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Date of Birth</label>
-          <input name="dateOfBirth" type="date" className="w-full px-3 py-2 border rounded" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.dob")}</label>
+          <input name="dateOfBirth" type="date" className="input" />
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">VIP Status</label>
-          <select name="vipStatus" className="w-full px-3 py-2 border rounded">
-            <option value="">None</option>
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.vipStatus")}</label>
+          <select name="vipStatus" className="select">
+            <option value="">{t(dict, "guests.opt.none")}</option>
             <option value="VIP1">VIP 1</option>
             <option value="VIP2">VIP 2</option>
             <option value="VIP3">VIP 3</option>
@@ -111,29 +178,44 @@ export function GuestForm({ propertyId }: { propertyId: string }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Document Type</label>
-          <input name="documentType" placeholder="Passport" className="w-full px-3 py-2 border rounded" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.docType")}</label>
+          <input
+            name="documentType"
+            placeholder={t(dict, "guests.ph.documentType")}
+            className="input"
+          />
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Document Number</label>
-          <input name="documentNumber" className="w-full px-3 py-2 border rounded" />
+        <div className="field">
+          <label className="lab">{t(dict, "guests.fld.docNumber")}</label>
+          <input name="documentNumber" className="input" />
         </div>
       </div>
 
-      <div>
-        <label className="block text-xs text-gray-500 mb-1">Notes</label>
-        <textarea name="notes" rows={3} className="w-full px-3 py-2 border rounded" />
+      <div className="field">
+        <label className="lab">{t(dict, "guests.fld.notes")}</label>
+        <textarea
+          name="notes"
+          rows={3}
+          className="input"
+          style={{ resize: "vertical", minHeight: 72 }}
+        />
       </div>
 
-      <button
-        type="submit"
-        disabled={saving}
-        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-      >
-        {saving ? "Saving..." : "Create Guest"}
-      </button>
+      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+        <button
+          type="submit"
+          disabled={saving}
+          className="btn primary"
+          data-testid="guest-form-submit"
+        >
+          {saving ? t(dict, "common.saving") : t(dict, "guests.createBtn")}
+        </button>
+        <Link href="/guests" className="btn ghost">
+          {t(dict, "common.cancel")}
+        </Link>
+      </div>
     </form>
   );
 }

@@ -1,0 +1,216 @@
+id: 11-profiles
+title: "Guest Profiles"
+route: /guests
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "Гости"
+    en: "Guests"
+  required_fields:
+    - { id: firstName, label: { ru: "Имя", en: "First name" }, kind: "text",
+        note: "Required on create and edit forms" }
+    - { id: lastName, label: { ru: "Фамилия", en: "Last name" }, kind: "text",
+        note: "Required on create and edit forms" }
+  optional_fields:
+    - { id: email, label: { ru: "E-mail", en: "Email" }, kind: "email",
+        note: "Free-form email string; nullable" }
+    - { id: phone, label: { ru: "Телефон", en: "Phone" }, kind: "tel",
+        note: "Free-form phone string; nullable" }
+    - { id: gender, label: { ru: "Пол", en: "Gender" }, kind: "select",
+        note: "Values: M, F; empty = not specified" }
+    - { id: nationality, label: { ru: "Гражданство", en: "Nationality" }, kind: "text",
+        note: "ISO-like 2-3 letter country code; free-text input with maxLength=2 on edit, 3 on create (code drift)" }
+    - { id: language, label: { ru: "Язык", en: "Language" }, kind: "text | select",
+        note: "Edit form = select (EN/RU/DE/FR/ES/ZH/JA); create form = free-text input with placeholder (drift — edit is richer)" }
+    - { id: dateOfBirth, label: { ru: "Дата рождения", en: "Date of birth" }, kind: "date" }
+    - { id: documentType, label: { ru: "Тип документа", en: "Document type" }, kind: "text | select",
+        note: "Edit form = select (passport/national_id/drivers_license); create form = free-text (drift)" }
+    - { id: documentNumber, label: { ru: "Номер документа", en: "Document number" }, kind: "text" }
+    - { id: vipStatus, label: { ru: "VIP-статус", en: "VIP status" }, kind: "select",
+        note: "Values: VIP1/VIP2/VIP3; empty = no status" }
+    - { id: notes, label: { ru: "Примечания", en: "Notes" }, kind: "textarea" }
+  buttons:
+    newGuest:
+      ru: "Новый гость"
+      en: "New guest"
+      note: "Link to /guests/new from list page"
+    search:
+      ru: "Найти"
+      en: "Search"
+      note: "Submit button next to search input; also triggered by 300ms debounce on typing"
+    createBtn:
+      ru: "Создать гостя"
+      en: "Create guest"
+      note: "Submit on /guests/new; POSTs to /api/profiles"
+    updateBtn:
+      ru: "Сохранить"
+      en: "Save changes"
+      note: "Submit on /guests/[id]/edit; PUTs to /api/profiles/:id"
+    editGuest:
+      ru: "Редактировать"
+      en: "Edit guest"
+      note: "Link on detail page to /guests/[id]/edit"
+    backToGuests:
+      ru: "К списку гостей"
+      en: "Back to guests"
+      note: "Link on /guests/new and /guests/[id] back to /guests"
+
+steps:
+  - id: "01-list-render"
+    status: ok
+    action: "Open /guests; list renders; total count badge matches API (individuals only, 130-131 depending on soft-deletes)"
+    screenshots:
+      - 11-profiles-01-list-render-ru.png
+      - 11-profiles-01-list-render-en.png
+    note: >
+      Total count badge (data-testid=guests-total-count) equals GET /api/profiles?type=individual
+      total. Page renders up to PAGE_SIZE=50 rows per page.
+
+  - id: "02-search-q"
+    status: ok
+    adapted_from: "02-filter-type"
+    action: "Type 'Alex' in search input; URL gains ?q=Alex after 300ms debounce; list filters to matching guests"
+    screenshots:
+      - 11-profiles-02-search-q-ru.png
+      - 11-profiles-02-search-q-en.png
+    note: >
+      PLAN DRIFT: Plan scenario 02 was "filter-type" (switch individual/company/travel_agent)
+      but /guests hardcodes type=individual (apps/web/src/app/guests/page.tsx L39).
+      There is NO type-switcher in the UI — companies/agents are served by a separate
+      /configuration/profiles route (Batch D section 21). Adapted to test the existing
+      SearchForm with 300ms debounce — the only filter control that actually ships here.
+
+  - id: "03-create-guest"
+    status: ok
+    action: "Open /guests/new; fill firstName/lastName/email; submit; POST /api/profiles 201; redirect to /guests/{id}; guest reachable via search"
+    screenshots:
+      - 11-profiles-03-create-guest-en.png
+    note: >
+      Mutation; en-only; ru skipped. Unique marker firstName=AuditTest,
+      lastName=Section11-<timestamp>. POST returns 201 with full profile JSON.
+      Cleanup in extraAfterAll: DELETE /api/profiles/:id?propertyId=... →
+      soft-delete (isActive=false). Verified post-run.
+
+  - id: "04-open-detail"
+    status: ok
+    adapted_from: "04-view-guest-history"
+    action: "Click first row's name link → navigate to /guests/[id]; detail page shows personal info grid with email/phone/docs/notes"
+    screenshots:
+      - 11-profiles-04-open-detail-ru.png
+      - 11-profiles-04-open-detail-en.png
+    note: >
+      PLAN DRIFT: Plan scenario 04 was "view-guest-history" (past bookings list on detail
+      page). The /guests/[id] page (apps/web/src/app/guests/[id]/page.tsx) renders ONLY
+      personal-info grid (email/phone/gender/dob/nationality/language/docs), optional
+      notes card, and created/updated footer. There is NO booking-history section or
+      tab. Adapted to test what the detail page actually renders. The gap (no bookings
+      list on guest detail) is logged in missing_actions below.
+
+  - id: "05-edit-guest"
+    status: ok
+    action: "Edit sample guest's email on /guests/[id]/edit; PUT /api/profiles/:id 200; redirect to detail; new email persists both in UI and API"
+    screenshots:
+      - 11-profiles-05-edit-guest-en.png
+    note: >
+      Mutation; en-only; ru skipped. Target: 7f170421-0f77-4e04-a973-1b1f95ecc79b
+      (Alexander Fedorov, alexander.fedorov26@example.com). setNativeValue used to
+      fill the email input reliably. Snapshot-restore cleanup in extraAfterAll:
+      PUT /api/profiles/:id with original email → 200. Verified post-run.
+
+edge_cases:
+  - id: type-hardcoded-individual
+    description: "/guests hardcodes params.set('type','individual') so companies/travel_agents/sources never appear here"
+    expected: "A type selector control in the UI"
+    observed: "No type selector; filter adapted to search in scenario 02 (see plan drift)"
+  - id: no-booking-history
+    description: "Guest detail page has no past/upcoming bookings list or tab"
+    expected: "History section linking to past bookings (plan intent for scenario 04)"
+    observed: "Only personal-info grid + optional notes card + created/updated footer. See missing_actions."
+  - id: search-debounce
+    description: "SearchForm has 300ms debounce before router.push"
+    expected: "Typing triggers URL update after debounce"
+    observed: "OK — page.waitForURL(/\\?q=/) after typing succeeds consistently"
+  - id: create-redirects-to-detail
+    description: "After POST /api/profiles create, form calls router.replace(`/guests/${guest.id}`)"
+    expected: "Redirect to detail page"
+    observed: "OK — page.waitForURL(/guests/{id}) succeeds"
+  - id: edit-redirects-to-detail
+    description: "After PUT /api/profiles/:id save, form calls router.replace(`/guests/${guest.id}`)"
+    expected: "Redirect to detail page; updated email visible"
+    observed: "OK — detail page renders the new email"
+  - id: language-field-shape-drift
+    description: "Create form language = free-text input; Edit form language = select of 7 ISO codes"
+    expected: "Consistent shape across create/edit forms"
+    observed: "Drift: create is free-text, edit is select. Not a bug; just inconsistent UX."
+  - id: document-type-shape-drift
+    description: "Create form documentType = free-text input; Edit form documentType = select (passport/national_id/drivers_license)"
+    expected: "Consistent shape across create/edit forms"
+    observed: "Drift: create is free-text, edit is select. Not a bug; just inconsistent UX."
+  - id: delete-is-soft
+    description: "DELETE /api/profiles/:id is a soft-delete (isActive=false) not a hard delete"
+    expected: "Hard delete to fully remove test data"
+    observed: "Soft-delete — the created row persists in DB with isActive=false. Total-count badge grows by 1 after run; acceptable drift because scenario 02 asserts total<130 relatively, not equality."
+
+missing_actions:
+  - action: "View guest booking history on /guests/[id]"
+    description: >
+      The guest detail page renders personal info only. There is no section/tab/card
+      listing the guest's past/upcoming/in-house bookings. This was plan scenario 04
+      ("view-guest-history") but the UI feature doesn't exist yet. Not a bug (nothing
+      regressed) — documented here as a product gap for future implementation.
+    priority: low
+    suggested_testid_prefix: "guest-detail-history"
+    suggested_api: "GET /api/bookings?guestProfileId=:id or similar server-side filter"
+
+api_calls_observed:
+  - { method: GET,    path: "/api/auth/me", status: 200 }
+  - { method: GET,    path: "/api/profiles?propertyId=...&type=individual&limit=50&offset=0", status: 200 }
+  - { method: GET,    path: "/api/profiles?propertyId=...&type=individual&q=Alex&limit=50", status: 200, note: "scenario 02 search" }
+  - { method: GET,    path: "/api/profiles/:id", status: 200, note: "detail + edit load" }
+  - { method: POST,   path: "/api/profiles", status: 201, note: "scenario 03 create" }
+  - { method: PUT,    path: "/api/profiles/:id", status: 200, note: "scenario 05 edit" }
+  - { method: DELETE, path: "/api/profiles/:id?propertyId=...", status: 200, note: "scenario 03 cleanup; soft-delete" }
+
+console_errors: []
+network_errors: []
+
+signals:
+  l10n: full
+  testids_added: true
+  testids_prefix: "guests-* / guest-detail-* / guest-form-*"
+  mutations_gated_to_en: true
+
+bugs: []
+# /guests subsystem is fully i18n'd via t(dict, ...). No i18n BUG candidate.
+# The language/documentType shape drift is a minor UX inconsistency, not a bug.
+
+help_rewrite_hints:
+  topic: guests
+  current: ""
+  actual: |
+    /guests route is a searchable list of individual guest profiles only.
+    /guests/new creates a new individual guest via POST /api/profiles.
+    /guests/[id] shows personal info (no booking history).
+    /guests/[id]/edit edits the profile; PUT /api/profiles/:id persists.
+    Companies, travel agents, and sources are NOT accessible from /guests — they live under /configuration/profiles.
+  rewrite: |
+    Add a help article "guests" covering: searching the list (debounced), creating/editing
+    a guest with required first/last name + optional contact/identity/VIP fields, and
+    note that booking history is not visible on the guest profile page yet (link to
+    bookings list is via search by guest name). Explicitly call out that this page
+    is for individuals only; companies/agents are under Configuration → Profiles.
+
+retro:
+  time_minutes: 30
+  unblocker_fixes:
+    - "Web rebuild + server restart required after adding data-testid attrs to server/client components"
+    - "Verified mutation cleanup via post-run API probe: sample guest email restored; created guest soft-deleted (isActive=false, row retained)"
+  methodology_deltas:
+    - "Two plan scenarios (02 filter-type, 04 view-guest-history) mapped to UI features that don't exist. Adapted 02 to search-q (ok); adapted 04 to open-detail (ok) + logged booking-history gap under missing_actions."
+    - "Detail-page booking history is a real product gap worth documenting even though no regression occurred — used missing_actions (not bugs)."
+
+status: ok
+last_audited: "2026-04-21"
+screenshots_dir: docs/ui-audit/screenshots/

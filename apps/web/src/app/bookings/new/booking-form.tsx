@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useState, useEffect, useMemo } from "react";
 import { formatCurrency } from "@/lib/format";
 import { ErrorDisplay, type ApiErrorDetail } from "@/components/error-display";
-
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
 
 type Guest = { id: string; firstName: string; lastName: string; name: string };
 type RoomType = { id: string; name: string; code: string };
@@ -14,8 +15,13 @@ type RatePlan = { id: string; name: string; code: string; baseRate: string | nul
 type RoomRate = { ratePlanId: string; roomTypeId: string; amount: string };
 type Profile = { id: string; name: string };
 
+const required = (
+  <span style={{ color: "var(--cancelled)", marginLeft: 2 }}>*</span>
+);
+
 export function BookingForm({ propertyId }: { propertyId: string }) {
   const router = useRouter();
+  const { dict } = useLocale();
   const [error, setError] = useState<string | ApiErrorDetail | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -28,7 +34,6 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
   const [agents, setAgents] = useState<Profile[]>([]);
   const [sources, setSources] = useState<Profile[]>([]);
 
-  // Controlled form state
   const [selectedGuestId, setSelectedGuestId] = useState("");
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState("");
   const [selectedRoomId, setSelectedRoomId] = useState("");
@@ -45,7 +50,6 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [notes, setNotes] = useState("");
 
-  // New guest form state
   const [showNewGuest, setShowNewGuest] = useState(false);
   const [creatingGuest, setCreatingGuest] = useState(false);
   const [newGuestData, setNewGuestData] = useState({
@@ -55,15 +59,13 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
     phone: "",
   });
 
-  // Date validation
   const dateError = useMemo(() => {
     if (checkInDate && checkOutDate && checkOutDate <= checkInDate) {
-      return "Check-out date must be after check-in date";
+      return t(dict, "newBooking.dateError");
     }
     return null;
-  }, [checkInDate, checkOutDate]);
+  }, [checkInDate, checkOutDate, dict]);
 
-  // Calculate nights and total
   const nights = useMemo(() => {
     if (!checkInDate || !checkOutDate || checkOutDate <= checkInDate) return 0;
     const diff = new Date(checkOutDate).getTime() - new Date(checkInDate).getTime();
@@ -96,7 +98,6 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
         setCompanies(compRaw.data ?? []);
         setAgents(agentRaw.data ?? []);
         setSources(sourceRaw.data ?? []);
-        // Загружаем матрицу цен для всех тарифных планов
         const allRates = await Promise.all(
           rp.map((plan: RatePlan) =>
             fetch(`/api/rate-plans/${plan.id}/room-rates`)
@@ -108,38 +109,34 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
           )
         );
         setRoomRates(allRates.flat());
-        // Автовыбор тарифного плана по умолчанию
         const defaultPlan = rp.find((p: RatePlan) => p.isDefault);
         if (defaultPlan) {
           setSelectedRatePlanId(defaultPlan.id);
           if (defaultPlan.baseRate) setRateAmount(defaultPlan.baseRate);
         }
       } catch {
-        setError("Could not load data. Check that the API server is running.");
+        setError(t(dict, "newBooking.loadFailed"));
       }
     }
     loadData();
-  }, [propertyId]);
+  }, [propertyId, dict]);
 
-  // Filter rooms by selected room type
   const filteredRooms = selectedRoomTypeId
     ? rooms.filter((r) => r.roomTypeId === selectedRoomTypeId)
     : rooms;
 
-  // Room label with status
   function getRoomLabel(room: Room): string {
     const statusParts: string[] = [];
-    if (room.occupancyStatus === "occupied") statusParts.push("occupied");
-    if (room.housekeepingStatus === "dirty") statusParts.push("dirty");
-    else if (room.housekeepingStatus === "out_of_order") statusParts.push("OOO");
-    else if (room.housekeepingStatus === "out_of_service") statusParts.push("OOS");
+    if (room.occupancyStatus === "occupied") statusParts.push(t(dict, "newBooking.roomStatus.occupied"));
+    if (room.housekeepingStatus === "dirty") statusParts.push(t(dict, "newBooking.roomStatus.dirty"));
+    else if (room.housekeepingStatus === "out_of_order") statusParts.push(t(dict, "newBooking.roomStatus.ooo"));
+    else if (room.housekeepingStatus === "out_of_service") statusParts.push(t(dict, "newBooking.roomStatus.oos"));
 
     return statusParts.length > 0
       ? `${room.roomNumber} (${statusParts.join(", ")})`
       : room.roomNumber;
   }
 
-  // Lookup rate from matrix, fall back to plan baseRate
   function getRateForPlanAndType(ratePlanId: string, roomTypeId: string): string | null {
     const matrixRate = roomRates.find(
       (r) => r.ratePlanId === ratePlanId && r.roomTypeId === roomTypeId
@@ -149,7 +146,6 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
     return plan?.baseRate ?? null;
   }
 
-  // Handle rate plan selection — auto-fill rateAmount from matrix or plan baseRate
   function handleRatePlanChange(ratePlanId: string) {
     setSelectedRatePlanId(ratePlanId);
     if (ratePlanId) {
@@ -160,7 +156,7 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
 
   async function handleCreateGuest() {
     if (!newGuestData.firstName || !newGuestData.lastName) {
-      setError("First name and last name are required for new guest");
+      setError(t(dict, "newBooking.nameRequired"));
       return;
     }
 
@@ -181,21 +177,19 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || `Server error: ${res.status}`);
+        throw new Error(data.error || t(dict, "newBooking.serverError", { status: res.status }));
       }
 
       const newGuest = await res.json();
-
-      // Add to guests list AND select via React state
       setGuests((prev) => [...prev, newGuest]);
       setSelectedGuestId(newGuest.id);
       setShowNewGuest(false);
       setNewGuestData({ firstName: "", lastName: "", email: "", phone: "" });
     } catch (err) {
       if (err instanceof TypeError && err.message === "Failed to fetch") {
-        setError("Connection error: Cannot reach the API server. Check that it is running.");
+        setError(t(dict, "newBooking.connectionError"));
       } else {
-        setError(err instanceof Error ? err.message : "Failed to create guest");
+        setError(err instanceof Error ? err.message : t(dict, "newBooking.createGuestFailed"));
       }
     } finally {
       setCreatingGuest(false);
@@ -211,7 +205,7 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
     }
 
     if (!selectedRatePlanId || !rateAmount) {
-      setError("Rate plan and rate amount are required. Please select a rate plan.");
+      setError(t(dict, "newBooking.rateRequired"));
       return;
     }
 
@@ -250,7 +244,7 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
       if (!res.ok) {
         const data = await res.json();
         setError({
-          error: data.error || `Server error: ${res.status}`,
+          error: data.error || t(dict, "newBooking.serverError", { status: res.status }),
           code: data.code,
           status: res.status,
           url,
@@ -266,14 +260,14 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
     } catch (err) {
       if (err instanceof TypeError && err.message === "Failed to fetch") {
         setError({
-          error: `Connection error: Cannot reach the API server. Check that it is running.`,
+          error: t(dict, "newBooking.connectionError"),
           code: "NETWORK_ERROR",
           url,
           timestamp: new Date().toISOString(),
         });
       } else {
         setError({
-          error: err instanceof Error ? err.message : "Failed to save",
+          error: err instanceof Error ? err.message : t(dict, "newBooking.saveFailed"),
           code: "UNKNOWN_ERROR",
           url,
           timestamp: new Date().toISOString(),
@@ -284,21 +278,38 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
-      {error && (
-        <ErrorDisplay error={error} onDismiss={() => setError(null)} />
-      )}
+    <form
+      onSubmit={handleSubmit}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+        maxWidth: 720,
+      }}
+    >
+      {error && <ErrorDisplay error={error} onDismiss={() => setError(null)} />}
 
       {/* Guest Selection */}
-      <div>
-        <div className="flex justify-between items-center mb-1">
-          <label className="block text-xs text-gray-500">Guest *</label>
+      <div className="field">
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <label className="lab">
+            {t(dict, "newBooking.fld.guest")}
+            {required}
+          </label>
           <button
             type="button"
             onClick={() => setShowNewGuest(!showNewGuest)}
-            className="text-xs text-blue-600 hover:underline"
+            className="btn xs ghost"
           >
-            {showNewGuest ? "Cancel" : "+ Add new guest"}
+            {showNewGuest
+              ? t(dict, "newBooking.cancelAdd")
+              : t(dict, "newBooking.addNewGuest")}
           </button>
         </div>
 
@@ -308,9 +319,9 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
             required
             value={selectedGuestId}
             onChange={(e) => setSelectedGuestId(e.target.value)}
-            className="w-full px-3 py-2 border rounded"
+            className="input"
           >
-            <option value="">Select guest...</option>
+            <option value="">{t(dict, "newBooking.selectGuest")}</option>
             {guests.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.lastName || g.name}, {g.firstName}
@@ -318,163 +329,241 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
             ))}
           </select>
         ) : (
-          <div className="p-3 border rounded bg-gray-50 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">First Name *</label>
+          <div
+            style={{
+              padding: 12,
+              background: "var(--bg-subtle)",
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 10,
+              }}
+            >
+              <div className="field">
+                <label className="lab">
+                  {t(dict, "newBooking.fld.firstName")}
+                  {required}
+                </label>
                 <input
                   type="text"
                   value={newGuestData.firstName}
-                  onChange={(e) => setNewGuestData((prev) => ({ ...prev, firstName: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded"
-                  placeholder="John"
+                  onChange={(e) =>
+                    setNewGuestData((prev) => ({ ...prev, firstName: e.target.value }))
+                  }
+                  className="input"
+                  placeholder={t(dict, "newBooking.ph.firstName")}
                 />
               </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Last Name *</label>
+              <div className="field">
+                <label className="lab">
+                  {t(dict, "newBooking.fld.lastName")}
+                  {required}
+                </label>
                 <input
                   type="text"
                   value={newGuestData.lastName}
-                  onChange={(e) => setNewGuestData((prev) => ({ ...prev, lastName: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded"
-                  placeholder="Smith"
+                  onChange={(e) =>
+                    setNewGuestData((prev) => ({ ...prev, lastName: e.target.value }))
+                  }
+                  className="input"
+                  placeholder={t(dict, "newBooking.ph.lastName")}
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Email</label>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 10,
+              }}
+            >
+              <div className="field">
+                <label className="lab">{t(dict, "newBooking.fld.email")}</label>
                 <input
                   type="email"
                   value={newGuestData.email}
-                  onChange={(e) => setNewGuestData((prev) => ({ ...prev, email: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded"
-                  placeholder="john@example.com"
+                  onChange={(e) =>
+                    setNewGuestData((prev) => ({ ...prev, email: e.target.value }))
+                  }
+                  className="input"
+                  placeholder={t(dict, "newBooking.ph.email")}
                 />
               </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Phone</label>
+              <div className="field">
+                <label className="lab">{t(dict, "newBooking.fld.phone")}</label>
                 <input
                   type="tel"
                   value={newGuestData.phone}
-                  onChange={(e) => setNewGuestData((prev) => ({ ...prev, phone: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded"
-                  placeholder="+7 999 123 4567"
+                  onChange={(e) =>
+                    setNewGuestData((prev) => ({ ...prev, phone: e.target.value }))
+                  }
+                  className="input"
+                  placeholder={t(dict, "newBooking.ph.phone")}
                 />
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleCreateGuest}
-              disabled={creatingGuest}
-              className="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50"
-            >
-              {creatingGuest ? "Creating..." : "Create Guest & Select"}
-            </button>
-            {/* Selected guest indicator */}
+            <div>
+              <button
+                type="button"
+                onClick={handleCreateGuest}
+                disabled={creatingGuest}
+                className="btn primary sm"
+              >
+                {creatingGuest
+                  ? t(dict, "newBooking.creatingGuest")
+                  : t(dict, "newBooking.createGuestSelect")}
+              </button>
+            </div>
             {selectedGuestId && (
-              <p className="text-xs text-green-600">
-                Guest selected: {guests.find((g) => g.id === selectedGuestId)?.name}
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 12,
+                  color: "var(--checked-in-fg)",
+                }}
+              >
+                {t(dict, "newBooking.guestSelected", {
+                  name: guests.find((g) => g.id === selectedGuestId)?.name ?? "",
+                })}
               </p>
             )}
           </div>
         )}
       </div>
 
-      {/* Company */}
-      <div>
-        <label className="block text-xs text-gray-500 mb-1">Company</label>
-        <select
-          value={selectedCompanyId}
-          onChange={(e) => setSelectedCompanyId(e.target.value)}
-          className="w-full px-3 py-2 border rounded"
-        >
-          <option value="">— None —</option>
-          {companies.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+      <div
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}
+      >
+        <div className="field">
+          <label className="lab">{t(dict, "newBooking.fld.company")}</label>
+          <select
+            value={selectedCompanyId}
+            onChange={(e) => setSelectedCompanyId(e.target.value)}
+            className="input"
+          >
+            <option value="">{t(dict, "newBooking.none")}</option>
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label className="lab">{t(dict, "newBooking.fld.travelAgent")}</label>
+          <select
+            value={selectedAgentId}
+            onChange={(e) => setSelectedAgentId(e.target.value)}
+            className="input"
+          >
+            <option value="">{t(dict, "newBooking.none")}</option>
+            {agents.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label className="lab">{t(dict, "newBooking.fld.source")}</label>
+          <select
+            value={selectedSourceId}
+            onChange={(e) => setSelectedSourceId(e.target.value)}
+            className="input"
+          >
+            <option value="">{t(dict, "newBooking.none")}</option>
+            {sources.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* Travel Agent */}
-      <div>
-        <label className="block text-xs text-gray-500 mb-1">Travel Agent</label>
-        <select
-          value={selectedAgentId}
-          onChange={(e) => setSelectedAgentId(e.target.value)}
-          className="w-full px-3 py-2 border rounded"
-        >
-          <option value="">— None —</option>
-          {agents.map((a) => (
-            <option key={a.id} value={a.id}>{a.name}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Source */}
-      <div>
-        <label className="block text-xs text-gray-500 mb-1">Source</label>
-        <select
-          value={selectedSourceId}
-          onChange={(e) => setSelectedSourceId(e.target.value)}
-          className="w-full px-3 py-2 border rounded"
-        >
-          <option value="">— None —</option>
-          {sources.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Check-in *</label>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">
+            {t(dict, "newBooking.fld.checkIn")}
+            {required}
+          </label>
           <input
             type="date"
             required
             value={checkInDate}
             onChange={(e) => {
               setCheckInDate(e.target.value);
-              // Auto-adjust check-out if it's before new check-in
               if (checkOutDate && e.target.value >= checkOutDate) {
                 setCheckOutDate("");
               }
             }}
-            className="w-full px-3 py-2 border rounded"
+            className="input"
           />
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Check-out *</label>
+        <div className="field">
+          <label className="lab">
+            {t(dict, "newBooking.fld.checkOut")}
+            {required}
+          </label>
           <input
             type="date"
             required
             value={checkOutDate}
-            min={checkInDate ? (() => { const d = new Date(checkInDate); d.setDate(d.getDate() + 1); return d.toISOString().split("T")[0]; })() : undefined}
+            min={
+              checkInDate
+                ? (() => {
+                    const d = new Date(checkInDate);
+                    d.setDate(d.getDate() + 1);
+                    return d.toISOString().split("T")[0];
+                  })()
+                : undefined
+            }
             onChange={(e) => setCheckOutDate(e.target.value)}
-            className={`w-full px-3 py-2 border rounded ${dateError ? "border-red-500" : ""}`}
+            className="input"
+            style={dateError ? { borderColor: "var(--cancelled)" } : undefined}
           />
-          {dateError && <p className="text-xs text-red-500 mt-1">{dateError}</p>}
-          {nights > 0 && <p className="text-xs text-gray-500 mt-1">{nights} night{nights > 1 ? "s" : ""}</p>}
+          {dateError && (
+            <span className="hint" style={{ color: "var(--cancelled)" }}>
+              {dateError}
+            </span>
+          )}
+          {nights > 0 && !dateError && (
+            <span className="hint">
+              {t(dict, nights === 1 ? "newBooking.night" : "newBooking.nights", {
+                count: nights,
+              })}
+            </span>
+          )}
         </div>
       </div>
 
-      <div>
-        <label className="block text-xs text-gray-500 mb-1">Room Type *</label>
+      <div className="field">
+        <label className="lab">
+          {t(dict, "newBooking.fld.roomType")}
+          {required}
+        </label>
         <select
           required
           value={selectedRoomTypeId}
           onChange={(e) => {
             setSelectedRoomTypeId(e.target.value);
             setSelectedRoomId("");
-            // Auto-fill rate from matrix when room type changes
             if (selectedRatePlanId && e.target.value) {
               const rate = getRateForPlanAndType(selectedRatePlanId, e.target.value);
               if (rate) setRateAmount(rate);
             }
           }}
-          className="w-full px-3 py-2 border rounded"
+          className="input"
         >
-          <option value="">Select room type...</option>
+          <option value="">{t(dict, "newBooking.selectRoomType")}</option>
           {roomTypes.map((rt) => (
             <option key={rt.id} value={rt.id}>
               {rt.name} ({rt.code})
@@ -483,152 +572,167 @@ export function BookingForm({ propertyId }: { propertyId: string }) {
         </select>
       </div>
 
-      <div>
-        <label className="block text-xs text-gray-500 mb-1">Room</label>
+      <div className="field">
+        <label className="lab">{t(dict, "newBooking.fld.room")}</label>
         <select
           value={selectedRoomId}
           onChange={(e) => setSelectedRoomId(e.target.value)}
-          className="w-full px-3 py-2 border rounded"
+          className="input"
         >
-          <option value="">Assign later...</option>
+          <option value="">{t(dict, "newBooking.assignLater")}</option>
           {filteredRooms.map((r) => (
             <option key={r.id} value={r.id}>
               {getRoomLabel(r)}
             </option>
           ))}
         </select>
-        <p className="mt-1 text-xs text-gray-500">
+        <span className="hint">
           {selectedRoomTypeId
-            ? `Showing ${filteredRooms.length} rooms of selected type`
-            : "Select a room type to filter rooms"}
-        </p>
+            ? t(dict, "newBooking.roomsShowing", { count: filteredRooms.length })
+            : t(dict, "newBooking.selectTypeFirst")}
+        </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Adults</label>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">{t(dict, "newBooking.fld.adults")}</label>
           <input
             type="number"
             min="1"
             value={adults}
             onChange={(e) => setAdults(Number(e.target.value) || 1)}
-            className="w-full px-3 py-2 border rounded"
+            className="input tnum"
           />
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Children</label>
+        <div className="field">
+          <label className="lab">{t(dict, "newBooking.fld.children")}</label>
           <input
             type="number"
             min="0"
             value={children}
             onChange={(e) => setChildren(Number(e.target.value) || 0)}
-            className="w-full px-3 py-2 border rounded"
+            className="input tnum"
           />
         </div>
       </div>
 
-      <hr className="my-4" />
+      <div
+        style={{
+          border: 0,
+          borderTop: "1px solid var(--border)",
+          margin: "6px 0",
+        }}
+      />
 
-      <div>
-        <label className="block text-xs text-gray-500 mb-1">Rate Plan *</label>
+      <div className="field">
+        <label className="lab">
+          {t(dict, "newBooking.fld.ratePlan")}
+          {required}
+        </label>
         <select
           required
           value={selectedRatePlanId}
           onChange={(e) => handleRatePlanChange(e.target.value)}
-          className="w-full px-3 py-2 border rounded"
+          className="input"
         >
-          <option value="">— Select rate plan —</option>
+          <option value="">{t(dict, "newBooking.selectRatePlan")}</option>
           {ratePlans.map((rp) => (
             <option key={rp.id} value={rp.id}>
-              {rp.isDefault ? "★ " : ""}{rp.name} ({rp.code}){rp.baseRate ? ` — ${formatCurrency(rp.baseRate)} ₽` : ""}
+              {rp.isDefault ? "★ " : ""}
+              {rp.name} ({rp.code})
+              {rp.baseRate ? ` — ${formatCurrency(rp.baseRate)} ₽` : ""}
             </option>
           ))}
         </select>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Rate/Night</label>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">{t(dict, "newBooking.fld.rateNight")}</label>
           <input
             type="number"
             step="0.01"
             value={rateAmount}
             onChange={(e) => setRateAmount(e.target.value)}
-            className="w-full px-3 py-2 border rounded"
+            className="input tnum"
             placeholder="0.00"
           />
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Total</label>
+        <div className="field">
+          <label className="lab">{t(dict, "newBooking.fld.total")}</label>
           <input
             type="text"
             value={totalAmount ? `${formatCurrency(totalAmount)} ₽` : "—"}
             disabled
-            className="w-full px-3 py-2 border rounded bg-gray-50 text-gray-700"
+            className="input tnum"
+            style={{ background: "var(--bg-subtle)" }}
           />
           {nights > 0 && rateAmount && (
-            <p className="text-xs text-gray-500 mt-1">
-              {formatCurrency(rateAmount)} ₽ × {nights} nights
-            </p>
+            <span className="hint tnum">
+              {t(dict, "newBooking.rateTimes", {
+                rate: formatCurrency(rateAmount),
+                nights,
+              })}
+            </span>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Payment Method</label>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label className="lab">{t(dict, "newBooking.fld.paymentMethod")}</label>
           <select
             value={paymentMethod}
             onChange={(e) => setPaymentMethod(e.target.value)}
-            className="w-full px-3 py-2 border rounded"
+            className="input"
           >
-            <option value="">Not specified</option>
-            <option value="cash">Cash</option>
-            <option value="card">Credit Card</option>
-            <option value="bank_transfer">Bank Transfer</option>
-            <option value="company">Company Account</option>
+            <option value="">{t(dict, "newBooking.notSpecified")}</option>
+            <option value="cash">{t(dict, "newBooking.pay.cash")}</option>
+            <option value="card">{t(dict, "newBooking.pay.card")}</option>
+            <option value="bank_transfer">{t(dict, "newBooking.pay.transfer")}</option>
+            <option value="company">{t(dict, "newBooking.pay.company")}</option>
           </select>
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Guarantee</label>
+        <div className="field">
+          <label className="lab">{t(dict, "newBooking.fld.guarantee")}</label>
           <select
             value={guaranteeCode}
             onChange={(e) => setGuaranteeCode(e.target.value)}
-            className="w-full px-3 py-2 border rounded"
+            className="input"
           >
-            <option value="">Not specified</option>
-            <option value="cc_guaranteed">Credit Card</option>
-            <option value="deposit_guaranteed">Deposit</option>
-            <option value="company_guaranteed">Company</option>
-            <option value="non_guaranteed">No Guarantee</option>
-            <option value="travel_agent_guaranteed">Travel Agent</option>
+            <option value="">{t(dict, "newBooking.notSpecified")}</option>
+            <option value="cc_guaranteed">{t(dict, "newBooking.guar.cc")}</option>
+            <option value="deposit_guaranteed">{t(dict, "newBooking.guar.deposit")}</option>
+            <option value="company_guaranteed">{t(dict, "newBooking.guar.company")}</option>
+            <option value="non_guaranteed">{t(dict, "newBooking.guar.none")}</option>
+            <option value="travel_agent_guaranteed">{t(dict, "newBooking.guar.ta")}</option>
           </select>
         </div>
       </div>
 
-      <div>
-        <label className="block text-xs text-gray-500 mb-1">Notes</label>
+      <div className="field">
+        <label className="lab">{t(dict, "newBooking.fld.notes")}</label>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          className="w-full px-3 py-2 border rounded"
+          className="input"
+          style={{ resize: "vertical", minHeight: 72 }}
         />
       </div>
 
-      <div className="flex gap-3">
+      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
         <button
           type="submit"
           disabled={saving || !!dateError}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          className="btn primary"
         >
-          {saving ? "Creating..." : "Create Booking"}
+          {saving
+            ? t(dict, "newBooking.creatingBooking")
+            : t(dict, "newBooking.createBtn")}
         </button>
-        <Link
-          href="/bookings"
-          className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-        >
-          Cancel
+        <Link href="/bookings" className="btn ghost">
+          {t(dict, "common.cancel")}
         </Link>
       </div>
     </form>
