@@ -155,8 +155,7 @@ network_errors:
   - { method: DELETE, path: "/api/room-types/:id?propertyId=...", status: 400,
       note: "Expected — scenario 04 HAS_DEPENDENCIES validation rejection; not a bug" }
 
-bugs:
-  - BUG-009
+bugs: []
 
 signals:
   l10n: partial

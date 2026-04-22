@@ -142,7 +142,7 @@ bugs:
   - id: BUG-009
     title: "Detail page /configuration/room-types/[id] рендерится полностью на английском"
     severity: low
-    status: open
+    status: closed
     source: ui-audit/16-configuration-room-types
     files:
       - apps/web/src/app/configuration/room-types/[id]/page.tsx
