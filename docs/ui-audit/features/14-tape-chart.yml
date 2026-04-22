@@ -29,9 +29,10 @@ ui:
     The API endpoint `POST /api/bookings/:id/room-move` DOES exist, however
     (apps/api/src/routes/bookings.ts:886), with full validation and a
     structured error envelope ({ error, code: 'BOOKING_NOT_FOUND' | ... });
-    no UI surface currently invokes it. Scenario 04 therefore asserts the
-    UI absence AND the backend presence as a two-part regression tripwire
-    (see edge_cases[0] for the full rationale).
+    the tape chart does not invoke it (the booking-detail page's "Change
+    Room" action does — see section 04). Scenario 04 therefore asserts the
+    tape-chart UI absence AND the backend presence as a two-part regression
+    tripwire (see edge_cases[0] for the full rationale).
 
   buttons:
     period14: { ru: "14 дней", en: "14 days", note: "default; POST-mount state" }
@@ -143,13 +144,17 @@ edge_cases:
       DOES exist (apps/api/src/routes/bookings.ts:886) with full validation,
       transactional double-room locking, and a structured error envelope
       ({ error, code: 'BOOKING_NOT_FOUND' | 'ROOM_NOT_FOUND' | ... }) — but
-      no UI surface invokes it. The tape chart bars are plain <Link>s with
-      no draggable attribute and no drag handlers (page.tsx:159-195).
+      the tape chart does not invoke it (section 04's booking-detail audit
+      covers the existing Change Room surface). The tape chart bars are
+      plain <Link>s with no draggable attribute and no drag handlers
+      (page.tsx:159-195).
     expected: >
-      Either a UI surface wires drag-to-move (or some other affordance) to
-      the existing backend endpoint and scenario 04 gets a full end-to-end
-      audit, OR the backend endpoint is also removed and the plan drops
-      scenario 04 entirely.
+      Tape chart itself wires a drag-to-move affordance (or alternate
+      in-chart action) to POST /api/bookings/:id/room-move, at which point
+      scenario 04 gets a full end-to-end audit instead of a contract
+      tripwire. (Note: the booking-detail page already exposes this endpoint
+      via its "Change Room" button — section 04 — but that surface is out
+      of scope here.)
     observed: >
       Two-part tripwire in place instead of a full simulation: asserts
       (a) bars have `draggable !== 'true'`, and (b) the real endpoint still

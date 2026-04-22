@@ -26,8 +26,10 @@
  *     transactional double-room locking, and a structured error envelope
  *     ({ error, code: 'BOOKING_NOT_FOUND' | 'ROOM_NOT_FOUND' | ... }).
  *     Integration coverage lives at apps/api/src/routes/integration.test.ts:207.
- *   - No UI surface invokes it today — the backend capability exists but is
- *     not exposed through the tape chart (or anywhere else the audit found).
+ *   - The tape chart itself does not invoke it. The booking-detail page
+ *     (section 04) already wires a "Change Room" action to this endpoint
+ *     (apps/web/src/app/bookings/[id]/booking-actions.tsx, gated on
+ *     checked-in status), but that surface is out of scope for section 14.
  *
  * Scenario 04 is therefore a two-part regression tripwire:
  *   (a) DOM: assert bars have `draggable !== 'true'` — fires if someone wires
