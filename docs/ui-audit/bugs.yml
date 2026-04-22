@@ -371,6 +371,9 @@ bugs:
       booking-edit-form.tsx:609-613 — so the config page is not even the
       source of truth for the enum it documents. Consistency is maintained
       only by developer vigilance.
+      severity: medium because divergence between the two hardcoded lists
+      silently produces forms that accept values the docs page doesn't list
+      (or vice versa).
     repro: |
       1. Open /configuration/guarantee-codes — note static list, no edit/delete UI.
       2. curl -s http://localhost:3001/api/guarantee-codes → 404 (route not registered).

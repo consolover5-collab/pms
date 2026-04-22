@@ -97,7 +97,7 @@ test.describe('20 configuration-guarantee-codes', () => {
     // Patterns covering ru + en CRUD verbs. If a future "New Code" / "Создать" /
     // "Редактировать" / "Удалить" button is added, this regex will match and the
     // scenario flips red — forcing a re-audit.
-    const crudPattern = /^(new|create|add|edit|delete|remove|создать|добавить|редактировать|изменить|удалить)\b/i;
+    const crudPattern = /\b(new|create|add|edit|delete|remove|создать|добавить|редактировать|изменить|удалить|нов(ый|ая|ое|ые))\b/i;
 
     // Scope to the page wrapper (excluding site-wide chrome like topbar's
     // "New Booking" link, which lives outside the page container).

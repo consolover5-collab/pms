@@ -121,9 +121,15 @@ edge_cases:
       produce. Filed as BUG-016.
     filed_as: BUG-016
 
-api_calls_observed: []
-# Explicitly empty — page is a pure server-rendered stub with no client API
-# calls. Scenario 01 asserts zero requests to /api/guarantee-codes.
+api_calls_observed:
+  - { method: GET, path: "/api/auth/me",       status: 200, note: "layout chrome: locale-provider session check" }
+  - { method: GET, path: "/api/properties",    status: 200, note: "layout chrome: property picker" }
+  - { method: GET, path: "/api/business-date", status: 200, note: "layout chrome: topbar business-date (?propertyId=...)" }
+# Page body itself issues NO client calls — it is a server-rendered static
+# stub. All three calls above originate from the shared layout, not from
+# /configuration/guarantee-codes logic. There is no /api/guarantee-codes
+# CRUD endpoint (see BUG-016). Scenario 01 asserts zero requests to
+# /api/guarantee-codes as a positive invariant.
 
 console_errors: []
 network_errors: []
