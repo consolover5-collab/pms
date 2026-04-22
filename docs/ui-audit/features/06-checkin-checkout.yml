@@ -44,7 +44,7 @@ steps:
     action: "en only: create BK_B на dirty+vacant room №206. Click Check In → POST /check-in=400 ROOM_NOT_READY → UI открывает dirty-warning modal. Клик 'Check in anyway' шлёт POST /check-in с {force:true,roomId} — API возвращает 400 ROOM_NOT_READY ПОВТОРНО (force не читается сервером), booking.status остаётся confirmed. См. BUG-004"
     screenshots:
       - 06-checkin-checkout-02-checkin-dirty-warning-en.png
-      - 06-checkin-checkout-02-checkin-dirty-force-blocked-en.png
+      - 06-checkin-checkout-02-checkin-dirty-force-allowed-en.png
   - id: "03-checkin-oos-blocked"
     action: "ru + en observation: create BK_C с roomId=null. Click Check In → POST /check-in=400 NO_ROOM_ASSIGNED → UI открывает RoomPickerModal. Убеждаемся, что opt-list не содержит №205 (OOS). Cancel закрывает модалку, booking.status=confirmed"
     screenshots:
