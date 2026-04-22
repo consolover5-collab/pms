@@ -153,10 +153,10 @@ network_errors:
   - { method: PUT, path: "/api/properties/:id", status: 400,
       note: "Expected — scenario 03 validation rejection; not a bug" }
 
-bugs:
-  - BUG-008
+bugs: []
 # property-form.tsx is fully i18n'd via t(dict, ...) — no hardcoded English. No bug candidates.
-# BUG-008: seed inconsistency (numberOfRooms=50 < 54 actual rooms) — see docs/ui-audit/bugs.yml
+# BUG-008 (seed numberOfRooms=50 vs 54 actual) fixed in packages/db/src/seed.ts by deriving
+# numberOfRooms from roomData.length before the property insert.
 
 signals:
   l10n: full

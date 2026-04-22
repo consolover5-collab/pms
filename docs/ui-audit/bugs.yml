@@ -119,7 +119,7 @@ bugs:
   - id: BUG-008
     title: "Property form не может сохранить форму при оригинальном seed (numberOfRooms mismatch)"
     severity: medium
-    status: open
+    status: closed
     source: ui-audit/15-configuration-property
     files:
       - apps/api/src/routes/properties.ts

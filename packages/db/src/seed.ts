@@ -112,6 +112,23 @@ async function seed() {
   await db.delete(profiles);
   await db.delete(properties);
 
+  // ============ Room layout (build first so property.numberOfRooms stays in sync) ============
+  const roomData: { roomNumber: string; floor: number; typeCode: string }[] = [];
+  for (let i = 201; i <= 214; i++) {
+    roomData.push({ roomNumber: String(i), floor: 2, typeCode: i % 3 === 0 ? "STD_TWN" : "STD" });
+  }
+  for (let floor = 3; floor <= 5; floor++) {
+    for (let i = 1; i <= 10; i++) {
+      const num = floor * 100 + i;
+      roomData.push({ roomNumber: String(num), floor, typeCode: i % 2 === 0 ? "SUP" : "STD" });
+    }
+  }
+  for (let i = 601; i <= 606; i++) roomData.push({ roomNumber: String(i), floor: 6, typeCode: "PRM" });
+  roomData.push({ roomNumber: "701", floor: 7, typeCode: "JRS" });
+  roomData.push({ roomNumber: "702", floor: 7, typeCode: "JRS" });
+  roomData.push({ roomNumber: "703", floor: 7, typeCode: "STE" });
+  roomData.push({ roomNumber: "704", floor: 7, typeCode: "STE" });
+
   // ============ Property ============
   const [property] = await db
     .insert(properties)
@@ -126,7 +143,7 @@ async function seed() {
       currency: "RUB",
       checkInTime: "14:00",
       checkOutTime: "12:00",
-      numberOfRooms: 50,
+      numberOfRooms: roomData.length,
       numberOfFloors: 7,
       taxRate: "20.00",
     })
@@ -148,23 +165,6 @@ async function seed() {
   const typeBaseRate: Record<string, number> = Object.fromEntries(
     types.map((t) => [t.code, Number(t.baseRate)]),
   );
-
-  // ============ Rooms (50) ============
-  const roomData: { roomNumber: string; floor: number; typeCode: string }[] = [];
-  for (let i = 201; i <= 214; i++) {
-    roomData.push({ roomNumber: String(i), floor: 2, typeCode: i % 3 === 0 ? "STD_TWN" : "STD" });
-  }
-  for (let floor = 3; floor <= 5; floor++) {
-    for (let i = 1; i <= 10; i++) {
-      const num = floor * 100 + i;
-      roomData.push({ roomNumber: String(num), floor, typeCode: i % 2 === 0 ? "SUP" : "STD" });
-    }
-  }
-  for (let i = 601; i <= 606; i++) roomData.push({ roomNumber: String(i), floor: 6, typeCode: "PRM" });
-  roomData.push({ roomNumber: "701", floor: 7, typeCode: "JRS" });
-  roomData.push({ roomNumber: "702", floor: 7, typeCode: "JRS" });
-  roomData.push({ roomNumber: "703", floor: 7, typeCode: "STE" });
-  roomData.push({ roomNumber: "704", floor: 7, typeCode: "STE" });
 
   const insertedRooms = await db
     .insert(rooms)
