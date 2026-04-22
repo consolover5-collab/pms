@@ -129,17 +129,7 @@ steps:
     mutation: false
     locale_gate: both locales
 
-bugs:
-  - id: BUG-011
-    title: "Help hub status-reference: hardcoded English keywords in localized legend"
-    severity: low
-    status: open
-    file: apps/web/src/app/help/page.tsx
-    lines: "103-143"
-    description: >
-      Status keywords ("Confirmed", "Checked In", etc.) hardcoded in English, followed by
-      i18n-translated description. On RU locale produces "Confirmed - Подтверждено" style
-      mixed text. Bookings list uses fully localised bookings.status.* keys — confirmed gap.
+bugs: []
 
 console_errors: []
 network_errors: []

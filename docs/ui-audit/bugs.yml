@@ -192,7 +192,7 @@ bugs:
   - id: BUG-011
     title: "Help hub status-reference: hardcoded English keywords in localized legend"
     severity: low
-    status: open
+    status: closed
     source: ui-audit/22-help
     file: apps/web/src/app/help/page.tsx
     lines: "103-143"
