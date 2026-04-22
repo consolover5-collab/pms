@@ -101,13 +101,14 @@ export function ProfilesList({
 
   return (
     <>
-      <div className="ptabs">
+      <div className="ptabs" data-testid="config-profiles-tabs">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             type="button"
             onClick={() => switchTab(tab.key)}
             className={`pt ${initialType === tab.key ? "on" : ""}`}
+            data-testid={`config-profiles-tab-${tab.key || "all"}`}
           >
             {tab.label}
           </button>
@@ -153,7 +154,10 @@ export function ProfilesList({
       <div className="card">
         <div className="card-head">
           <div className="card-title">
-            {t(dict, "profiles.title")} <span className="count">{profiles.length}</span>
+            {t(dict, "profiles.title")}{" "}
+            <span className="count" data-testid="config-profiles-count">
+              {profiles.length}
+            </span>
           </div>
         </div>
         <div className="card-body" style={{ padding: 0 }}>
@@ -165,11 +169,12 @@ export function ProfilesList({
                 color: "var(--muted)",
                 fontSize: 13,
               }}
+              data-testid="config-profiles-empty"
             >
               {t(dict, "profiles.empty")}
             </div>
           ) : (
-            <table className="t">
+            <table className="t" data-testid="config-profiles-table">
               <thead>
                 <tr>
                   <th>{t(dict, "profiles.colName")}</th>
@@ -182,11 +187,12 @@ export function ProfilesList({
               </thead>
               <tbody>
                 {profiles.map((p) => (
-                  <tr key={p.id}>
+                  <tr key={p.id} data-testid="config-profiles-row" data-profile-id={p.id} data-profile-type={p.type}>
                     <td>
                       <Link
                         href={`/configuration/profiles/${p.id}`}
                         style={{ color: "var(--fg)", fontWeight: 500 }}
+                        data-testid="config-profiles-row-name"
                       >
                         {p.name}
                       </Link>

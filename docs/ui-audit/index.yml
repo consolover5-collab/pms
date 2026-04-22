@@ -110,8 +110,8 @@ sections:
     priority: P2
   - id: "21"
     file: features/21-configuration-profiles.yml
-    status: pending
-    bugs: 0
+    status: ok
+    bugs: 1
     priority: P2
   - id: "22"
     file: features/22-help.yml
@@ -131,9 +131,9 @@ sections:
 
 totals:
   sections: 24
-  ok: 18
+  ok: 19
   partial: 1
   broken: 1
   missing: 1
-  pending: 3
-  bugs: 11
+  pending: 2
+  bugs: 12

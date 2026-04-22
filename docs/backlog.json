@@ -214,6 +214,18 @@
       "lines": "page.tsx:1-76; booking-edit-form.tsx:609-613"
     },
     {
+      "id": "BUG-017",
+      "title": "config/profiles: list truncated to 50 of 153 rows; no pagination, no limit param",
+      "severity": "medium",
+      "status": "open",
+      "source": "ui-audit/21-configuration-profiles",
+      "files": [
+        "apps/web/src/app/configuration/profiles/page.tsx",
+        "apps/web/src/app/configuration/profiles/profiles-list.tsx"
+      ],
+      "lines": "page.tsx:28-34; profiles-list.tsx:153-158"
+    },
+    {
       "id": "DEBT-002",
       "title": "OOO-валидация дублирована в POST и PATCH /rooms/:id/status",
       "severity": "medium",

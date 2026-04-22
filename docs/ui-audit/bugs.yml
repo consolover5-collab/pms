@@ -389,3 +389,47 @@ bugs:
         booking-edit-form and any future display UI. Resolves the double-
         hardcoded enum but not the 'why is there a config page for this'
         expectation."
+
+  - id: BUG-017
+    title: "config/profiles: list truncated to 50 of 153 rows; no pagination, no limit param"
+    severity: medium
+    status: open
+    source: ui-audit/21-configuration-profiles
+    files:
+      - apps/web/src/app/configuration/profiles/page.tsx
+      - apps/web/src/app/configuration/profiles/profiles-list.tsx
+    lines: "page.tsx:28-34; profiles-list.tsx:153-158"
+    summary: |
+      /configuration/profiles calls GET /api/profiles without a ?limit= query
+      parameter. The API default is limit=50 (max=100), so on property GBH the
+      page renders only 50 rows out of 153 total profiles (133 individuals +
+      10 companies + 6 travel_agents + 4 sources, probed 2026-04-22). The
+      count badge shows "50" because it displays profiles.length (the rendered
+      array size), not the DB total — users see no indication that 103 rows
+      are silently hidden.
+
+      There is no pagination UI on this page (unlike /guests which sets
+      limit=50 AND renders prev/next pagination controls with a total count
+      from the API response). Tab-switching (individual/company/travel_agent/
+      source) works around the issue for 3 of 4 types because their per-type
+      totals are ≤ 50, but individuals (133) are truncated on the "All" and
+      "Guests" tabs.
+      severity: medium because data is silently hidden and the UI gives no
+      signal (no "showing 50 of 153", no next page, no sort).
+    repro: |
+      1. Probe (property GBH = ff1d9135-dfb9-4baa-be46-0e739cd26dad):
+         curl -s "http://localhost:3000/api/profiles?propertyId=ff1d9135-dfb9-4baa-be46-0e739cd26dad&limit=1" \
+           → total=153
+      2. Open /configuration/profiles → count badge shows "50", table has 50 rows.
+      3. Click tab "Guests" (type=individual, total=133) → still 50 rows.
+      4. Verify no pagination controls exist anywhere on the page.
+    fix_options:
+      - "(A) Add pagination UI mirroring /guests (PAGE_SIZE=50 with prev/next
+        + showing/total strings). Uses the same /api/profiles endpoint which
+        already returns total."
+      - "(B) Request all profiles at once: set &limit=500 (or unbounded)
+        in page.tsx. Simpler but scales badly — at 500+ profiles the page
+        weight and render cost grow unboundedly."
+      - "(C) Show the badge as API total (from the response.total field,
+        not profiles.length) so the mismatch is at least visible, combined
+        with either (A) or (B)."
