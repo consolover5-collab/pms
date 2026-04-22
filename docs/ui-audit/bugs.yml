@@ -32,7 +32,7 @@ bugs:
   - id: BUG-002
     title: "Отсутствуют DB-level CHECK constraints — валидация только на уровне API"
     severity: high
-    status: open
+    status: closed
     source: pre-audit/A6
     files:
       - packages/db/src/schema/bookings.ts

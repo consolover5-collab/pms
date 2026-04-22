@@ -9,7 +9,9 @@ import {
   timestamp,
   unique,
   index,
+  check,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { properties } from "./properties";
 
 export const roomTypes = pgTable("room_types", {
@@ -59,4 +61,20 @@ export const rooms = pgTable("rooms", {
   unique("rooms_property_room_number").on(table.propertyId, table.roomNumber),
   index("rooms_property_id_idx").on(table.propertyId),
   index("rooms_room_type_id_idx").on(table.roomTypeId),
+  check(
+    "rooms_housekeeping_status_enum_check",
+    sql`${table.housekeepingStatus} IN ('clean', 'dirty', 'pickup', 'inspected', 'out_of_order', 'out_of_service')`,
+  ),
+  check(
+    "rooms_occupancy_status_enum_check",
+    sql`${table.occupancyStatus} IN ('vacant', 'occupied')`,
+  ),
+  check(
+    "rooms_ooo_dates_consistency_check",
+    sql`(${table.oooFromDate} IS NULL) = (${table.oooToDate} IS NULL)`,
+  ),
+  check(
+    "rooms_ooo_date_range_check",
+    sql`${table.oooToDate} IS NULL OR ${table.oooToDate} >= ${table.oooFromDate}`,
+  ),
 ]);

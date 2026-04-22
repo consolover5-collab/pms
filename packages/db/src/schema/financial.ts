@@ -10,6 +10,7 @@ import {
   unique,
   uniqueIndex,
   index,
+  check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { properties } from "./properties";
@@ -149,4 +150,12 @@ export const folioTransactions = pgTable("folio_transactions", {
   uniqueIndex("folio_tx_night_audit_unique")
     .on(table.bookingId, table.businessDateId, table.transactionCodeId)
     .where(sql`is_system_generated = true`),
+  check("folio_transactions_debit_nonnegative_check", sql`${table.debit} >= 0`),
+  check("folio_transactions_credit_nonnegative_check", sql`${table.credit} >= 0`),
+  // Financial XOR: exactly one of debit/credit is positive.
+  check(
+    "folio_transactions_debit_credit_xor_check",
+    sql`(${table.debit} > 0 AND ${table.credit} = 0) OR (${table.debit} = 0 AND ${table.credit} > 0)`,
+  ),
+  check("folio_transactions_quantity_positive_check", sql`${table.quantity} > 0`),
 ]);
