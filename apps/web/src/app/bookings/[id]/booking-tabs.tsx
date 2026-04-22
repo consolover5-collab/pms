@@ -4,7 +4,24 @@ import { useState } from "react";
 import Link from "next/link";
 import { FolioSection } from "./folio-section";
 import { useLocale } from "@/components/locale-provider";
-import { t } from "@/lib/i18n";
+import { t, plural } from "@/lib/i18n";
+import type { DictionaryKey, Dictionary } from "@/lib/i18n/locales/en";
+import type { Locale } from "@/lib/i18n";
+
+function formatCount(
+  dict: Dictionary,
+  locale: Locale,
+  keyPrefix: "bookingDetail.adultsCount" | "bookingDetail.childrenCount",
+  count: number,
+): string {
+  const form =
+    locale === "ru"
+      ? plural(count, "one", "few", "many")
+      : count === 1
+        ? "one"
+        : "few";
+  return t(dict, `${keyPrefix}.${form}` as DictionaryKey, { count: String(count) });
+}
 
 type BookingInfo = {
   guest: { id: string; email: string | null; phone: string | null };
@@ -46,8 +63,14 @@ export function BookingTabs({
   booking: BookingInfo;
   nights: number;
 }) {
-  const { dict } = useLocale();
+  const { dict, locale } = useLocale();
   const [tab, setTab] = useState<Tab>("folio");
+
+  const adultsStr = formatCount(dict, locale, "bookingDetail.adultsCount", booking.adults);
+  const childrenStr = booking.children
+    ? formatCount(dict, locale, "bookingDetail.childrenCount", booking.children)
+    : "";
+  const guestsSummary = childrenStr ? `${adultsStr}, ${childrenStr}` : adultsStr;
 
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: "folio", label: t(dict, "bookingDetail.tab.folio") },
@@ -82,9 +105,9 @@ export function BookingTabs({
                 </Link>
               </div>
               <div className="card-body" style={{ fontSize: 12 }}>
-                <LabVal label="Email" value={booking.guest.email} />
+                <LabVal label={t(dict, "bookingDetail.emailLabel")} value={booking.guest.email} />
                 <div style={{ height: 8 }} />
-                <LabVal label={t(dict, "bookingDetail.checkInAt")} value={booking.guest.phone} />
+                <LabVal label={t(dict, "bookingDetail.phoneLabel")} value={booking.guest.phone} />
               </div>
             </div>
 
@@ -126,16 +149,16 @@ export function BookingTabs({
           <div className="card-body" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
             <LabVal label={t(dict, "bookingDetail.checkInAt")} value={booking.checkInDate} />
             <LabVal label={t(dict, "bookingDetail.checkOutAt")} value={booking.checkOutDate} />
-            <LabVal label="Nights" value={String(nights)} />
-            <LabVal
-              label="Guests"
-              value={`${booking.adults} adults${booking.children ? `, ${booking.children} children` : ""}`}
-            />
+            <LabVal label={t(dict, "bookingDetail.nightsLabel")} value={String(nights)} />
+            <LabVal label={t(dict, "bookingDetail.guestsLabel")} value={guestsSummary} />
             <LabVal
               label={t(dict, "common.room")}
-              value={booking.room ? `#${booking.room.roomNumber}` : "Not assigned"}
+              value={booking.room ? `#${booking.room.roomNumber}` : t(dict, "bookingDetail.roomNotAssigned")}
             />
-            <LabVal label="Room Type" value={`${booking.roomType.name} (${booking.roomType.code})`} />
+            <LabVal
+              label={t(dict, "bookingDetail.roomTypeLabel")}
+              value={`${booking.roomType.name} (${booking.roomType.code})`}
+            />
             <LabVal label={t(dict, "bookingDetail.ratePlan")} value={booking.ratePlan?.name || null} />
             <LabVal label={t(dict, "bookingDetail.rateNight")} value={booking.rateFormatted} />
             <LabVal label={t(dict, "booking.estAmount")} value={booking.estAmount} />
@@ -167,7 +190,7 @@ export function BookingTabs({
 
       {(tab === "services" || tab === "history") && (
         <div className="stub">
-          <div className="wip">Design in progress</div>
+          <div className="wip">{t(dict, "bookingDetail.designInProgress")}</div>
           <h3>{tabs.find((t) => t.id === tab)?.label}</h3>
         </div>
       )}

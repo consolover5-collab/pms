@@ -249,7 +249,7 @@ bugs:
   - id: BUG-012
     title: "Booking detail tabs: LabVal labels и stay-tab values не локализованы (Email/Nights/Guests/Room Type/Not assigned/adults/children/Design in progress)"
     severity: low
-    status: open
+    status: closed
     source: ui-audit/preflight-batch-d
     files:
       - apps/web/src/app/bookings/[id]/booking-tabs.tsx
