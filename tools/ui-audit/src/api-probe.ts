@@ -3,6 +3,15 @@ import { SEED } from './seed-refs.ts';
 const API = process.env.AUDIT_API_URL ?? 'http://localhost:3001';
 const PROPERTY = `?propertyId=${SEED.property.GBH}`;
 
+// global-setup stores the admin session here before calling api-probe so the
+// endpoints gated by authPlugin stay reachable.
+function authedFetch(url: string): Promise<Response> {
+  const token = process.env.AUDIT_ADMIN_SESSION;
+  const headers: Record<string, string> = {};
+  if (token) headers.cookie = `pms_session=${token}`;
+  return fetch(url, { headers });
+}
+
 const REQUIRED_ENDPOINTS: { path: string; expectMinTotal?: number }[] = [
   { path: '/health' },
   { path: '/api/properties' },
@@ -21,7 +30,7 @@ export default async function apiProbe(): Promise<void> {
   const failures: string[] = [];
   for (const ep of REQUIRED_ENDPOINTS) {
     try {
-      const res = await fetch(`${API}${ep.path}`);
+      const res = await authedFetch(`${API}${ep.path}`);
       if (!res.ok) {
         failures.push(`${ep.path} → ${res.status}`);
         continue;

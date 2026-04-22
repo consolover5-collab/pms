@@ -6,8 +6,7 @@ bugs:
   - id: BUG-001
     title: "Auth plugin отключён — API-уровень preHandler guard не зарегистрирован"
     severity: critical
-    status: deferred
-    defer_reason: "Намеренно отключено до принятия решений по MVP-релизу и полной готовности frontend auth UI (login, SSR cookie forwarding, session handling). Комментарий-решение оставлен в apps/api/src/app.ts:30-34."
+    status: closed
     source: pre-audit/A7
     file: apps/api/src/app.ts
     lines: "5, 34"
@@ -334,7 +333,7 @@ bugs:
   - id: BUG-015
     title: "Cashier: /api/cashier/current и /api/cashier/close возвращают 401 — смену невозможно загрузить/закрыть"
     severity: high
-    status: open
+    status: closed
     source: ui-audit/13-cashier
     files:
       - apps/api/src/app.ts

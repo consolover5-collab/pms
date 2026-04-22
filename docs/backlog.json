@@ -7,21 +7,20 @@
       "id": "BUG-001",
       "title": "Auth plugin отключён — API-уровень preHandler guard не зарегистрирован",
       "severity": "critical",
-      "status": "deferred",
+      "status": "closed",
       "source": "pre-audit/A7",
       "files": [
         "apps/api/src/app.ts"
       ],
       "lines": "5, 34",
       "description": "authPlugin закомментирован в buildApp(): `// await app.register(authPlugin);`.\nAuth routes (/api/auth/login, /logout, /me) продолжают работать, но\npreHandler guard, который блокирует неаутентифицированные запросы\nи заполняет request.user, пропущен. Routes, которые не проверяют\nrequest.user самостоятельно, открыты без аутентификации; routes,\nкоторые делают `request.user?.id`, получают undefined и ведут себя\nв зависимости от собственной логики (см. BUG-015 для cashier).",
-      "fix": "Раскомментировать `await app.register(authPlugin);` в app.ts:34\nОДНОВРЕМЕННО с полной готовностью frontend auth UI. Параллельно\nаудит всех routes на поведение при наличии vs отсутствии\nrequest.user (см. BUG-015 для cashier-specific пример).",
-      "defer_reason": "Намеренно отключено до принятия решений по MVP-релизу и полной готовности frontend auth UI (login, SSR cookie forwarding, session handling). Комментарий-решение оставлен в apps/api/src/app.ts:30-34."
+      "fix": "Раскомментировать `await app.register(authPlugin);` в app.ts:34\nОДНОВРЕМЕННО с полной готовностью frontend auth UI. Параллельно\nаудит всех routes на поведение при наличии vs отсутствии\nrequest.user (см. BUG-015 для cashier-specific пример)."
     },
     {
       "id": "BUG-002",
       "title": "Отсутствуют DB-level CHECK constraints — валидация только на уровне API",
       "severity": "high",
-      "status": "open",
+      "status": "closed",
       "source": "pre-audit/A6",
       "files": [
         "packages/db/src/schema/bookings.ts",
@@ -192,7 +191,7 @@
       "id": "BUG-015",
       "title": "Cashier: /api/cashier/current и /api/cashier/close возвращают 401 — смену невозможно загрузить/закрыть",
       "severity": "high",
-      "status": "open",
+      "status": "closed",
       "source": "ui-audit/13-cashier",
       "files": [
         "apps/api/src/app.ts",

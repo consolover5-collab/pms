@@ -12,6 +12,32 @@ export const API_URL = process.env.AUDIT_API_URL ?? 'http://localhost:3001';
 export const WEB_URL = process.env.AUDIT_WEB_URL ?? 'http://localhost:3000';
 export const GBH_PROPERTY_ID = SEED.property.GBH;
 
+// Per-worker fetch patch. global-setup logs in once, exports the admin
+// session via process.env.AUDIT_ADMIN_SESSION. Workers fork from the main
+// process after global-setup, so the env var is inherited; we attach the
+// cookie on every direct API fetch transparently so fixtures/specs never
+// need to manage auth themselves. Playwright browser contexts still call
+// loginAsAdmin() because their cookie jar is separate.
+const __adminSession = process.env.AUDIT_ADMIN_SESSION;
+if (__adminSession && !(globalThis as { __pmsFetchPatched?: boolean }).__pmsFetchPatched) {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init = {}) => {
+    const url =
+      typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : (input as Request).url;
+    if (!url.startsWith(API_URL)) return originalFetch(input, init);
+    const headers = new Headers(init.headers ?? {});
+    if (!headers.has('cookie')) {
+      headers.set('cookie', `pms_session=${__adminSession}`);
+    }
+    return originalFetch(input, { ...init, headers });
+  };
+  (globalThis as { __pmsFetchPatched?: boolean }).__pmsFetchPatched = true;
+}
+
 export async function auditScreenshot(
   page: Page,
   sectionId: string,

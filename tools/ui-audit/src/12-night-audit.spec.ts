@@ -19,6 +19,8 @@
 
 import { test, expect } from '@playwright/test';
 import {
+  API_URL,
+  GBH_PROPERTY_ID,
   auditScreenshot,
   registerSectionHooks,
   setLocaleAndGoto,
@@ -61,7 +63,7 @@ const labels = {
 // that fresh snapshot rather than frozen values.
 async function probeBusinessDate(): Promise<string> {
   const r = await fetch(
-    'http://localhost:3000/api/business-date?propertyId=ff1d9135-dfb9-4baa-be46-0e739cd26dad',
+    `${API_URL}/api/business-date?propertyId=${GBH_PROPERTY_ID}`,
   );
   if (!r.ok) throw new Error(`GET /api/business-date failed: ${r.status}`);
   const body = (await r.json()) as { date: string };
@@ -78,10 +80,10 @@ type PreviewCounters = {
 };
 
 async function probePreview(): Promise<PreviewCounters> {
-  const r = await fetch('http://localhost:3000/api/night-audit/preview', {
+  const r = await fetch(`${API_URL}/api/night-audit/preview`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ propertyId: 'ff1d9135-dfb9-4baa-be46-0e739cd26dad' }),
+    body: JSON.stringify({ propertyId: GBH_PROPERTY_ID }),
   });
   if (!r.ok) throw new Error(`POST /api/night-audit/preview failed: ${r.status}`);
   return (await r.json()) as PreviewCounters;

@@ -57,6 +57,8 @@
 
 import { test, expect } from '@playwright/test';
 import {
+  API_URL,
+  GBH_PROPERTY_ID,
   auditScreenshot,
   registerSectionHooks,
   setLocaleAndGoto,
@@ -74,9 +76,7 @@ const EXPECTED_RENDERED = 50; // first-page slice; PAGE_SIZE=50
 const EXPECTED_COMPANY_MIN = 1; // company tab should render at least 1 row
 
 async function probeProfilesTotal(): Promise<number> {
-  const url =
-    'http://localhost:3000/api/profiles?' +
-    'propertyId=ff1d9135-dfb9-4baa-be46-0e739cd26dad&limit=1';
+  const url = `${API_URL}/api/profiles?propertyId=${GBH_PROPERTY_ID}&limit=1`;
   const r = await fetch(url);
   if (!r.ok) throw new Error(`GET /api/profiles probe failed: ${r.status}`);
   return ((await r.json()) as { total: number }).total;

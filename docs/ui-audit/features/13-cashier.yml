@@ -235,15 +235,7 @@ network_errors:
     verdict: bug
     linked_bug: BUG-015
 
-bugs:
-  - id: BUG-015
-    severity: high
-    scenario: primary-operation
-    observed: >
-      /api/cashier/current and /api/cashier/close always return 401 because
-      apps/api/src/app.ts has `await app.register(authPlugin)` commented out
-      while both handlers still gate on `request.user?.id`. The cashier page
-      cannot load shift state, render KPIs, or reach the close-shift flow.
+bugs: []
 
 help_rewrite_hints:
   topic: null
@@ -257,7 +249,7 @@ retro:
     - "Added 20 data-testids to apps/web/src/app/cashier/page.tsx (cashier-* prefix)"
   methodology_deltas: []
 
-status: broken
+status: ok
 last_audited: "2026-04-22"
 screenshots_dir: docs/ui-audit/screenshots/
 

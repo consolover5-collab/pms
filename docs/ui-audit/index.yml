@@ -70,8 +70,8 @@ sections:
     priority: P0
   - id: "13"
     file: features/13-cashier.yml
-    status: broken
-    bugs: 1
+    status: ok
+    bugs: 0
     priority: P2
   - id: "14"
     file: features/14-tape-chart.yml
@@ -131,9 +131,9 @@ sections:
 
 totals:
   sections: 24
-  ok: 21
+  ok: 22
   partial: 1
-  broken: 1
+  broken: 0
   missing: 1
   pending: 0
-  bugs: 1
+  bugs: 0
