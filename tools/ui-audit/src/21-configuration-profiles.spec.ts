@@ -67,16 +67,12 @@ const ROUTE = '/configuration/profiles';
 
 const UI_TIMEOUT = 10_000;
 
-// Probe-confirmed totals (2026-04-22, property GBH)
-// Sum across types: 133 individual + 10 company + 6 travel_agent + 4 source = 153
-// HOWEVER: page.tsx does NOT set ?limit= on the GET /api/profiles call, so
-// the API falls back to its default limit=50 (max=100). The page has no
-// pagination UI either (unlike /guests which uses limit=50 + page links),
-// so only 50 rows are rendered and the count badge shows profiles.length=50.
-// This UX gap is filed as BUG-017 (list truncated, no pagination or limit).
-// Assertion uses the actual rendered count (50), not the DB total (153).
-const EXPECTED_TRUE_TOTAL = 153;
-const EXPECTED_RENDERED = 50; // API default page; see BUG-017
+// Seed-anchored totals. After BUG-017 fix the page paginates with
+// PAGE_SIZE=50 and the count badge shows the API's `total` field
+// (which matches the DB total), not the rendered slice length.
+// Seed: 130 individual + 10 company + 6 travel_agent + 4 source = 150.
+const EXPECTED_TRUE_TOTAL = 150;
+const EXPECTED_RENDERED = 50; // first page slice; PAGE_SIZE=50
 const EXPECTED_COMPANY_MIN = 1; // company tab should render at least 1 row
 
 test.describe('21 configuration-profiles', () => {
@@ -113,18 +109,16 @@ test.describe('21 configuration-profiles', () => {
     await expect(page.getByTestId('config-profiles-tab-source')).toBeVisible();
 
     // Table + count — no type filter by default; all 4 types merged into single list.
-    // Count badge reflects profiles.length (rendered rows), not the DB total.
-    // Because page.tsx does not set ?limit=, the API defaults to limit=50 and
-    // the page has no pagination UI → only 50 rows render out of 153. BUG-017.
+    // After BUG-017 fix: count badge shows the API's `total` field (DB total),
+    // not the rendered slice. PAGE_SIZE=50 means only first 50 rows render.
     await expect(page.getByTestId('config-profiles-table')).toBeVisible({ timeout: UI_TIMEOUT });
     const countBadge = page.getByTestId('config-profiles-count');
     await expect(countBadge).toBeVisible();
     const countText = (await countBadge.textContent())?.trim() ?? '';
-    testInfo.attach('rendered-count', { body: countText, contentType: 'text/plain' });
-    testInfo.attach('true-total', { body: String(EXPECTED_TRUE_TOTAL), contentType: 'text/plain' });
-    expect(Number(countText)).toBe(EXPECTED_RENDERED);
+    testInfo.attach('badge-total', { body: countText, contentType: 'text/plain' });
+    expect(Number(countText)).toBe(EXPECTED_TRUE_TOTAL);
 
-    // Row count matches badge (sanity — rendered rows == badge)
+    // Row count == first-page slice (sanity — pagination renders PAGE_SIZE rows)
     const rows = page.getByTestId('config-profiles-row');
     const rowCount = await rows.count();
     testInfo.attach('row-count', { body: String(rowCount), contentType: 'text/plain' });

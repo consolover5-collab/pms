@@ -88,8 +88,9 @@ test.describe('07 rooms-list', () => {
     await expect(page.getByTestId('rooms-heading')).toBeVisible({
       timeout: UI_TIMEOUT,
     });
-    // BUG-006: both locales render "Rooms" today; remove English lock when /rooms is localized
-    await expect(page.getByTestId('rooms-heading')).toHaveText('Rooms');
+    // BUG-006 fixed — /rooms is now localized; assert per-locale heading.
+    const expectedHeading = locale === 'ru' ? 'Номера' : 'Rooms';
+    await expect(page.getByTestId('rooms-heading')).toHaveText(expectedHeading);
 
     // Stats match probe-confirmed DB state
     await expect(page.getByTestId('rooms-stat-total')).toHaveText(String(EXPECTED.total));
