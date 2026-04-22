@@ -220,6 +220,12 @@ help_rewrite_hints:
     - isManualPostAllowed flag: when unchecked, code is system-only (cannot be manually posted by frontdesk)
     - No delete via UI; codes with folio transactions are permanently protected
 
+retro:
+  time_minutes: 0
+  unblocker_fixes: []
+  methodology_deltas:
+    - "Retro block back-filled during Batch D finalisation to satisfy validate-yaml schema (field added to _template.yml after Batch C shipped)."
+
 status: ok
 last_audited: "2026-04-21"
 screenshots_dir: docs/ui-audit/screenshots/

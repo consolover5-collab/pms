@@ -163,6 +163,25 @@ signals:
   risk: NONE
   restore_mechanism: "n/a — zero mutations"
 
+api_calls_observed:
+  - { method: GET, path: "/api/auth/me",       status: 200, note: "layout chrome: locale-provider session check" }
+  - { method: GET, path: "/api/properties",    status: 200, note: "layout chrome: property picker" }
+  - { method: GET, path: "/api/business-date", status: 200, note: "layout chrome: topbar business-date" }
+
+help_rewrite_hints:
+  topic: null
+  notes: |
+    Section 22 is the help index + topic routing. Individual route
+    sections (dashboard, bookings, housekeeping, etc.) carry their own
+    help_rewrite_hints.topic values; rewrite-content work belongs on
+    those per-topic sections, not here.
+
+retro:
+  time_minutes: 0
+  unblocker_fixes: []
+  methodology_deltas:
+    - "api_calls_observed, help_rewrite_hints, and retro blocks back-filled during Batch D finalisation to satisfy validate-yaml schema (fields added to _template.yml after Batch C shipped)."
+
 status: ok
 last_audited: "2026-04-21"
 screenshots_dir: docs/ui-audit/screenshots/

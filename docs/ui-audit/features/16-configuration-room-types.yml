@@ -182,6 +182,12 @@ help_rewrite_hints:
     - Deletion rules: cannot delete if rooms or bookings reference the type
     - Detail page: drill-through to see which rooms belong to each type
 
+retro:
+  time_minutes: 0
+  unblocker_fixes: []
+  methodology_deltas:
+    - "Retro block back-filled during Batch D finalisation to satisfy validate-yaml schema (field added to _template.yml after Batch C shipped)."
+
 status: ok
 last_audited: "2026-04-21"
 screenshots_dir: docs/ui-audit/screenshots/
