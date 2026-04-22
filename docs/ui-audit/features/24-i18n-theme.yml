@@ -36,6 +36,7 @@ ui:
     - { id: topbar-locale-ru,      element: "button (RU chip)",              added: true }
     - { id: topbar-theme-toggle,   element: "button (sun/moon icon)",        added: true }
     - { id: topbar-new-booking,    element: "Link (topbar 'New booking')",   added: true }
+    - { id: topbar-search,         element: "button (command palette trigger; i18n scan sample)", added: true }
   required_fields: []
   optional_fields: []
   buttons:
@@ -89,11 +90,14 @@ steps:
       Visit 5 sampled pages (/, /bookings, /housekeeping,
       /configuration/property, /rooms). In the en project, scan curated
       chrome selectors (h1/h2/h3, button, nav a, label, th, [role=tab],
-      [aria-label], input/textarea placeholder, plus aria-label/title
-      attributes) and fail if any Cyrillic character is found. tbody/table-
-      row descendants are excluded so guest-name user content doesn't
-      produce false positives. Screenshots captured for both locales as
-      visual evidence parity. Zero leaks observed on 2026-04-22.
+      [aria-label], option, legend, summary, input/textarea placeholder,
+      plus aria-label/title attributes) and fail if any Cyrillic character
+      is found. tbody/table-row descendants are excluded so guest-name user
+      content doesn't produce false positives. Screenshots captured for
+      both locales as visual evidence parity. Zero leaks observed on
+      2026-04-22 with the broadened selector set (option/legend/summary
+      added post-review to cover <select><option> payloads such as payment
+      methods and booking sources in /bookings/new).
     screenshots:
       - 24-i18n-theme-03-dashboard-en.png
       - 24-i18n-theme-03-dashboard-ru.png
@@ -148,6 +152,26 @@ edge_cases:
       and skips any element inside <tbody> (or with data-user-content=true,
       reserved for future explicit markers). On 2026-04-22 with /bookings
       showing 50 rows of real seed data, no false positives were recorded.
+
+  - id: tbody-chrome-silently-excluded
+    description: |
+      The i18n scanner in scenario 03 excludes ALL descendants of <tbody> to
+      avoid false positives on guest-name cells (legitimate Cyrillic in en UI).
+      Side effect: row-level chrome (row-action buttons, status pills, row
+      aria-labels inside <tbody>) is also silently skipped. A regression that
+      hardcodes a string like "Прибыл" inside a rendered <tbody> row cell would
+      NOT be caught by this spec.
+    observed: not_tested
+    risk: medium
+    mitigation: |
+      Future-proof opt-in exists: elements marked with data-user-content="true"
+      are treated as user content, so the default could be inverted (scan
+      everything, mark cells as user content) — but that requires retrofitting
+      data-user-content onto all <td> cells that hold user data (guest names,
+      free-form notes, etc.). Deferred until a follow-up i18n-hardening pass.
+    follow_up: "Narrow the scanner to exclude only <td> text nodes (not buttons,
+      aria-labels, or role attributes inside tbody). Then an incremental opt-in
+      with data-user-content='true' can replace the blanket exclusion."
 
   - id: preflight-regression-gate
     description: "BUG-012/013/014 fixes held"

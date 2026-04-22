@@ -117,6 +117,7 @@ export function Topbar() {
         <button
           type="button"
           className="searchbox"
+          data-testid="topbar-search"
           onClick={() => setPaletteOpen(true)}
           aria-label={t(dict, "topbar.commandPalette")}
         >

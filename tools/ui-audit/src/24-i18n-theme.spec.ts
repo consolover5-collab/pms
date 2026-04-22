@@ -91,6 +91,12 @@ const CHROME_SELECTORS = [
   'th',
   '[role="tab"]',
   '[aria-label]:not(table [aria-label]):not(tbody [aria-label])',
+  // S1: <select><option> payloads (e.g. payment methods, booking sources,
+  // guarantee types in /bookings/new) are chrome strings — a hardcoded
+  // "Наличные" in an option would otherwise slip this scan entirely.
+  'option',
+  'legend',
+  'summary',
 ];
 
 /**
@@ -181,7 +187,7 @@ test.describe('24 i18n-theme', () => {
       // useLocale(), so it re-renders on setLocale() without navigation.
       // (page h1s come from server components using getLocale() and would
       // stay stale until the next navigation — avoid those here.)
-      const searchBtn = page.locator('.searchbox');
+      const searchBtn = page.getByTestId('topbar-search');
       await expect(searchBtn).toBeVisible({ timeout: UI_TIMEOUT });
       const textC_start = (await searchBtn.textContent())?.trim() ?? '';
 
