@@ -1187,6 +1187,10 @@ The Batch A retrospective flagged CSS-class coupling (`.folio-win .totals .v.pos
 
 When dispatching a spec-compliance reviewer, the brief must instruct: "Open each changed file and verify symbols/signatures/call sites against the contract. Do NOT trust the implementer's self-report — the status line is informational, not evidence." Rationale: Batch A had one case where the implementer reported DONE but the review caught missing items the self-report didn't mention.
 
+### Revision 4: Keep comments synchronised with code in fix-loops
+
+When a fix-loop changes a symbol name, mutation semantic, or field-name in a snapshot/restore contract, the implementer MUST `grep` for the old identifier in nearby comments and update those comments in the same diff. Rationale: Batch C sections 15 and 16 (retro §2.2) each spent one extra round of review because the code was renamed (`HAS_ROOMS` → `HAS_DEPENDENCIES`, `numberOfRooms` → set-equality) but the surrounding comments still referenced the old term. Code-quality reviewers must check for comment-vs-code drift when reviewing fix-loop commits.
+
 ## Task B1: Section 09 — Housekeeping (`/housekeeping`)
 
 **Files:**
