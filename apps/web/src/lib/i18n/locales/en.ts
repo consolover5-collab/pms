@@ -631,6 +631,16 @@ export const en = {
   "roomTypes.detail.colActions": "Actions",
   "roomTypes.detail.viewRoom": "View",
   "roomTypes.detail.editRoom": "Edit",
+  "rooms.backToRooms": "Back to rooms",
+  "rooms.currentGuest": "Current Guest",
+  "rooms.guestLabel": "Guest",
+  "rooms.confirmationLabel": "Confirmation",
+  "rooms.checkOutLabel": "Check-out",
+  "rooms.roomType": "Room Type",
+  "rooms.floor": "Floor",
+  "rooms.maxOccupancy": "Max Occupancy",
+  "rooms.description": "Description",
+  "rooms.oooCardHeading": "Out of Order / Out of Service",
 
   // Configuration hub
   "config.title": "Configuration",

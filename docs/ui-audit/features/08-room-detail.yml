@@ -190,20 +190,7 @@ api_calls_observed:
 console_errors: []
 network_errors: []
 
-bugs:
-  - id: BUG-007
-    severity: low
-    scenario: "01-load-detail"
-    observed: >
-      /rooms/[id] renders a mix of localized and English-only labels. In the
-      RU screenshot, "Статус уборки" (HK status heading) sits next to an
-      English "Clean" in the HK badge and English action buttons (Clean,
-      Dirty, Inspected, Pickup). Field labels (Room Type, Floor, Max Occupancy,
-      Description), Current Guest card (when occupied), occupancy chips
-      (Occupied/Vacant), and "Back to rooms" button are all English-only.
-      hkStatusLabels, the source of the HK-badge text, is a hardcoded
-      Record<string,string> → English.
-    screenshot: 08-room-detail-01-load-detail-ru.png
+bugs: []
 
 help_rewrite_hints:
   topic: rooms

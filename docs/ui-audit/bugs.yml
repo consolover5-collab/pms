@@ -216,7 +216,7 @@ bugs:
   - id: BUG-007
     title: "Room detail page частично локализована — hkStatusLabels и вспомогательные лейблы захардкожены"
     severity: low
-    status: open
+    status: closed
     source: ui-audit/08-room-detail
     files:
       - apps/web/src/app/rooms/[id]/page.tsx

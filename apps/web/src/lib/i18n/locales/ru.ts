@@ -633,6 +633,16 @@ export const ru: Dictionary = {
   "roomTypes.detail.colActions": "Действия",
   "roomTypes.detail.viewRoom": "Смотреть",
   "roomTypes.detail.editRoom": "Править",
+  "rooms.backToRooms": "К списку номеров",
+  "rooms.currentGuest": "Текущий гость",
+  "rooms.guestLabel": "Гость",
+  "rooms.confirmationLabel": "Подтверждение",
+  "rooms.checkOutLabel": "Выезд",
+  "rooms.roomType": "Тип номера",
+  "rooms.floor": "Этаж",
+  "rooms.maxOccupancy": "Макс. вместимость",
+  "rooms.description": "Описание",
+  "rooms.oooCardHeading": "Не работает / Не в эксплуатации",
 
   // Configuration hub
   "config.title": "Настройки",
