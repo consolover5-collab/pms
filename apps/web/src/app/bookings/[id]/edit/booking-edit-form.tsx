@@ -5,7 +5,21 @@ import Link from "next/link";
 import { useState, useEffect, useMemo } from "react";
 import { formatCurrency } from "@/lib/format";
 import { ErrorDisplay, type ApiErrorDetail } from "@/components/error-display";
+import { useLocale } from "@/components/locale-provider";
+import { t, plural, type Locale } from "@/lib/i18n";
+import type { DictionaryKey, Dictionary } from "@/lib/i18n/locales/en";
 
+function formatNights(dict: Dictionary, locale: Locale, count: number): string {
+  const form =
+    locale === "ru"
+      ? plural(count, "one", "few", "many")
+      : count === 1
+        ? "one"
+        : "few";
+  return t(dict, `bookings.edit.nightsCount.${form}` as DictionaryKey, {
+    count: String(count),
+  });
+}
 
 type Booking = {
   id: string;
@@ -35,20 +49,36 @@ type Room = { id: string; roomNumber: string; roomTypeId: string; occupancyStatu
 type RatePlan = { id: string; name: string; code: string; baseRate: string | null };
 type Profile = { id: string; name: string };
 
-const paymentMethods = [
-  { value: "", label: "Not specified" },
-  { value: "cash", label: "Cash" },
-  { value: "card", label: "Credit Card" },
-  { value: "bank_transfer", label: "Bank Transfer" },
-  { value: "company", label: "Company Account" },
+const paymentMethodOptions: { value: string; labelKey: DictionaryKey }[] = [
+  { value: "", labelKey: "bookings.edit.paymentMethod.notSpecified" },
+  { value: "cash", labelKey: "bookings.edit.paymentMethod.cash" },
+  { value: "card", labelKey: "bookings.edit.paymentMethod.card" },
+  { value: "bank_transfer", labelKey: "bookings.edit.paymentMethod.bank_transfer" },
+  { value: "company", labelKey: "bookings.edit.paymentMethod.company" },
 ];
 
-const statusExplanations: Record<string, string> = {
-  checked_in: "Guest is checked in. Check-in date, room type and guest are locked. You can extend check-out date, change room, rate and notes.",
-  checked_out: "Stay is completed. Only notes can be updated for historical records.",
-  cancelled: "Booking is cancelled. Use 'Reinstate' to restore it before making changes.",
-  no_show: "Marked as no-show. Use 'Reinstate' to restore it before making changes.",
+const statusExplanationKeys: Record<string, DictionaryKey> = {
+  checked_in: "bookings.edit.statusExplanation.checked_in",
+  checked_out: "bookings.edit.statusExplanation.checked_out",
+  cancelled: "bookings.edit.statusExplanation.cancelled",
+  no_show: "bookings.edit.statusExplanation.no_show",
 };
+
+const statusBadgeKeys: Record<string, DictionaryKey> = {
+  confirmed: "bookings.status.confirmed",
+  checked_in: "bookings.status.checkedIn",
+  checked_out: "bookings.status.checkedOut",
+  cancelled: "bookings.status.cancelled",
+  no_show: "bookings.status.noShow",
+};
+
+const guaranteeCodeKeys: { value: string; labelKey: DictionaryKey }[] = [
+  { value: "cc_guaranteed", labelKey: "guaranteeCodes.cc_guaranteed" },
+  { value: "deposit_guaranteed", labelKey: "guaranteeCodes.deposit_guaranteed" },
+  { value: "company_guaranteed", labelKey: "guaranteeCodes.company_guaranteed" },
+  { value: "non_guaranteed", labelKey: "guaranteeCodes.non_guaranteed" },
+  { value: "travel_agent_guaranteed", labelKey: "guaranteeCodes.travel_agent_guaranteed" },
+];
 
 // Field wrapper with visual disabled state
 function FormField({
@@ -82,6 +112,7 @@ function FormField({
 
 export function BookingEditForm({ booking, propertyId }: { booking: Booking; propertyId: string }) {
   const router = useRouter();
+  const { dict, locale } = useLocale();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | ApiErrorDetail | null>(null);
 
@@ -126,10 +157,10 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
   // Date validation
   const dateError = useMemo(() => {
     if ((canEditCoreFields || canExtendStay) && checkInDate && checkOutDate && checkOutDate <= checkInDate) {
-      return "Check-out date must be after check-in date";
+      return t(dict, "bookings.edit.dateError");
     }
     return null;
-  }, [checkInDate, checkOutDate, canEditCoreFields, canExtendStay]);
+  }, [checkInDate, checkOutDate, canEditCoreFields, canExtendStay, dict]);
 
   // Calculate nights and total
   const nights = useMemo(() => {
@@ -164,11 +195,11 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
         setSources(sourceRaw.data ?? []);
         setDataLoaded(true);
       } catch {
-        setError("Could not load data. Check that the API server is running.");
+        setError(t(dict, "bookings.edit.loadFailed"));
       }
     }
     loadData();
-  }, [propertyId]);
+  }, [propertyId, dict]);
 
   // Filter rooms by selected room type
   const availableRooms = rooms.filter((r) => r.roomTypeId === selectedRoomTypeId);
@@ -177,18 +208,18 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
   function getRoomLabel(room: Room): string {
     const statusParts: string[] = [];
     if (room.occupancyStatus === "occupied" && room.id !== booking.room?.id) {
-      statusParts.push("occupied");
+      statusParts.push(t(dict, "bookings.edit.roomTagOccupied"));
     }
     if (room.housekeepingStatus === "dirty") {
-      statusParts.push("dirty");
+      statusParts.push(t(dict, "bookings.edit.roomTagDirty"));
     } else if (room.housekeepingStatus === "out_of_order") {
-      statusParts.push("OOO");
+      statusParts.push(t(dict, "bookings.edit.roomTagOoo"));
     } else if (room.housekeepingStatus === "out_of_service") {
-      statusParts.push("OOS");
+      statusParts.push(t(dict, "bookings.edit.roomTagOos"));
     }
 
     if (room.id === booking.room?.id) {
-      statusParts.push("current");
+      statusParts.push(t(dict, "bookings.edit.roomTagCurrent"));
     }
 
     return statusParts.length > 0
@@ -288,7 +319,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
         });
       } else {
         setError({
-          error: err instanceof Error ? err.message : "Failed to save",
+          error: err instanceof Error ? err.message : t(dict, "bookings.edit.loadFailed"),
           code: "UNKNOWN_ERROR",
           url,
           timestamp: new Date().toISOString(),
@@ -298,7 +329,10 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
     }
   }
 
-  const explanation = statusExplanations[booking.status];
+  const explanationKey = statusExplanationKeys[booking.status];
+  const explanation = explanationKey ? t(dict, explanationKey) : null;
+  const statusBadgeKey = statusBadgeKeys[booking.status];
+  const statusBadgeText = statusBadgeKey ? t(dict, statusBadgeKey) : booking.status.replace("_", " ");
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl" data-testid="booking-edit-form">
@@ -311,7 +345,9 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           data-testid="booking-edit-status-info"
           className="p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded text-sm"
         >
-          <strong className="font-medium">Status: {booking.status.replace("_", " ")}</strong>
+          <strong className="font-medium">
+            {t(dict, "bookings.edit.statusLabel", { status: statusBadgeText })}
+          </strong>
           <p className="mt-1">{explanation}</p>
         </div>
       )}
@@ -321,24 +357,24 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           data-testid="booking-edit-terminal-banner"
           className="p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded text-sm"
         >
-          This booking cannot be edited in its current state.
+          {t(dict, "bookings.edit.terminalBanner")}
           <Link href={`/bookings/${booking.id}`} className="ml-1 underline">
-            Go back and use &quot;Reinstate&quot; to restore it first.
+            {t(dict, "bookings.edit.terminalBannerHint")}
           </Link>
         </div>
       )}
 
-      <FormField label="Confirmation Number" disabled>
+      <FormField label={t(dict, "bookings.edit.confirmationNumber")} disabled>
         <input type="text" value={booking.confirmationNumber} disabled
           data-testid="booking-edit-confirmation"
           className="w-full px-3 py-2 border rounded bg-gray-100 text-gray-500 cursor-not-allowed" />
       </FormField>
 
       <FormField
-        label="Guest"
+        label={t(dict, "bookings.edit.guest")}
         required
         disabled={!canEditCoreFields}
-        lockedReason={!canEditCoreFields ? "Cannot change guest after check-in" : undefined}
+        lockedReason={!canEditCoreFields ? t(dict, "bookings.edit.locked.guest") : undefined}
       >
         <select
           required
@@ -358,9 +394,9 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
 
       {/* Company */}
       <FormField
-        label="Company"
+        label={t(dict, "bookings.edit.company")}
         disabled={!canEditFinancials}
-        lockedReason={!canEditFinancials ? "Cannot change company for completed bookings" : undefined}
+        lockedReason={!canEditFinancials ? t(dict, "bookings.edit.locked.profile") : undefined}
       >
         <select
           disabled={!canEditFinancials}
@@ -368,7 +404,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           onChange={(e) => setSelectedCompanyId(e.target.value)}
           className={`w-full px-3 py-2 border rounded ${!canEditFinancials ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
         >
-          <option value="">— None —</option>
+          <option value="">{t(dict, "bookings.edit.none")}</option>
           {companies.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
@@ -377,9 +413,9 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
 
       {/* Travel Agent */}
       <FormField
-        label="Travel Agent"
+        label={t(dict, "bookings.edit.travelAgent")}
         disabled={!canEditFinancials}
-        lockedReason={!canEditFinancials ? "Cannot change agent for completed bookings" : undefined}
+        lockedReason={!canEditFinancials ? t(dict, "bookings.edit.locked.profile") : undefined}
       >
         <select
           disabled={!canEditFinancials}
@@ -387,7 +423,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           onChange={(e) => setSelectedAgentId(e.target.value)}
           className={`w-full px-3 py-2 border rounded ${!canEditFinancials ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
         >
-          <option value="">— None —</option>
+          <option value="">{t(dict, "bookings.edit.none")}</option>
           {agents.map((a) => (
             <option key={a.id} value={a.id}>{a.name}</option>
           ))}
@@ -396,9 +432,9 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
 
       {/* Source */}
       <FormField
-        label="Source"
+        label={t(dict, "bookings.edit.source")}
         disabled={!canEditFinancials}
-        lockedReason={!canEditFinancials ? "Cannot change source for completed bookings" : undefined}
+        lockedReason={!canEditFinancials ? t(dict, "bookings.edit.locked.profile") : undefined}
       >
         <select
           disabled={!canEditFinancials}
@@ -406,7 +442,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           onChange={(e) => setSelectedSourceId(e.target.value)}
           className={`w-full px-3 py-2 border rounded ${!canEditFinancials ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
         >
-          <option value="">— None —</option>
+          <option value="">{t(dict, "bookings.edit.none")}</option>
           {sources.map((s) => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
@@ -415,10 +451,10 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
 
       <div className="grid grid-cols-2 gap-4">
         <FormField
-          label="Check-in"
+          label={t(dict, "bookings.edit.checkIn")}
           required
           disabled={!canEditCoreFields}
-          lockedReason={!canEditCoreFields ? "Cannot change dates after check-in" : undefined}
+          lockedReason={!canEditCoreFields ? t(dict, "bookings.edit.locked.dates") : undefined}
         >
           <input
             type="date"
@@ -436,10 +472,10 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           />
         </FormField>
         <FormField
-          label="Check-out"
+          label={t(dict, "bookings.edit.checkOut")}
           required
           disabled={!canEditCoreFields && !canExtendStay}
-          lockedReason={isTerminal ? "Cannot change dates for completed/cancelled stay" : undefined}
+          lockedReason={isTerminal ? t(dict, "bookings.edit.locked.terminalDates") : undefined}
         >
           <input
             type="date"
@@ -452,16 +488,16 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
             className={`w-full px-3 py-2 border rounded ${(!canEditCoreFields && !canExtendStay) ? "bg-gray-100 text-gray-500 cursor-not-allowed" : dateError ? "border-red-500" : ""}`}
           />
           {dateError && <p className="text-xs text-red-500 mt-1" data-testid="booking-edit-date-error">{dateError}</p>}
-          {nights > 0 && <p className="text-xs text-gray-500 mt-1">{nights} night{nights > 1 ? "s" : ""}</p>}
-          {canExtendStay && !canEditCoreFields && <p className="text-xs text-blue-600 mt-1">You can extend the stay by changing the check-out date</p>}
+          {nights > 0 && <p className="text-xs text-gray-500 mt-1">{formatNights(dict, locale, nights)}</p>}
+          {canExtendStay && !canEditCoreFields && <p className="text-xs text-blue-600 mt-1">{t(dict, "bookings.edit.extendHint")}</p>}
         </FormField>
       </div>
 
       <FormField
-        label="Room Type"
+        label={t(dict, "bookings.edit.roomType")}
         required
         disabled={!canEditCoreFields}
-        lockedReason={!canEditCoreFields ? "Cannot change room type after check-in" : undefined}
+        lockedReason={!canEditCoreFields ? t(dict, "bookings.edit.locked.roomType") : undefined}
       >
         <select
           required
@@ -483,9 +519,9 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
       </FormField>
 
       <FormField
-        label="Room"
+        label={t(dict, "bookings.edit.room")}
         disabled={!canEditRoom}
-        lockedReason={!canEditRoom ? "Cannot change room for completed/cancelled bookings" : undefined}
+        lockedReason={!canEditRoom ? t(dict, "bookings.edit.locked.room") : undefined}
       >
         <select
           disabled={!canEditRoom}
@@ -493,27 +529,29 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           onChange={(e) => setSelectedRoomId(e.target.value)}
           className={`w-full px-3 py-2 border rounded ${!canEditRoom ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
         >
-          <option value="">Not assigned</option>
+          <option value="">{t(dict, "bookings.edit.notAssigned")}</option>
           {availableRooms.map((r) => (
             <option key={r.id} value={r.id}>{getRoomLabel(r)}</option>
           ))}
           {/* Fallback: show current room even if rooms not loaded yet */}
           {!dataLoaded && booking.room && (
-            <option value={booking.room.id}>{booking.room.roomNumber} (current)</option>
+            <option value={booking.room.id}>
+              {booking.room.roomNumber} ({t(dict, "bookings.edit.roomTagCurrent")})
+            </option>
           )}
         </select>
         {isCheckedIn && (
           <p className="mt-1 text-xs text-gray-500">
-            Room can be changed for checked-in guests (room move).
+            {t(dict, "bookings.edit.roomMoveHint")}
           </p>
         )}
       </FormField>
 
       <div className="grid grid-cols-2 gap-4">
         <FormField
-          label="Adults"
+          label={t(dict, "bookings.edit.adults")}
           disabled={!canEditCoreFields}
-          lockedReason={!canEditCoreFields ? "Cannot change occupancy after check-in" : undefined}
+          lockedReason={!canEditCoreFields ? t(dict, "bookings.edit.locked.occupancy") : undefined}
         >
           <input
             type="number"
@@ -526,9 +564,9 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           />
         </FormField>
         <FormField
-          label="Children"
+          label={t(dict, "bookings.edit.children")}
           disabled={!canEditCoreFields}
-          lockedReason={!canEditCoreFields ? "Cannot change occupancy after check-in" : undefined}
+          lockedReason={!canEditCoreFields ? t(dict, "bookings.edit.locked.occupancy") : undefined}
         >
           <input
             type="number"
@@ -545,9 +583,9 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
       <hr className="my-6" />
 
       <FormField
-        label="Rate Plan"
+        label={t(dict, "bookings.edit.ratePlan")}
         disabled={!canEditFinancials}
-        lockedReason={!canEditFinancials ? "Cannot change rates for completed bookings" : undefined}
+        lockedReason={!canEditFinancials ? t(dict, "bookings.edit.locked.financials") : undefined}
       >
         <select
           disabled={!canEditFinancials}
@@ -555,16 +593,16 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           onChange={(e) => handleRatePlanChange(e.target.value)}
           className={`w-full px-3 py-2 border rounded ${!canEditFinancials ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
         >
-          <option value="">Not specified</option>
+          <option value="">{t(dict, "bookings.edit.notSpecified")}</option>
           {ratePlans.map((rp) => <option key={rp.id} value={rp.id}>{rp.name} ({rp.code}){rp.baseRate ? ` — ${formatCurrency(rp.baseRate)} ₽` : ""}</option>)}
         </select>
       </FormField>
 
       <div className="grid grid-cols-2 gap-4">
         <FormField
-          label="Rate/Night"
+          label={t(dict, "bookings.edit.rateNight")}
           disabled={!canEditFinancials}
-          lockedReason={!canEditFinancials ? "Cannot change rates for completed bookings" : undefined}
+          lockedReason={!canEditFinancials ? t(dict, "bookings.edit.locked.financials") : undefined}
         >
           <input
             type="number"
@@ -577,7 +615,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           />
         </FormField>
         <FormField
-          label="Total"
+          label={t(dict, "bookings.edit.total")}
           disabled
         >
           <input
@@ -588,16 +626,19 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           />
           {nights > 0 && rateAmount && (
             <p className="text-xs text-gray-500 mt-1">
-              {formatCurrency(rateAmount)} ₽ × {nights} nights
+              {t(dict, "bookings.edit.totalBreakdown", {
+                rate: formatCurrency(rateAmount),
+                nights,
+              })}
             </p>
           )}
         </FormField>
       </div>
 
       <FormField
-        label="Guarantee"
+        label={t(dict, "bookings.edit.guarantee")}
         disabled={!canEditFinancials}
-        lockedReason={!canEditFinancials ? "Cannot change guarantee for completed bookings" : undefined}
+        lockedReason={!canEditFinancials ? t(dict, "bookings.edit.locked.guarantee") : undefined}
       >
         <select
           disabled={!canEditFinancials}
@@ -605,19 +646,19 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           onChange={(e) => setGuaranteeCodeVal(e.target.value)}
           className={`w-full px-3 py-2 border rounded ${!canEditFinancials ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
         >
-          <option value="">Not specified</option>
-          <option value="cc_guaranteed">Credit Card</option>
-          <option value="deposit_guaranteed">Deposit</option>
-          <option value="company_guaranteed">Company</option>
-          <option value="non_guaranteed">No Guarantee</option>
-          <option value="travel_agent_guaranteed">Travel Agent</option>
+          <option value="">{t(dict, "bookings.edit.notSpecified")}</option>
+          {guaranteeCodeKeys.map((gc) => (
+            <option key={gc.value} value={gc.value}>
+              {t(dict, gc.labelKey)}
+            </option>
+          ))}
         </select>
       </FormField>
 
       <FormField
-        label="Payment Method"
+        label={t(dict, "bookings.edit.paymentMethodLabel")}
         disabled={!canEditFinancials}
-        lockedReason={!canEditFinancials ? "Cannot change payment for completed bookings" : undefined}
+        lockedReason={!canEditFinancials ? t(dict, "bookings.edit.locked.payment") : undefined}
       >
         <select
           disabled={!canEditFinancials}
@@ -625,13 +666,17 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           onChange={(e) => setPaymentMethodVal(e.target.value)}
           className={`w-full px-3 py-2 border rounded ${!canEditFinancials ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
         >
-          {paymentMethods.map((pm) => <option key={pm.value} value={pm.value}>{pm.label}</option>)}
+          {paymentMethodOptions.map((pm) => (
+            <option key={pm.value} value={pm.value}>
+              {t(dict, pm.labelKey)}
+            </option>
+          ))}
         </select>
       </FormField>
 
       <hr className="my-6" />
 
-      <FormField label="Notes">
+      <FormField label={t(dict, "bookings.edit.notes")}>
         <textarea
           rows={3}
           value={notesVal}
@@ -639,7 +684,7 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           data-testid="booking-edit-notes"
           className="w-full px-3 py-2 border rounded"
         />
-        <p className="mt-1 text-xs text-gray-500">Notes can always be updated.</p>
+        <p className="mt-1 text-xs text-gray-500">{t(dict, "bookings.edit.notesHint")}</p>
       </FormField>
 
       <div className="flex gap-3">
@@ -649,14 +694,14 @@ export function BookingEditForm({ booking, propertyId }: { booking: Booking; pro
           data-testid="booking-edit-submit"
           className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {saving ? "Saving..." : "Save Changes"}
+          {saving ? t(dict, "bookings.edit.saving") : t(dict, "bookings.edit.save")}
         </button>
         <Link
           href={`/bookings/${booking.id}`}
           data-testid="booking-edit-cancel"
           className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
         >
-          Cancel
+          {t(dict, "bookings.edit.cancel")}
         </Link>
       </div>
     </form>

@@ -82,7 +82,7 @@ bugs:
   - id: BUG-005
     title: "Booking edit page не локализована (форма + заголовок)"
     severity: low
-    status: open
+    status: closed
     source: ui-audit/05-booking-edit
     files:
       - apps/web/src/app/bookings/[id]/edit/booking-edit-form.tsx

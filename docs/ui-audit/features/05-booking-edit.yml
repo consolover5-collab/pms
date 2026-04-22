@@ -145,12 +145,7 @@ api_calls_observed:
 console_errors: []
 network_errors: []
 
-bugs:
-  - id: BUG-005
-    severity: low
-    scenario: i18n-missing-on-edit-form
-    observed: "booking-edit-form.tsx and page.tsx have no i18n keys; all strings hardcoded English"
-    screenshot: 05-booking-edit-01-load-edit-form-ru.png
+bugs: []
 
 help_rewrite_hints:
   topic: bookings
