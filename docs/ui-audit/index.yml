@@ -105,8 +105,8 @@ sections:
     priority: P1
   - id: "20"
     file: features/20-configuration-guarantee-codes.yml
-    status: pending
-    bugs: 0
+    status: missing
+    bugs: 1
     priority: P2
   - id: "21"
     file: features/21-configuration-profiles.yml
@@ -134,6 +134,6 @@ totals:
   ok: 18
   partial: 1
   broken: 1
-  missing: 0
-  pending: 4
-  bugs: 10
+  missing: 1
+  pending: 3
+  bugs: 11

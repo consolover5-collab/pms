@@ -34,7 +34,7 @@ export default async function GuaranteeCodesPage() {
   ];
 
   return (
-    <>
+    <div data-testid="config-guarantee-codes-page">
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
         <Link href="/configuration" style={{ color: "var(--muted)" }}>
           ← {t(dict, "config.backToConfig")}
@@ -42,13 +42,17 @@ export default async function GuaranteeCodesPage() {
       </div>
 
       <div className="page-head">
-        <h1 className="page-title">{t(dict, "guaranteeCodes.title")}</h1>
-        <span className="page-sub">{t(dict, "guaranteeCodes.subtitle")}</span>
+        <h1 className="page-title" data-testid="config-guarantee-codes-title">
+          {t(dict, "guaranteeCodes.title")}
+        </h1>
+        <span className="page-sub" data-testid="config-guarantee-codes-subtitle">
+          {t(dict, "guaranteeCodes.subtitle")}
+        </span>
       </div>
 
       <div className="card">
         <div className="card-body" style={{ padding: 0 }}>
-          <table className="t">
+          <table className="t" data-testid="config-guarantee-codes-table">
             <thead>
               <tr>
                 <th style={{ width: 220 }}>{t(dict, "guaranteeCodes.colCode")}</th>
@@ -58,7 +62,7 @@ export default async function GuaranteeCodesPage() {
             </thead>
             <tbody>
               {GUARANTEE_CODES.map((g) => (
-                <tr key={g.code}>
+                <tr key={g.code} data-testid={`config-guarantee-codes-row-${g.code}`}>
                   <td className="tnum" style={{ color: "var(--accent)" }}>
                     {g.code}
                   </td>
@@ -70,6 +74,6 @@ export default async function GuaranteeCodesPage() {
           </table>
         </div>
       </div>
-    </>
+    </div>
   );
 }

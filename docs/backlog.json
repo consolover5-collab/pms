@@ -202,6 +202,18 @@
       "fix": "Два варианта, любой решает проблему:\n\n(A) Включить authPlugin глобально — раскомментировать\napps/api/src/app.ts:34 (`await app.register(authPlugin);`). Требует,\nчтобы все клиенты (UI + внешние) присылали pms_session cookie; SSR web\nуже пересылает cookie через rewrite, так что фронт не должен сломаться.\nЗаодно закроет ту же дыру в других handler'ах, читающих request.user.\n\n(B) Локальный фикс: в cashier.ts ручно читать cookie через\n`request.cookies[\"pms_session\"]` + lookup в sessions/users (по аналогии\nс apps/api/src/routes/auth.ts:66) и устанавливать request.user\nвнутри cashier preHandler. Менее инвазивно, но дублирует логику\nauthPlugin — временное решение.\n\nРекомендация: (A), потому что это единственный честный фикс и\nразблокирует сценарии 01/02 аудита Cashier без \"костыльных\" ветвлений."
     },
     {
+      "id": "BUG-016",
+      "title": "guarantee-codes: CRUD not implemented; hardcoded enum duplicated in booking-edit form",
+      "severity": "medium",
+      "status": "open",
+      "source": "ui-audit/20-configuration-guarantee-codes",
+      "files": [
+        "apps/web/src/app/configuration/guarantee-codes/page.tsx",
+        "apps/web/src/app/bookings/[id]/edit/booking-edit-form.tsx"
+      ],
+      "lines": "page.tsx:1-76; booking-edit-form.tsx:609-613"
+    },
+    {
       "id": "DEBT-002",
       "title": "OOO-валидация дублирована в POST и PATCH /rooms/:id/status",
       "severity": "medium",

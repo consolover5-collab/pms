@@ -1,0 +1,171 @@
+id: 20-configuration-guarantee-codes
+title: "Configuration: Guarantee Codes"
+route: /configuration/guarantee-codes
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "Коды гарантии"
+    en: "Guarantee Codes"
+  note: >
+    The page at /configuration/guarantee-codes is a READ-ONLY documentation stub.
+    It renders a hardcoded table of 5 enum values (cc_guaranteed,
+    company_guaranteed, deposit_guaranteed, non_guaranteed,
+    travel_agent_guaranteed) sourced from the component body of page.tsx.
+    There is NO API endpoint (no apps/api/src/routes/guarantee-codes.ts, no
+    /api/guarantee-codes route registered in apps/api/src/app.ts) and NO CRUD
+    UI (no New / Edit / Delete affordances on the page). The same 5 codes are
+    ALSO hardcoded as <option> elements in
+    apps/web/src/app/bookings/[id]/edit/booking-edit-form.tsx:609-613 — so the
+    config page is not even the source of truth for the enum it documents.
+    Consistency between the two is maintained only by developer vigilance.
+    Filed as BUG-016.
+  testids:
+    - { id: config-guarantee-codes-page,     element: "div (page wrapper)",           added: true }
+    - { id: config-guarantee-codes-title,    element: "h1",                           added: true }
+    - { id: config-guarantee-codes-subtitle, element: "span.page-sub",                added: true }
+    - { id: config-guarantee-codes-table,    element: "table",                        added: true }
+    - { id: config-guarantee-codes-row-<code>, element: "tr (one per code × 5)",      added: true }
+  required_fields: []
+  optional_fields: []
+  buttons: {}
+
+hardcoded_codes:
+  - cc_guaranteed
+  - company_guaranteed
+  - deposit_guaranteed
+  - non_guaranteed
+  - travel_agent_guaranteed
+
+steps:
+  - id: "01-render-readonly-table"
+    status: ok
+    action: >
+      Navigate /configuration/guarantee-codes in ru + en. Assert
+      config-guarantee-codes-title + subtitle visible. Assert table visible.
+      Assert 5 rows (one per code) each containing their code identifier.
+      Assert zero requests fired to /api/guarantee-codes (endpoint does not
+      exist — positive invariant verified via request log).
+    screenshots:
+      - 20-configuration-guarantee-codes-01-render-readonly-table-ru.png
+      - 20-configuration-guarantee-codes-01-render-readonly-table-en.png
+    mutation: false
+    locale_gate: both locales read-only
+
+  - id: "02-no-crud-affordances"
+    status: ok
+    action: >
+      Assert zero buttons AND zero links with accessible name matching
+      CRUD verbs (new/create/add/edit/delete/remove + ru equivalents
+      создать/добавить/редактировать/изменить/удалить) within the page
+      wrapper (config-guarantee-codes-page). Scoped to the page wrapper to
+      exclude site-wide chrome (topbar's "New Booking" link). Documents the
+      missing CRUD UI as a positive invariant — if someone adds a "New Code"
+      button in the future, this scenario flips red and forces a re-audit.
+    screenshots: []
+    mutation: false
+    locale_gate: both locales
+
+missing_actions:
+  - action: "create guarantee code"
+    ui_path: "none"
+    api_path: "none (no /api/guarantee-codes route)"
+    workaround: "edit GUARANTEE_CODES array in page.tsx + booking-edit-form.tsx by hand + redeploy"
+    recommendation: >
+      Either (A) promote to full CRUD with a backend table + API + swap both
+      the config page and booking-edit form to fetch from the API, or
+      (B) delete the config page and centralise the enum as a shared
+      constants module imported by both consumers. See BUG-016 fix_options.
+  - action: "edit guarantee code label/description"
+    ui_path: "none"
+    api_path: "none"
+    workaround: "edit i18n keys gc.*.label / gc.*.desc in apps/web/src/lib/i18n/locales/{ru,en}.ts"
+    recommendation: "see BUG-016"
+  - action: "delete guarantee code"
+    ui_path: "none"
+    api_path: "none"
+    workaround: "remove entry from both hardcoded lists in code and redeploy"
+    recommendation: "see BUG-016"
+
+edge_cases:
+  - id: crud-ui-absent
+    description: "No create/edit/delete UI exists anywhere on the page"
+    expected: "If CRUD were expected, New/Edit/Delete affordances would be visible"
+    observed: not_tested-unimplemented
+    note: >
+      Scenario 02 asserts zero buttons/links matching CRUD verbs in the page
+      scope. This is a positive invariant — failure of this test would
+      indicate a new CRUD affordance has been added, requiring a full re-audit.
+
+  - id: api-endpoint-absent
+    description: "No /api/guarantee-codes endpoint exists"
+    expected: "If CRUD were expected, GET/POST/PUT/DELETE /api/guarantee-codes would respond"
+    observed: not_tested-unimplemented
+    note: >
+      Verified by scenario 01's request-log invariant (zero calls to
+      /api/guarantee-codes) and by grep: there is no
+      apps/api/src/routes/guarantee-codes.ts file and no registration of
+      such a route in apps/api/src/app.ts.
+
+  - id: double-source-of-truth
+    description: "5 guarantee codes are hardcoded independently in TWO files"
+    expected: "Single source of truth (shared constants module or API)"
+    observed: >
+      apps/web/src/app/configuration/guarantee-codes/page.tsx:9-33 defines the
+      5 codes as a local GUARANTEE_CODES array.
+      apps/web/src/app/bookings/[id]/edit/booking-edit-form.tsx:609-613
+      independently hardcodes the same 5 codes as <option> values.
+      If either list is edited without the other, the form accepts a value
+      that is not documented, or the docs list a value the form cannot
+      produce. Filed as BUG-016.
+    filed_as: BUG-016
+
+api_calls_observed: []
+# Explicitly empty — page is a pure server-rendered stub with no client API
+# calls. Scenario 01 asserts zero requests to /api/guarantee-codes.
+
+console_errors: []
+network_errors: []
+
+bugs:
+  - BUG-016
+
+signals:
+  l10n: ok
+  l10n_note: "All visible strings (title, subtitle, column headers, code labels, descriptions) go through t(dict, ...) in both ru + en."
+  testids_added: true
+  testids_prefix: "config-guarantee-codes-*"
+  mutations_gated_to_en: false
+  mutations_gated_to_en_note: "no mutations — page is read-only"
+  risk: LOW
+  risk_note: "read-only static page; safe to audit"
+
+help_rewrite_hints:
+  topic: configuration
+  current: ""
+  actual: |
+    /configuration/guarantee-codes is a read-only table documenting the
+    5 guarantee-code enum values used by the booking-edit form
+    (cc_guaranteed, company_guaranteed, deposit_guaranteed, non_guaranteed,
+    travel_agent_guaranteed). There is no API endpoint, no create/edit/delete
+    UI, and the same 5 codes are hardcoded a second time as <option> elements
+    in booking-edit-form.tsx. The page title "Guarantee Codes" in the
+    /configuration hub creates an expectation of CRUD that the product does
+    not fulfil.
+  rewrite: |
+    Either remove the /configuration/guarantee-codes page entirely (codes are
+    an enum, not a configurable resource) and centralise the enum as shared
+    constants, OR promote the page to full CRUD with a database-backed
+    guarantee_codes table + API. In both cases, the booking-edit form must
+    read from the same source of truth as whatever remains. See BUG-016.
+
+retro:
+  time_minutes: 0
+  unblocker_fixes: []
+  methodology_deltas:
+    - "Sections whose audit subject is unimplemented in the product can be filed as status=missing with a minimal read-only spec that documents what exists plus positive invariants (negative-affordance assertions) to prevent silent regressions."
+
+status: missing
+last_audited: "2026-04-22"
+screenshots_dir: docs/ui-audit/screenshots/

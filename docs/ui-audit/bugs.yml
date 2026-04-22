@@ -351,3 +351,38 @@ bugs:
 
       Рекомендация: (A), потому что это единственный честный фикс и
       разблокирует сценарии 01/02 аудита Cashier без "костыльных" ветвлений.
+
+  - id: BUG-016
+    title: "guarantee-codes: CRUD not implemented; hardcoded enum duplicated in booking-edit form"
+    severity: medium
+    status: open
+    source: ui-audit/20-configuration-guarantee-codes
+    files:
+      - apps/web/src/app/configuration/guarantee-codes/page.tsx
+      - apps/web/src/app/bookings/[id]/edit/booking-edit-form.tsx
+    lines: "page.tsx:1-76; booking-edit-form.tsx:609-613"
+    summary: |
+      /configuration/guarantee-codes is a read-only docs table of 5 hardcoded
+      codes (cc_guaranteed, company_guaranteed, deposit_guaranteed,
+      non_guaranteed, travel_agent_guaranteed). No API route exists
+      (no apps/api/src/routes/guarantee-codes.ts, no GET/POST/PUT/DELETE
+      /api/guarantee-codes endpoint). The booking-edit form independently
+      hardcodes the same 5 codes as <option> elements at
+      booking-edit-form.tsx:609-613 — so the config page is not even the
+      source of truth for the enum it documents. Consistency is maintained
+      only by developer vigilance.
+    repro: |
+      1. Open /configuration/guarantee-codes — note static list, no edit/delete UI.
+      2. curl -s http://localhost:3001/api/guarantee-codes → 404 (route not registered).
+      3. Open apps/web/src/app/bookings/[id]/edit/booking-edit-form.tsx:609-613
+         → observe same 5 codes hardcoded as <option> values.
+    fix_options:
+      - "(A) Promote to full CRUD: add guarantee_codes table + API + swap both
+        the config page and booking-edit form to fetch from the API. Resolves
+        both the missing CRUD and the double-hardcoded enum."
+      - "(B) Keep as enum: delete /configuration/guarantee-codes page (it
+        documents an enum that lives in the codebase), and instead
+        centralise the enum in a shared constants module imported by both
+        booking-edit-form and any future display UI. Resolves the double-
+        hardcoded enum but not the 'why is there a config page for this'
+        expectation."
