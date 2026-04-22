@@ -93,13 +93,16 @@ async function seed() {
   console.log("Seeding database...");
 
   // Clear in reverse FK order
+  // FK chain: folio_transactions.cashier_session_id → cashier_sessions.id
+  // cashier_sessions.user_id → users.id
+  // So: folio_transactions → cashier_sessions → users
   await db.delete(sessions);
+  await db.delete(folioTransactions);
+  await db.delete(cashierSessions);
   await db.delete(users);
   await db.delete(hkTasks);
   await db.delete(ratePlanPackages);
   await db.delete(packages);
-  await db.delete(folioTransactions);
-  await db.delete(cashierSessions);
   await db.delete(folioWindows);
   await db.delete(transactionCodes);
   await db.delete(businessDates);
