@@ -133,7 +133,7 @@ export function Topbar() {
           </span>
         )}
 
-        <Link href="/bookings/new" className="btn sm primary">
+        <Link href="/bookings/new" className="btn sm primary" data-testid="topbar-new-booking">
           <Icon name="plus" size={12} />
           <span>{t(dict, "topbar.newBooking")}</span>
         </Link>
@@ -154,11 +154,12 @@ export function Topbar() {
           onClick={toggle}
           title={t(dict, "topbar.theme.toggle")}
           aria-label={t(dict, "topbar.theme.toggle")}
+          data-testid="topbar-theme-toggle"
         >
           <Icon name={theme === "dark" ? "sun" : "moon"} />
         </button>
 
-        <div style={{ display: "flex", gap: 2 }}>
+        <div style={{ display: "flex", gap: 2 }} data-testid="topbar-locale-toggle">
           {LOCALES.map(({ code, label }) => (
             <button
               key={code}
@@ -166,6 +167,8 @@ export function Topbar() {
               onClick={() => setLocale(code)}
               className={`chip${locale === code ? " on" : ""}`}
               style={{ cursor: "pointer" }}
+              data-testid={`topbar-locale-${code}`}
+              aria-pressed={locale === code}
             >
               {label}
             </button>

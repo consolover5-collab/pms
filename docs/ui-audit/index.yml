@@ -125,15 +125,15 @@ sections:
     priority: P2
   - id: "24"
     file: features/24-i18n-theme.yml
-    status: pending
+    status: ok
     bugs: 0
     priority: P2
 
 totals:
   sections: 24
-  ok: 19
+  ok: 20
   partial: 2
   broken: 1
   missing: 1
-  pending: 1
+  pending: 0
   bugs: 12

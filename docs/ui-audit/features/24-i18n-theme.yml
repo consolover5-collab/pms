@@ -1,0 +1,219 @@
+id: 24-i18n-theme
+title: "i18n + theme (cross-cutting)"
+route: null   # cross-cutting — samples /, /bookings, /housekeeping, /configuration/property, /rooms
+depends_on: []
+locales_tested: [ru, en]
+
+ui:
+  header:
+    ru: "—"
+    en: "—"
+  note: >
+    Section 24 is a cross-cutting audit — it has no single route. It validates
+    three behaviours across sampled pages:
+      1) Locale toggle works (ru ↔ en re-renders UI strings client-side)
+      2) Theme toggle works (data-theme attribute flips on <html>)
+      3) No Russian chrome text leaks through in en locale (regression gate
+         for BUG-012/013/014 fixed during Batch-C preflight commit dbd1563)
+
+    IMPORTANT discovery while writing this spec: clicking the locale chip
+    does NOT re-render server components. LocaleProvider (client) updates
+    a cookie + React state, so anything rendered via useLocale() re-renders
+    immediately — but Next.js server components read the locale via
+    getLocale() from next/headers at render time, and do NOT re-render on
+    setLocale() alone. They only pick up the new locale on the NEXT
+    navigation. Scenario 01 works around this by sampling three topbar
+    strings (all client-rendered via useLocale) rather than page h1s.
+    This is worth knowing for future audits.
+
+    Theme IS implemented (grep apps/web/src/components/theme-provider.tsx
+    + topbar.tsx confirms a working toggle with localStorage persistence).
+    Scenario 02 therefore runs, not skipped.
+
+  testids:
+    - { id: topbar-locale-toggle,  element: "div wrapping locale chips",     added: true }
+    - { id: topbar-locale-en,      element: "button (EN chip)",              added: true }
+    - { id: topbar-locale-ru,      element: "button (RU chip)",              added: true }
+    - { id: topbar-theme-toggle,   element: "button (sun/moon icon)",        added: true }
+    - { id: topbar-new-booking,    element: "Link (topbar 'New booking')",   added: true }
+  required_fields: []
+  optional_fields: []
+  buttons:
+    newBooking:
+      ru: "Новое бронирование"
+      en: "New booking"
+    themeToggleAria:
+      ru: "Переключить тему"
+      en: "Toggle theme"
+    searchbox:
+      ru: "Поиск по бронированиям, гостям, номерам…"
+      en: "Search bookings, guests, rooms…"
+
+steps:
+  - id: "01-locale-toggle"
+    status: ok
+    action: >
+      On /bookings, observe the three sampled topbar strings in the starting
+      locale (new-booking button text, theme-toggle aria-label, searchbox
+      button text). Click the OTHER locale chip; assert (a) all three strings
+      changed, (b) each now matches the expected localized string, and (c)
+      the `locale` cookie flipped to the new value. No page navigation — the
+      re-render is driven purely by LocaleProvider's React state.
+    screenshots:
+      - 24-i18n-theme-01-locale-before-ru.png
+      - 24-i18n-theme-01-locale-before-en.png
+      - 24-i18n-theme-01-locale-after-ru.png
+      - 24-i18n-theme-01-locale-after-en.png
+    mutation: false
+    locale_gate: both locales
+
+  - id: "02-theme-toggle"
+    status: ok
+    action: >
+      On /, read <html data-theme> after mount (must be 'light' or 'dark' —
+      ThemeProvider sets it via useEffect). Click topbar-theme-toggle; poll
+      data-theme until it flips. Click again; assert it returns to the
+      starting value. No localStorage assertion (DOM attribute is the visible
+      contract; persistence is an implementation detail).
+    screenshots:
+      - 24-i18n-theme-02-theme-before-light-ru.png
+      - 24-i18n-theme-02-theme-before-light-en.png
+      - 24-i18n-theme-02-theme-after-dark-ru.png
+      - 24-i18n-theme-02-theme-after-dark-en.png
+    mutation: false
+    locale_gate: both locales
+
+  - id: "03-no-hardcoded-strings"
+    status: ok
+    action: >
+      Visit 5 sampled pages (/, /bookings, /housekeeping,
+      /configuration/property, /rooms). In the en project, scan curated
+      chrome selectors (h1/h2/h3, button, nav a, label, th, [role=tab],
+      [aria-label], input/textarea placeholder, plus aria-label/title
+      attributes) and fail if any Cyrillic character is found. tbody/table-
+      row descendants are excluded so guest-name user content doesn't
+      produce false positives. Screenshots captured for both locales as
+      visual evidence parity. Zero leaks observed on 2026-04-22.
+    screenshots:
+      - 24-i18n-theme-03-dashboard-en.png
+      - 24-i18n-theme-03-dashboard-ru.png
+      - 24-i18n-theme-03-bookings-en.png
+      - 24-i18n-theme-03-bookings-ru.png
+      - 24-i18n-theme-03-housekeeping-en.png
+      - 24-i18n-theme-03-housekeeping-ru.png
+      - 24-i18n-theme-03-config-property-en.png
+      - 24-i18n-theme-03-config-property-ru.png
+      - 24-i18n-theme-03-rooms-en.png
+      - 24-i18n-theme-03-rooms-ru.png
+    mutation: false
+    locale_gate: both locales (assert fires en-only; ru run is screenshot-only)
+
+edge_cases:
+  - id: server-component-stale-after-locale-toggle
+    description: "Clicking locale chip does not re-render server components"
+    expected: >
+      Ideally every string on the page flips instantly when the user clicks
+      EN/RU, including h1 headings rendered by server components.
+    observed: >
+      LocaleProvider (apps/web/src/components/locale-provider.tsx) updates
+      the `locale` cookie + React state. Client components subscribed via
+      useLocale() re-render immediately. However Next.js server components
+      that use `getLocale()` from next/headers (e.g.
+      apps/web/src/app/bookings/page.tsx renders an h1 via server-side
+      t(dict, "nav.bookings")) do NOT re-render — they only pick up the new
+      locale on the NEXT navigation. Not filed as a bug: (a) it's a Next.js
+      RSC architectural property, not an app bug; (b) the user-facing impact
+      is bounded — a fresh click into any link gets the correct locale; (c)
+      fixing it cleanly would require either router.refresh() after setLocale
+      or moving page-level titles into client components. Left as-is; spec
+      works around it by sampling topbar strings.
+
+  - id: theme-implemented
+    description: "Theme toggle exists and works"
+    expected: "Theme toggle button flips between light and dark"
+    observed: >
+      Verified at apps/web/src/components/theme-provider.tsx (ThemeProvider
+      + toggle) and topbar.tsx (button binds to toggle). data-theme attribute
+      on <html> is authoritative; localStorage key "pms-theme" persists the
+      choice. Scenario 02 asserts DOM flip only — the visual contract is
+      what users see, and localStorage is an implementation detail.
+
+  - id: guest-name-cyrillic-exclusion
+    description: "Cyrillic in guest-name rows is NOT a leak"
+    expected: "Scanner should not flag user-content Cyrillic text"
+    observed: >
+      /bookings and /configuration/profiles render guest-name data that can
+      legitimately be Russian text even in en locale (Opera DB legacy). The
+      scanner in scanChromeForCyrillic() walks up the DOM from each match
+      and skips any element inside <tbody> (or with data-user-content=true,
+      reserved for future explicit markers). On 2026-04-22 with /bookings
+      showing 50 rows of real seed data, no false positives were recorded.
+
+  - id: preflight-regression-gate
+    description: "BUG-012/013/014 fixes held"
+    expected: "No Russian text on booking-tabs, hk-priority-badge, folio"
+    observed: >
+      Scenarios 03-bookings-en and 03-housekeeping-en spot-check the exact
+      pages that leaked in the preflight (commit dbd1563). Zero Cyrillic
+      found. The scan is coarser than a pinned assertion (it reads chrome
+      selectors across the page rather than asserting specific fixed
+      strings), so it will also catch NEW leaks that match the same pattern.
+
+missing_actions: []
+
+api_calls_observed:
+  # Extracted from audit-data/24-i18n-theme-errors.json after 2026-04-22 run.
+  # Section samples multiple pages; each navigation triggers the same layout
+  # chrome calls. No page-specific mutation calls because every scenario is
+  # zero-mutation.
+  - { method: GET,  path: "/api/auth/me",      status: 200, note: "auth-provider session probe; fires on every logged-in page" }
+  - { method: GET,  path: "/api/properties",   status: 200, note: "topbar business-date fetches property id" }
+  - { method: GET,  path: "/api/business-date?propertyId=...", status: 200, note: "topbar business-date badge" }
+
+console_errors: []
+network_errors: []
+
+bugs: []
+# No new bugs filed. Scenario 03 observed zero Cyrillic chrome leaks across
+# all five sampled pages in en locale — the P1 preflight fixes (BUG-012,
+# BUG-013, BUG-014 from commit dbd1563) have held. Future regressions that
+# introduce new leaks will be caught by this spec's 03-no-hardcoded-strings
+# scenario and should be filed as BUG-018+.
+
+help_rewrite_hints:
+  topic: null
+  current: ""
+  actual: ""
+  rewrite: |
+
+retro:
+  time_minutes: 0
+  unblocker_fixes:
+    - >
+      Added data-testid to topbar.tsx for locale-toggle wrapper, locale-en
+      chip, locale-ru chip, theme-toggle button, and new-booking link.
+      Also added aria-pressed to the locale chips so the toggle state is
+      exposed to assistive tech. Pure additive — no CSS or behavioural
+      change.
+  methodology_deltas:
+    - >
+      Cross-cutting audits that sample multiple pages need a curated chrome
+      selector set — scanning document.body wholesale false-positives on
+      guest names. Walking up from each match to exclude tbody descendants
+      (plus a future-proof data-user-content opt-in) is a cheap, robust
+      filter.
+    - >
+      When asserting locale re-renders, pin CLIENT-rendered strings only
+      (useLocale() subscribers, typically in topbar/sidebar/providers).
+      Server-component strings (getLocale() from next/headers) will not
+      re-render on setLocale() without a navigation. Noted in edge_cases;
+      worth citing in a future methodology update.
+    - >
+      Regression gates for preflight fixes (BUG-012/013/014 here) are best
+      expressed as pattern scans rather than pinned-string assertions —
+      the scan catches new leaks of the same shape with no extra
+      maintenance.
+
+status: ok
+last_audited: "2026-04-22"
+screenshots_dir: docs/ui-audit/screenshots/
