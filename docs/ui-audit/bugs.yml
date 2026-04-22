@@ -3,6 +3,54 @@
 # Каждый новый баг также дублируется в /home/oci/pms/docs/backlog.json как BUG-xxx.
 
 bugs:
+  - id: BUG-001
+    title: "Auth plugin отключён — API-уровень preHandler guard не зарегистрирован"
+    severity: critical
+    status: deferred
+    defer_reason: "Намеренно отключено до принятия решений по MVP-релизу и полной готовности frontend auth UI (login, SSR cookie forwarding, session handling). Комментарий-решение оставлен в apps/api/src/app.ts:30-34."
+    source: pre-audit/A7
+    file: apps/api/src/app.ts
+    lines: "5, 34"
+    description: |
+      authPlugin закомментирован в buildApp(): `// await app.register(authPlugin);`.
+      Auth routes (/api/auth/login, /logout, /me) продолжают работать, но
+      preHandler guard, который блокирует неаутентифицированные запросы
+      и заполняет request.user, пропущен. Routes, которые не проверяют
+      request.user самостоятельно, открыты без аутентификации; routes,
+      которые делают `request.user?.id`, получают undefined и ведут себя
+      в зависимости от собственной логики (см. BUG-015 для cashier).
+    related: "BUG-015 — cashier.ts написан после этого решения и не
+      обрабатывает отсутствие request.user, в результате /api/cashier/current
+      возвращает 401. Активация auth plugin требует ревизии каждого route
+      на предмет consistency."
+    fix: |
+      Раскомментировать `await app.register(authPlugin);` в app.ts:34
+      ОДНОВРЕМЕННО с полной готовностью frontend auth UI. Параллельно
+      аудит всех routes на поведение при наличии vs отсутствии
+      request.user (см. BUG-015 для cashier-specific пример).
+
+  - id: BUG-002
+    title: "Отсутствуют DB-level CHECK constraints — валидация только на уровне API"
+    severity: high
+    status: open
+    source: pre-audit/A6
+    files:
+      - packages/db/src/schema/bookings.ts
+      - packages/db/src/schema/financial.ts
+      - packages/db/src/schema/rooms.ts
+    description: |
+      В Drizzle-схемах нет sql`check(...)` constraints: не проверяется
+      checkInDate < checkOutDate, adults > 0, корректность enum статусов
+      на уровне БД. В financial.ts нет XOR constraint на debit/credit
+      (оба могут быть > 0 одновременно). Валидация выполняется только
+      в API-слое (Zod schemas), что обходится через прямые INSERT'ы
+      в БД (миграции, ручные операции в psql, будущие background jobs).
+    fix: |
+      Добавить sql`check(...)` выражения в schema definitions +
+      создать Drizzle migration, восстанавливающую constraints на
+      существующей БД. Начать с financial.ts XOR (наивысший риск
+      неконсистентности) и bookings.ts date-range check.
+
   - id: BUG-003
     title: "Search form на /bookings не локализована"
     severity: low

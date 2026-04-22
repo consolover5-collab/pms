@@ -5,29 +5,31 @@
   "items": [
     {
       "id": "BUG-001",
-      "title": "Auth plugin отключён — API полностью открыто",
+      "title": "Auth plugin отключён — API-уровень preHandler guard не зарегистрирован",
       "severity": "critical",
       "status": "deferred",
-      "defer_reason": "Намеренно отключено до принятия решений по MVP-релизу",
-      "source": "A7",
-      "file": "apps/api/src/app.ts",
-      "lines": "6-7, 35-36",
-      "description": "authPlugin закомментирован: `// await app.register(authPlugin)`. Все эндпоинты доступны без аутентификации. Folio транзакции постятся от hardcoded 'user:front_desk' вместо request.user.id.",
-      "fix": "Раскомментировать import и register authPlugin. Заменить hardcoded userId в folio.ts на request.user.id."
+      "source": "pre-audit/A7",
+      "files": [
+        "apps/api/src/app.ts"
+      ],
+      "lines": "5, 34",
+      "description": "authPlugin закомментирован в buildApp(): `// await app.register(authPlugin);`.\nAuth routes (/api/auth/login, /logout, /me) продолжают работать, но\npreHandler guard, который блокирует неаутентифицированные запросы\nи заполняет request.user, пропущен. Routes, которые не проверяют\nrequest.user самостоятельно, открыты без аутентификации; routes,\nкоторые делают `request.user?.id`, получают undefined и ведут себя\nв зависимости от собственной логики (см. BUG-015 для cashier).",
+      "fix": "Раскомментировать `await app.register(authPlugin);` в app.ts:34\nОДНОВРЕМЕННО с полной готовностью frontend auth UI. Параллельно\nаудит всех routes на поведение при наличии vs отсутствии\nrequest.user (см. BUG-015 для cashier-specific пример).",
+      "defer_reason": "Намеренно отключено до принятия решений по MVP-релизу и полной готовности frontend auth UI (login, SSR cookie forwarding, session handling). Комментарий-решение оставлен в apps/api/src/app.ts:30-34."
     },
     {
       "id": "BUG-002",
-      "title": "Нет CHECK constraints в схеме БД",
+      "title": "Отсутствуют DB-level CHECK constraints — валидация только на уровне API",
       "severity": "high",
       "status": "open",
-      "source": "A6",
+      "source": "pre-audit/A6",
       "files": [
         "packages/db/src/schema/bookings.ts",
         "packages/db/src/schema/financial.ts",
         "packages/db/src/schema/rooms.ts"
       ],
-      "description": "Нет DB-level валидации: не проверяется checkInDate < checkOutDate, adults > 0, enum статусов. В financial.ts нет XOR constraint на debit/credit (оба могут быть > 0 одновременно). Валидация только на уровне API — её можно обойти.",
-      "fix": "Добавить sql`check(...)` в schema + Drizzle migration."
+      "description": "В Drizzle-схемах нет sql`check(...)` constraints: не проверяется\ncheckInDate < checkOutDate, adults > 0, корректность enum статусов\nна уровне БД. В financial.ts нет XOR constraint на debit/credit\n(оба могут быть > 0 одновременно). Валидация выполняется только\nв API-слое (Zod schemas), что обходится через прямые INSERT'ы\nв БД (миграции, ручные операции в psql, будущие background jobs).",
+      "fix": "Добавить sql`check(...)` выражения в schema definitions +\nсоздать Drizzle migration, восстанавливающую constraints на\nсуществующей БД. Начать с financial.ts XOR (наивысший риск\nнеконсистентности) и bookings.ts date-range check."
     },
     {
       "id": "BUG-003",
