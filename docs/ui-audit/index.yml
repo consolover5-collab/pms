@@ -16,7 +16,7 @@ sections:
   - id: "02"
     file: features/02-bookings-list.yml
     status: ok
-    bugs: 1
+    bugs: 0
     priority: P0
   - id: "03"
     file: features/03-booking-create.yml
@@ -31,22 +31,22 @@ sections:
   - id: "05"
     file: features/05-booking-edit.yml
     status: ok
-    bugs: 1
+    bugs: 0
     priority: P1
   - id: "06"
     file: features/06-checkin-checkout.yml
     status: ok
-    bugs: 1
+    bugs: 0
     priority: P0
   - id: "07"
     file: features/07-rooms-list.yml
     status: ok
-    bugs: 1
+    bugs: 0
     priority: P1
   - id: "08"
     file: features/08-room-detail.yml
     status: ok
-    bugs: 1
+    bugs: 0
     priority: P1
   - id: "09"
     file: features/09-housekeeping.yml
@@ -81,12 +81,12 @@ sections:
   - id: "15"
     file: features/15-configuration-property.yml
     status: ok
-    bugs: 1
+    bugs: 0
     priority: P1
   - id: "16"
     file: features/16-configuration-room-types.yml
     status: ok
-    bugs: 1
+    bugs: 0
     priority: P1
   - id: "17"
     file: features/17-configuration-rate-plans.yml
@@ -96,7 +96,7 @@ sections:
   - id: "18"
     file: features/18-configuration-transaction-codes.yml
     status: ok
-    bugs: 1
+    bugs: 0
     priority: P1
   - id: "19"
     file: features/19-configuration-packages.yml
@@ -106,17 +106,17 @@ sections:
   - id: "20"
     file: features/20-configuration-guarantee-codes.yml
     status: missing
-    bugs: 1
+    bugs: 0
     priority: P2
   - id: "21"
     file: features/21-configuration-profiles.yml
-    status: partial
-    bugs: 1
+    status: ok
+    bugs: 0
     priority: P2
   - id: "22"
     file: features/22-help.yml
     status: ok
-    bugs: 1
+    bugs: 0
     priority: P1
   - id: "23"
     file: features/23-login.yml
@@ -131,9 +131,9 @@ sections:
 
 totals:
   sections: 24
-  ok: 20
-  partial: 2
+  ok: 21
+  partial: 1
   broken: 1
   missing: 1
   pending: 0
-  bugs: 12
+  bugs: 1

@@ -35,7 +35,7 @@
       "id": "BUG-003",
       "title": "Search form на /bookings не локализована",
       "severity": "low",
-      "status": "open",
+      "status": "closed",
       "source": "ui-audit/02-bookings-list",
       "files": [
         "apps/web/src/app/bookings/search-form.tsx"
@@ -48,7 +48,7 @@
       "id": "BUG-004",
       "title": "'Force check-in' button in dirty-warning modal doesn't bypass API gate",
       "severity": "medium",
-      "status": "open",
+      "status": "closed",
       "source": "ui-audit/06-checkin-checkout",
       "files": [
         "apps/api/src/routes/bookings.ts"
@@ -61,7 +61,7 @@
       "id": "BUG-005",
       "title": "Booking edit page не локализована (форма + заголовок)",
       "severity": "low",
-      "status": "open",
+      "status": "closed",
       "source": "ui-audit/05-booking-edit",
       "files": [
         "apps/web/src/app/bookings/[id]/edit/booking-edit-form.tsx",
@@ -74,7 +74,7 @@
       "id": "BUG-006",
       "title": "Rooms list page не локализована — все лейблы хардкод на английском",
       "severity": "low",
-      "status": "open",
+      "status": "closed",
       "source": "ui-audit/07-rooms-list",
       "files": [
         "apps/web/src/app/rooms/page.tsx"
@@ -86,7 +86,7 @@
       "id": "BUG-007",
       "title": "Room detail page частично локализована — hkStatusLabels и вспомогательные лейблы захардкожены",
       "severity": "low",
-      "status": "open",
+      "status": "closed",
       "source": "ui-audit/08-room-detail",
       "files": [
         "apps/web/src/app/rooms/[id]/page.tsx",
@@ -99,7 +99,7 @@
       "id": "BUG-009",
       "title": "Detail page /configuration/room-types/[id] рендерится полностью на английском",
       "severity": "low",
-      "status": "open",
+      "status": "closed",
       "source": "ui-audit/16-configuration-room-types",
       "files": [
         "apps/web/src/app/configuration/room-types/[id]/page.tsx"
@@ -112,7 +112,7 @@
       "id": "BUG-010",
       "title": "Transaction codes: badge-text и group-code options показываются hardcoded (не локализованы)",
       "severity": "low",
-      "status": "open",
+      "status": "closed",
       "source": "ui-audit/18-configuration-transaction-codes",
       "files": [
         "apps/web/src/app/configuration/transaction-codes/page.tsx",
@@ -126,7 +126,7 @@
       "id": "BUG-011",
       "title": "Help hub status-reference: hardcoded English keywords in localized legend",
       "severity": "low",
-      "status": "open",
+      "status": "closed",
       "source": "ui-audit/22-help",
       "files": [
         "apps/web/src/app/help/page.tsx"
@@ -139,7 +139,7 @@
       "id": "BUG-012",
       "title": "Booking detail tabs: LabVal labels и stay-tab values не локализованы (Email/Nights/Guests/Room Type/Not assigned/adults/children/Design in progress)",
       "severity": "low",
-      "status": "open",
+      "status": "closed",
       "source": "ui-audit/preflight-batch-d",
       "files": [
         "apps/web/src/app/bookings/[id]/booking-tabs.tsx"
@@ -152,7 +152,7 @@
       "id": "BUG-013",
       "title": "Housekeeping board: Rush / VIP hardcoded strings на карточке высокоприоритетной задачи",
       "severity": "low",
-      "status": "open",
+      "status": "closed",
       "source": "ui-audit/preflight-batch-d",
       "files": [
         "apps/web/src/app/housekeeping/housekeeping-client.tsx"
@@ -165,7 +165,7 @@
       "id": "BUG-014",
       "title": "Folio section: payeeType / paymentMethod / auto-badge рендерятся сырыми snake_case-значениями",
       "severity": "low",
-      "status": "open",
+      "status": "closed",
       "source": "ui-audit/preflight-batch-d",
       "files": [
         "apps/web/src/app/bookings/[id]/folio-section.tsx"
@@ -178,7 +178,7 @@
       "id": "BUG-008",
       "title": "Property form не может сохранить форму при оригинальном seed (numberOfRooms mismatch)",
       "severity": "medium",
-      "status": "open",
+      "status": "closed",
       "source": "ui-audit/15-configuration-property",
       "files": [
         "apps/api/src/routes/properties.ts",
@@ -207,7 +207,7 @@
       "id": "BUG-016",
       "title": "guarantee-codes: CRUD not implemented; hardcoded enum duplicated in booking-edit form",
       "severity": "medium",
-      "status": "open",
+      "status": "closed",
       "source": "ui-audit/20-configuration-guarantee-codes",
       "files": [
         "apps/web/src/app/configuration/guarantee-codes/page.tsx",
@@ -219,7 +219,7 @@
       "id": "BUG-017",
       "title": "config/profiles: list truncated to 50 of 153 rows; no pagination, no limit param",
       "severity": "medium",
-      "status": "open",
+      "status": "closed",
       "source": "ui-audit/21-configuration-profiles",
       "files": [
         "apps/web/src/app/configuration/profiles/page.tsx",
