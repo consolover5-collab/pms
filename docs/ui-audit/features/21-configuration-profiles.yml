@@ -20,9 +20,13 @@ ui:
                                    activate/deactivate row)
       i18n namespace guests.*     i18n namespace profiles.*
       PAGE_SIZE=50 + pagination   NO limit param, NO pagination — 50 rows
-                                   render out of 153 (BUG-017)
+      (verified below)             render out of 153 (BUG-017)
     Source-verified 2026-04-22:
       - apps/web/src/app/guests/page.tsx:38-39 hardcodes type=individual.
+      - apps/web/src/app/guests/page.tsx:41 sets limit=PAGE_SIZE=50; lines
+        192-232 render prev/next pagination controls (gated on totalPages>1,
+        using `total` from the API response). This is the verified baseline
+        that /configuration/profiles diverges from.
       - apps/web/src/app/configuration/profiles/page.tsx:27-31 does NOT
         hardcode type — filter is ?type= via tab switcher.
       - profiles-list.tsx builds 5 tabs (all + 4 types) and renders inline
@@ -212,7 +216,9 @@ retro:
     - "Discovered that page.tsx omits ?limit=; initial test hardcoded total=153 and failed with actual=50. Adapted to assert rendered=50 and filed BUG-017."
   methodology_deltas:
     - "When a page reads from a shared API but renders its own view, assert against the rendered UI count (profiles.length), not the API's DB total. Divergence between the two becomes its own bug signal."
+  status_classification:
+    - "Status `partial` (not `ok`) because `01-load-view` shows 50 of 153 profiles silently — no pagination UI, no `showing N of M`, no signal that 103 rows are hidden. That is a functional UX gap on the happy path, not polish. Tracked in BUG-017. Scenario-level `status: ok` fields are kept as-is because each scenario's own assertions pass; the gap is section-level."
 
-status: ok
+status: partial
 last_audited: "2026-04-22"
 screenshots_dir: docs/ui-audit/screenshots/

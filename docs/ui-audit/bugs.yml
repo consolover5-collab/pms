@@ -408,12 +408,13 @@ bugs:
       array size), not the DB total — users see no indication that 103 rows
       are silently hidden.
 
-      There is no pagination UI on this page (unlike /guests which sets
-      limit=50 AND renders prev/next pagination controls with a total count
-      from the API response). Tab-switching (individual/company/travel_agent/
-      source) works around the issue for 3 of 4 types because their per-type
-      totals are ≤ 50, but individuals (133) are truncated on the "All" and
-      "Guests" tabs.
+      There is no pagination UI on this page. For scope, the only other
+      verified fact in this report is that /guests explicitly sets
+      limit=PAGE_SIZE=50 in apps/web/src/app/guests/page.tsx:41; pagination
+      behaviour on that sibling page is outside this bug's scope.
+      Tab-switching (individual/company/travel_agent/source) works around
+      the issue for 3 of 4 types because their per-type totals are ≤ 50,
+      but individuals (133) are truncated on the "All" and "Guests" tabs.
       severity: medium because data is silently hidden and the UI gives no
       signal (no "showing 50 of 153", no next page, no sort).
     repro: |
@@ -430,6 +431,9 @@ bugs:
       - "(B) Request all profiles at once: set &limit=500 (or unbounded)
         in page.tsx. Simpler but scales badly — at 500+ profiles the page
         weight and render cost grow unboundedly."
-      - "(C) Show the badge as API total (from the response.total field,
-        not profiles.length) so the mismatch is at least visible, combined
-        with either (A) or (B)."
+      - "(C, companion to A or B, not a standalone fix): show the count
+        badge as the API's `total` field instead of `profiles.length`. On
+        its own this just surfaces the gap (badge \"153\" next to a 50-row
+        list) — it only becomes a real fix when paired with (A) pagination
+        UI or (B) `?limit=<large>` so the user can actually reach the
+        hidden 103 rows."

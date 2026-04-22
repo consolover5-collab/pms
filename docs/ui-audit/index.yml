@@ -110,7 +110,7 @@ sections:
     priority: P2
   - id: "21"
     file: features/21-configuration-profiles.yml
-    status: ok
+    status: partial
     bugs: 1
     priority: P2
   - id: "22"
@@ -131,8 +131,8 @@ sections:
 
 totals:
   sections: 24
-  ok: 19
-  partial: 1
+  ok: 18
+  partial: 2
   broken: 1
   missing: 1
   pending: 2
