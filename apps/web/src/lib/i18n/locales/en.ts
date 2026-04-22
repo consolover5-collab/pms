@@ -720,6 +720,10 @@ export const en = {
   "bookings.edit.locked.occupancy": "Cannot change occupancy after check-in",
   "bookings.edit.locked.guarantee": "Cannot change guarantee for completed bookings",
   "bookings.edit.locked.payment": "Cannot change payment for completed bookings",
+  "profiles.showing": "Showing {from}–{to} of {total}",
+  "profiles.prev": "Previous",
+  "profiles.next": "Next",
+  "profiles.pageOf": "Page {current} of {total}",
 
   // Configuration hub
   "config.title": "Configuration",

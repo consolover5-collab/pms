@@ -722,6 +722,10 @@ export const ru: Dictionary = {
   "bookings.edit.locked.occupancy": "Количество гостей нельзя менять после заселения",
   "bookings.edit.locked.guarantee": "Гарантию нельзя менять для завершённых броней",
   "bookings.edit.locked.payment": "Способ оплаты нельзя менять для завершённых броней",
+  "profiles.showing": "Показаны {from}–{to} из {total}",
+  "profiles.prev": "Назад",
+  "profiles.next": "Далее",
+  "profiles.pageOf": "Страница {current} из {total}",
 
   // Configuration hub
   "config.title": "Настройки",

@@ -30,10 +30,12 @@ const typeBadgeClass: Record<string, string> = {
 
 export function ProfilesList({
   profiles,
+  total,
   initialType,
   initialSearch,
 }: {
   profiles: Profile[];
+  total: number;
   initialType: string;
   initialSearch: string;
 }) {
@@ -156,7 +158,7 @@ export function ProfilesList({
           <div className="card-title">
             {t(dict, "profiles.title")}{" "}
             <span className="count" data-testid="config-profiles-count">
-              {profiles.length}
+              {total}
             </span>
           </div>
         </div>

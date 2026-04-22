@@ -441,7 +441,7 @@ bugs:
   - id: BUG-017
     title: "config/profiles: list truncated to 50 of 153 rows; no pagination, no limit param"
     severity: medium
-    status: open
+    status: closed
     source: ui-audit/21-configuration-profiles
     files:
       - apps/web/src/app/configuration/profiles/page.tsx

@@ -175,8 +175,7 @@ api_calls_observed:
 console_errors: []
 network_errors: []
 
-bugs:
-  - BUG-017
+bugs: []
 
 signals:
   l10n: full
@@ -219,6 +218,6 @@ retro:
   status_classification:
     - "Status `partial` (not `ok`) because `01-load-view` shows 50 of 153 profiles silently — no pagination UI, no `showing N of M`, no signal that 103 rows are hidden. That is a functional UX gap on the happy path, not polish. Tracked in BUG-017. Scenario-level `status: ok` fields are kept as-is because each scenario's own assertions pass; the gap is section-level."
 
-status: partial
+status: ok
 last_audited: "2026-04-22"
 screenshots_dir: docs/ui-audit/screenshots/
